@@ -15,6 +15,7 @@
 #ifndef _az_CORE_H
 #define _az_CORE_H
 
+#include <az_base64.h>
 #include <az_config.h>
 #include <az_context.h>
 #include <az_credentials.h>

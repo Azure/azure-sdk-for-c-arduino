@@ -68,7 +68,7 @@ enum
 /**
  * @brief Azure IoT service status codes.
  *
- * @note https://docs.microsoft.com/en-us/azure/iot-central/core/troubleshoot-connection#error-codes
+ * @note https://docs.microsoft.com/azure/iot-central/core/troubleshoot-connection#error-codes
  *
  */
 typedef enum
@@ -115,7 +115,7 @@ typedef enum
 
 /// Used in distributed tracing.
 /// @note More information here:
-/// https://docs.microsoft.com/en-us/azure/iot-hub/iot-hub-distributed-tracing.
+/// https://docs.microsoft.com/azure/iot-hub/iot-hub-distributed-tracing.
 /// @note It can be used with IoT message property APIs by wrapping the macro in a
 /// #AZ_SPAN_FROM_STR macro as a parameter, where needed.
 #define AZ_IOT_MESSAGE_PROPERTIES_CORRELATION_ID "%24.cid"
@@ -139,6 +139,11 @@ typedef enum
 /// @note It can be used with IoT message property APIs by wrapping the macro in a
 /// #AZ_SPAN_FROM_STR macro as a parameter, where needed.
 #define AZ_IOT_MESSAGE_PROPERTIES_CREATION_TIME "%24.ctime"
+
+/// Name of the component
+/// @note It can be used with IoT message property APIs by wrapping the macro in a
+/// #AZ_SPAN_FROM_STR macro as a parameter, where needed.
+#define AZ_IOT_MESSAGE_COMPONENT_NAME "%24.sub"
 
 /**
  * @brief Telemetry or C2D properties.

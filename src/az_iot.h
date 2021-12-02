@@ -17,6 +17,7 @@
 
 #include <az_iot_common.h>
 #include <az_iot_hub_client.h>
+#include <az_iot_hub_client_properties.h>
 #include <az_iot_provisioning_client.h>
 
 #endif // _az_IOT_CORE_H
