@@ -298,7 +298,7 @@ static void getTelemetryPayload(az_span payload, az_span* out_payload)
   az_span original_payload = payload;
 
   payload = az_span_copy(
-      payload, AZ_SPAN_FROM_STR("{ \"deviceId\": \"" IOT_CONFIG_DEVICE_ID "\", \"msgCount\": "));
+      payload, AZ_SPAN_FROM_STR("{ \"msgCount\": "));
   (void)az_span_u32toa(payload, telemetry_send_count++, &payload);
   payload = az_span_copy(payload, AZ_SPAN_FROM_STR(" }"));
   payload = az_span_copy_u8(payload, '\0');
