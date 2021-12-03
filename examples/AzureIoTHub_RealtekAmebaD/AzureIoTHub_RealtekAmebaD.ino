@@ -68,10 +68,10 @@ static void createNullTerminatedRootCert()
     Serial.println("Failed allocating memory for null-terminated root ca");
   }
   else
-  {}
-  
-  memcpy(ca_pem_nullterm, ca_pem, ca_pem_len);
-  ca_pem_nullterm[ca_pem_len] = '\0';
+  {
+    memcpy(ca_pem_nullterm, ca_pem, ca_pem_len);
+    ca_pem_nullterm[ca_pem_len] = '\0';
+  }
 }
 
 
@@ -309,7 +309,7 @@ static int connect_to_azure_iot_hub()
     {
       Serial.print("[ERROR] failed, status code =");
       Serial.print(mqtt_client.state());
-      Serial.println(". Try again in 5 seconds.");
+      Serial.println(". Trying again in 5 seconds.");
       // Wait 5 seconds before retrying
       delay(5000);
     }

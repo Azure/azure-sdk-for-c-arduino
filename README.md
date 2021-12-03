@@ -1,6 +1,6 @@
 # Project
 
-For more details about the Azure Embedded SDK for C please refer to the [library oficial website](https://github.com/azure/azure-sdk-for-c).
+For more details about the Azure Embedded SDK for C please refer to the [oficial library website](https://github.com/azure/azure-sdk-for-c).
 
 This library package contains the following samples.
 Please refer to their documentation for setup and execution instructions.

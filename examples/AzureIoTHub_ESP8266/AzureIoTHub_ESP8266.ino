@@ -8,7 +8,7 @@
  * 
  * To connect and work with Azure IoT Hub you need a MQTT client, connecting, subscribing
  * and publishing to specific topics to use the messaging features of the hub.
- * Our azure-sdk-for-c is a MQTT client support library, helping composing and parsing the
+ * Our azure-sdk-for-c is an MQTT client support library, helping to compose and parse the
  * MQTT topic names and messages exchanged with the Azure IoT Hub.
  *
  * This sample performs the following tasks:
@@ -109,7 +109,7 @@ static void initializeTime()
   {
     delay(500);
     Serial.print(".");
-    now = time(nullptr);
+    now = time(NULL);
   }
   Serial.println("done!");
 }
@@ -270,7 +270,7 @@ static int connectToAzureIoTHub()
     {
       Serial.print("failed, status code =");
       Serial.print(mqtt_client.state());
-      Serial.println(". Try again in 5 seconds.");
+      Serial.println(". Trying again in 5 seconds.");
       // Wait 5 seconds before retrying
       delay(5000);
     }

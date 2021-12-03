@@ -18,4 +18,6 @@ rm -Recurse -Force sdkrepo/
 
 # Update Arduino library version with SDK version.
 $SdkVersion = $(gc $SrcFolder\az_version.h | ?{ $_ -IMATCH "AZ_SDK_VERSION_STRING" }).Split()[2].Replace("`"", "")
-$(gc -Raw $LibConfigFile) -Replace "version=[0-9`.]+", "version=$SdkVersion" | out-file -Encoding ascii -Force $LibConfigFile
+$(gc -Raw $LibConfigFile) -replace "\([0-9]\.[0-9]\.[0-9][^\)]*\)", "($SdkVersion)" | out-file -Encoding ascii -Force $LibConfigFile
+
+Write-Host "You must manually update the library.properties with any new includes such as az_core.h, az_iot.h"

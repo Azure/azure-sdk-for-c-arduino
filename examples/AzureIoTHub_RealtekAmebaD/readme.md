@@ -201,4 +201,6 @@ This project welcomes contributions and suggestions. Find more contributing deta
 
 ### License
 
+This Azure SDK for C Arduino library is licensed under [MIT](https://github.com/Azure/azure-sdk-for-c-arduino/blob/main/LICENSE) license.
+
 Azure SDK for Embedded C is licensed under the [MIT](https://github.com/Azure/azure-sdk-for-c/blob/main/LICENSE) license.
