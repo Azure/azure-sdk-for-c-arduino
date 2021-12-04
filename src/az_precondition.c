@@ -25,4 +25,3 @@ az_precondition_failed_fn az_precondition_failed_get_callback()
 {
   return _az_precondition_failed_callback;
 }
-

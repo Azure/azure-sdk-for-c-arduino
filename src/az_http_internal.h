@@ -253,4 +253,3 @@ az_http_request_append_header(az_http_request* ref_request, az_span name, az_spa
 #include <_az_cfg_suffix.h>
 
 #endif // _az_HTTP_INTERNAL_H
-

@@ -167,4 +167,3 @@ AZ_NODISCARD AZ_INLINE bool az_result_succeeded(az_result result)
 #include <_az_cfg_suffix.h>
 
 #endif // _az_RESULT_H
-

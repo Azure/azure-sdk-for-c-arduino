@@ -112,4 +112,3 @@ AZ_NODISCARD AZ_INLINE _az_json_stack_item _az_json_stack_peek(_az_json_bit_stac
 #include <_az_cfg_suffix.h>
 
 #endif // _az_SPAN_PRIVATE_H
-

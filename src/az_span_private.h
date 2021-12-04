@@ -138,4 +138,3 @@ AZ_NODISCARD az_span _az_span_trim_whitespace_from_end(az_span source);
 #include <_az_cfg_suffix.h>
 
 #endif // _az_SPAN_PRIVATE_H
-

@@ -21,4 +21,3 @@
 #include <az_iot_provisioning_client.h>
 
 #endif // _az_IOT_CORE_H
-

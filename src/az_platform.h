@@ -56,4 +56,3 @@ AZ_NODISCARD az_result az_platform_sleep_msec(int32_t milliseconds);
 #include <_az_cfg_suffix.h>
 
 #endif // _az_PLATFORM_H
-

@@ -1004,4 +1004,3 @@ az_span _az_span_token(
   *out_remainder = AZ_SPAN_EMPTY;
   return source;
 }
-

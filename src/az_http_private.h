@@ -50,4 +50,3 @@ void _az_http_response_reset(az_http_response* ref_response);
 #include <_az_cfg_suffix.h>
 
 #endif // _az_HTTP_PRIVATE_H
-

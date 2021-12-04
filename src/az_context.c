@@ -89,4 +89,3 @@ AZ_NODISCARD bool az_context_has_expired(az_context const* context, int64_t curr
 
   return az_context_get_expiration(context) < current_time;
 }
-

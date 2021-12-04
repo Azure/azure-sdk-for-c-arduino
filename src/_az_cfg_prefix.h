@@ -27,4 +27,3 @@ extern "C"
 #endif // _MSC_VER
 
 #include <_az_cfg.h>
-

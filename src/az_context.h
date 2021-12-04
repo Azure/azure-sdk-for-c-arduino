@@ -119,4 +119,3 @@ az_context_get_value(az_context const* context, void const* key, void const** ou
 #include <_az_cfg_suffix.h>
 
 #endif // _az_CONTEXT_H
-

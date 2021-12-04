@@ -89,4 +89,3 @@
 #define _az_COUNTOF(array) (sizeof(array) / sizeof((array)[0]))
 
 #endif // _az_CFG_H
-

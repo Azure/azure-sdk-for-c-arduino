@@ -139,4 +139,3 @@ AZ_NODISCARD AZ_INLINE bool _az_span_overlap(az_span a, az_span b)
 #include <_az_cfg_suffix.h>
 
 #endif // _az_PRECONDITION_INTERNAL_H
-

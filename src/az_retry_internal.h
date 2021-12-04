@@ -22,4 +22,3 @@ _az_retry_calc_delay(int32_t attempt, int32_t retry_delay_msec, int32_t max_retr
 #include <_az_cfg_suffix.h>
 
 #endif // _az_RETRY_INTERNAL_H
-

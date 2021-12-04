@@ -53,4 +53,3 @@ typedef struct
 #include <_az_cfg_suffix.h>
 
 #endif // _az_CREDENTIALS_H
-

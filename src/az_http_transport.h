@@ -235,4 +235,3 @@ az_http_client_send_request(az_http_request const* request, az_http_response* re
 #include <_az_cfg_suffix.h>
 
 #endif // _az_HTTP_TRANSPORT_H
-

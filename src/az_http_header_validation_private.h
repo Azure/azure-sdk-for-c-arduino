@@ -177,4 +177,3 @@ AZ_NODISCARD AZ_INLINE bool az_http_is_valid_header_name(az_span name)
 #include <_az_cfg_suffix.h>
 
 #endif // _az_HTTP_HEADER_VALIDATION_PRIVATE_H
-

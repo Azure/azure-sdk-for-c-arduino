@@ -32,4 +32,3 @@
 #define AZ_SDK_VERSION_PRERELEASE "beta.2"
 
 #endif //_az_VERSION_H
-

@@ -116,4 +116,3 @@ AZ_NODISCARD az_result az_iot_hub_client_methods_response_get_publish_topic(
 
   return AZ_OK;
 }
-

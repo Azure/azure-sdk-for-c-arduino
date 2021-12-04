@@ -217,4 +217,3 @@ _az_span_copy_url_encode(az_span destination, az_span source, az_span* out_remai
   *out_remainder = az_span_slice(destination, length, az_span_size(destination));
   return AZ_OK;
 }
-

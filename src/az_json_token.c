@@ -599,4 +599,3 @@ AZ_NODISCARD az_result az_json_token_get_double(az_json_token const* json_token,
 
   return az_span_atod(az_span_slice(scratch, 0, _az_span_diff(remainder, scratch)), out_value);
 }
-

@@ -30,4 +30,3 @@
 #include <az_version.h>
 
 #endif //_az_CORE_H
-

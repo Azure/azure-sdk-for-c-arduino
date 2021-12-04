@@ -519,4 +519,3 @@ AZ_NODISCARD int32_t az_base64_get_max_decoded_size(int32_t source_base64_text_s
   _az_PRECONDITION(source_base64_text_size >= 0);
   return (source_base64_text_size / 4) * 3;
 }
-

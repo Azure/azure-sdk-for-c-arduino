@@ -476,4 +476,3 @@ AZ_NODISCARD az_result az_iot_provisioning_client_get_request_payload(
 #include <_az_cfg_suffix.h>
 
 #endif // _az_IOT_PROVISIONING_CLIENT_H
-

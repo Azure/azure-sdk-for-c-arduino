@@ -528,4 +528,3 @@ typedef az_result (*az_span_allocator_fn)(
 #include <_az_cfg_suffix.h>
 
 #endif // _az_SPAN_H
-

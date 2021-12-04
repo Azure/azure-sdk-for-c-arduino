@@ -29,4 +29,3 @@ AZ_NODISCARD AZ_INLINE uint8_t _az_number_to_upper_hex(uint8_t number)
 #include <_az_cfg_suffix.h>
 
 #endif // _az_HEX_PRIVATE_H
-

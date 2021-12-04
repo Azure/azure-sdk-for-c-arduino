@@ -87,4 +87,3 @@ AZ_NODISCARD int32_t az_base64_get_max_decoded_size(int32_t source_base64_text_s
 #include <_az_cfg_suffix.h>
 
 #endif // _az_BASE64_H
-

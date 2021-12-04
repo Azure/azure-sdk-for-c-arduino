@@ -219,4 +219,3 @@ AZ_NODISCARD az_result az_iot_hub_client_twin_parse_received_topic(
 
   return result;
 }
-

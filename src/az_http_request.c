@@ -206,4 +206,3 @@ AZ_NODISCARD int32_t az_http_request_headers_count(az_http_request const* reques
 {
   return request->_internal.headers_length;
 }
-

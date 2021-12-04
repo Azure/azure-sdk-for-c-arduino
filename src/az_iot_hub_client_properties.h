@@ -306,4 +306,3 @@ AZ_NODISCARD az_result az_iot_hub_client_properties_get_next_component_property(
 #include <_az_cfg_suffix.h>
 
 #endif //_az_IOT_HUB_CLIENT_PROPERTIES_H
-

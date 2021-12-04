@@ -30,4 +30,3 @@ void _az_log_write(az_log_classification classification, az_span message);
 #include <_az_cfg_suffix.h>
 
 #endif // _az_LOG_INTERNAL_H
-

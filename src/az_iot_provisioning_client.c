@@ -603,4 +603,3 @@ AZ_NODISCARD az_result az_iot_provisioning_client_get_request_payload(
 
   return AZ_OK;
 }
-

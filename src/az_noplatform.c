@@ -18,4 +18,3 @@ AZ_NODISCARD az_result az_platform_sleep_msec(int32_t milliseconds)
   (void)milliseconds;
   return AZ_ERROR_DEPENDENCY_NOT_PROVIDED;
 }
-
