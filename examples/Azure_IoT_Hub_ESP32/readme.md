@@ -10,6 +10,14 @@ products:
 - azure-iot-hub
 ---
 
+> ## Before you proceed
+> 
+>_This sample is based on the Azure IoT SDK for C, uses a bare metal (no RTOS) approach and has support for Arduino IDE._
+> 
+>_There is a different sample for the ESP32 with the Azure IoT middleware for FreeRTOS (requires FreeRTOS to work)._
+> 
+> _If this is what you’re looking for please visit  [this GitHub repo](https://github.com/Azure-Samples/iot-middleware-freertos-samples/blob/main/README.md)_.
+
 # How to Setup and Run Azure SDK for Embedded C IoT Hub Client on Espressif ESP32
 
   - [How to Setup and Run Azure SDK for Embedded C IoT Hub Client on Espressif ESP32](#how-to-setup-and-run-azure-sdk-for-embedded-c-iot-hub-client-on-espressif-esp32)
