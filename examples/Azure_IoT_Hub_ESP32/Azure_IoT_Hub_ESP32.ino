@@ -132,6 +132,7 @@ void receivedCallback(char* topic, byte* payload, unsigned int length)
   {
     Serial.print((char)payload[i]);
   }
+  Serial.println("");
 }
 
 static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
