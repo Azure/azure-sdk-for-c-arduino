@@ -76,15 +76,8 @@ static az_span az_span_split_copy(az_span destination, az_span source, az_span* 
 #define SAS_SIGNATURE_BUFFER_SIZE                   64
 #define MQTT_PASSWORD_BUFFER_SIZE                   256
 
-#define EXIT_IF_NULL_SPAN(span, message_to_log, ...)                  \
-  do                                                                  \
-  {                                                                   \
-    if (az_span_is_content_equal(span, AZ_SPAN_EMPTY))                \
-    {                                                                 \
-      LogError(message_to_log, ##__VA_ARGS__ );                       \
-      return __LINE__;                                                \
-    }                                                                 \
-  } while (0)
+#define DPS_REGISTER_CUSTOM_PAYLOAD_BEGIN           "{\"modelId\":\""
+#define DPS_REGISTER_CUSTOM_PAYLOAD_END             "\"}"
 
 #define EXIT_IF_AZ_FAILED(azfn, retcode, message, ...)                \
   do                                                                  \
@@ -131,6 +124,8 @@ static int generate_sas_token_for_iot_hub(
 static int get_mqtt_client_config_for_dps(azure_iot_t* azure_iot, mqtt_client_config_t* mqtt_client_config);
 
 static int get_mqtt_client_config_for_iot_hub(azure_iot_t* azure_iot, mqtt_client_config_t* mqtt_client_config);
+
+static az_span generate_dps_register_custom_property(az_span model_id, az_span data_buffer, az_span* remainder);
 
 #define is_device_provisioned(azure_iot) \
   (!az_span_is_empty(azure_iot->config->iot_hub_fqdn) && !az_span_is_empty(azure_iot->config->device_id))
@@ -259,9 +254,10 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
   int64_t now;
   int packet_id;
   az_result azrc;
-  size_t topic_name_length;
+  size_t length;
   mqtt_client_config_t mqtt_client_config;
   mqtt_message_t mqtt_message;
+  az_span data_buffer, dps_register_custom_property;
       
   switch (azure_iot->state)
   {
@@ -328,8 +324,10 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
     case azure_iot_state_subscribing_to_dps:
       break;
     case azure_iot_state_subscribed_to_dps:
+      data_buffer = azure_iot->data_buffer;
+
       azrc = az_iot_provisioning_client_register_get_publish_topic(
-          &azure_iot->dps_client, (char*)az_span_ptr(azure_iot->data_buffer), az_span_size(azure_iot->data_buffer), &topic_name_length);
+          &azure_iot->dps_client, (char*)az_span_ptr(data_buffer), az_span_size(data_buffer), &length);
     
       if (az_result_failed(azrc))
       {
@@ -338,8 +336,41 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
         return;
       }
 
-      mqtt_message.topic = az_span_slice(azure_iot->data_buffer, 0, topic_name_length);
-      mqtt_message.payload = AZ_SPAN_EMPTY;
+      mqtt_message.topic = az_span_split(data_buffer, length, &data_buffer);
+
+      if (az_span_is_empty(mqtt_message.topic) || az_span_is_empty(data_buffer))
+      {
+        azure_iot->state = azure_iot_state_error;
+        LogError("Failed allocating memory for DPS register payload.");
+        return;
+      }
+
+      dps_register_custom_property = generate_dps_register_custom_property(
+        azure_iot->config->model_id, data_buffer, &mqtt_message.payload);
+
+      if (az_span_is_empty(dps_register_custom_property))
+      {
+        azure_iot->state = azure_iot_state_error;
+        LogError("Failed generating DPS register custom property payload.");
+        return;
+      }
+
+      azrc = az_iot_provisioning_client_get_request_payload(
+          &azure_iot->dps_client,
+          dps_register_custom_property,
+          NULL,
+          az_span_ptr(mqtt_message.payload),
+          az_span_size(mqtt_message.payload),
+          &length);
+
+      if (az_result_failed(azrc))
+      {
+        azure_iot->state = azure_iot_state_error;
+        LogError("az_iot_provisioning_client_get_request_payload failed (0x%08x).", azrc);
+        return;
+      }
+
+      mqtt_message.payload = az_span_slice(mqtt_message.payload, 0, length);
       mqtt_message.qos = mqtt_qos_at_most_once;
 
       azure_iot->state = azure_iot_state_provisioning_waiting;
@@ -374,7 +405,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
         azure_iot->dps_operation_id, // register_response->operation_id,
         (char*)az_span_ptr(azure_iot->data_buffer),
         (size_t)az_span_size(azure_iot->data_buffer),
-        &topic_name_length);
+        &length);
 
       if (az_result_failed(azrc))
       {
@@ -383,7 +414,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
         return;
       }
 
-      mqtt_message.topic = az_span_slice(azure_iot->data_buffer, 0, topic_name_length);
+      mqtt_message.topic = az_span_slice(azure_iot->data_buffer, 0, length);
       mqtt_message.payload = AZ_SPAN_EMPTY;
       mqtt_message.qos = mqtt_qos_at_most_once;
 
@@ -1044,4 +1075,24 @@ static int generate_sas_token_for_iot_hub(
   EXIT_IF_AZ_FAILED(rc, 0, "Could not get the password.");
 
   return mqtt_password_length;
+}
+
+static az_span generate_dps_register_custom_property(az_span model_id, az_span data_buffer, az_span* remainder)
+{
+  az_span custom_property;
+  size_t length = lengthof(DPS_REGISTER_CUSTOM_PAYLOAD_BEGIN) + az_span_size(model_id) + lengthof(DPS_REGISTER_CUSTOM_PAYLOAD_END);
+      
+  custom_property = az_span_split(data_buffer, length, remainder);
+  EXIT_IF_TRUE(az_span_is_empty(custom_property), AZ_SPAN_EMPTY, "Failed generating DPS register custom property.");
+
+  data_buffer = az_span_copy(data_buffer, AZ_SPAN_FROM_STR(DPS_REGISTER_CUSTOM_PAYLOAD_BEGIN));
+  EXIT_IF_TRUE(az_span_is_empty(data_buffer), AZ_SPAN_EMPTY, "Failed generating DPS register custom property (prefix).");
+  
+  data_buffer = az_span_copy(data_buffer, model_id);
+  EXIT_IF_TRUE(az_span_is_empty(data_buffer), AZ_SPAN_EMPTY, "Failed generating DPS register custom property (model id).");
+  
+  data_buffer = az_span_copy(data_buffer, AZ_SPAN_FROM_STR(DPS_REGISTER_CUSTOM_PAYLOAD_END));
+  EXIT_IF_TRUE(az_span_is_empty(data_buffer), AZ_SPAN_EMPTY, "Failed generating DPS register custom property (suffix).");
+  
+  return custom_property;
 }
