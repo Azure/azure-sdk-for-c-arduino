@@ -57,6 +57,10 @@
 #define UNIX_TIME_NOV_13_2017 1510592825
 #define UNIX_EPOCH_START_YEAR 1900
 
+/* --- Function Returns --- */
+#define RESULT_OK       0
+#define RESULT_ERROR    __LINE__
+
 /* --- Handling iot_config.h Settings --- */
 static const char* wifi_ssid = IOT_CONFIG_WIFI_SSID;
 static const char* wifi_password = IOT_CONFIG_WIFI_PASSWORD;
@@ -86,6 +90,9 @@ static uint8_t az_iot_data_buffer[AZ_IOT_DATA_BUFFER_SIZE];
 
 #define MQTT_PROTOCOL_PREFIX "mqtts://"
 
+static uint32_t properties_request_id = 0;
+static bool send_device_info = true;
+
 
 /* --- MQTT Interface Functions --- */
 /*
@@ -114,7 +121,7 @@ static int mqtt_client_init_function(mqtt_client_config_t* mqtt_client_config, m
   mqtt_config.disable_auto_reconnect = false;
   mqtt_config.event_handle = esp_mqtt_event_handler;
   mqtt_config.user_context = NULL;
-  mqtt_config.buffer_size = 2048;
+  mqtt_config.buffer_size = 1024;
   mqtt_config.cert_pem = (const char*)ca_pem;
 
   LogInfo("MQTT client target uri set to '%s'", mqtt_broker_uri);
@@ -170,7 +177,7 @@ static int mqtt_client_deinit_function(mqtt_client_handle_t mqtt_client_handle)
   return 0;
 }
 
-static int mqtt_client_subscribe_function(mqtt_client_handle_t mqtt_client_handle, const uint8_t* topic, size_t topic_lenght, mqtt_qos_t qos)
+static int mqtt_client_subscribe_function(mqtt_client_handle_t mqtt_client_handle, const uint8_t* topic, size_t topic_length, mqtt_qos_t qos)
 {
   LogInfo("MQTT client subscribing to '%s'", topic);
        
@@ -230,6 +237,10 @@ static int base64_encode(uint8_t* data, size_t data_length, uint8_t* encoded, si
   return mbedtls_base64_encode(encoded, encoded_size, encoded_length, data, data_length);
 }
 
+static void on_properties_update_completed(uint32_t request_id, az_iot_status status_code)
+{
+  LogInfo("Properties update request completed (id=%d, status=%d)", request_id, status_code);
+}
 
 /* --- Arduino setup and loop Functions --- */
 void setup()
@@ -263,6 +274,7 @@ void setup()
   azure_iot_config.data_manipulation_functions.hmac_sha512_encrypt = mbedtls_hmac_sha256;
   azure_iot_config.data_manipulation_functions.base64_decode = base64_decode;
   azure_iot_config.data_manipulation_functions.base64_encode = base64_encode;
+  azure_iot_config.on_properties_update_completed = on_properties_update_completed;
 
   if (azure_iot_init(&azure_iot, &azure_iot_config) != 0)
   {
@@ -287,7 +299,12 @@ void loop()
     switch(azure_iot_get_status(&azure_iot))
     {
       case azure_iot_connected:
-        if (azure_pnp_send_telemetry(&azure_iot) != 0)
+        if (send_device_info)
+        {
+          (void)azure_pnp_send_device_info(&azure_iot, properties_request_id++);
+           send_device_info = false; // Only need to send once.
+        }
+        else if (azure_pnp_send_telemetry(&azure_iot) != 0)
         {
           LogError("Failed sending telemetry.");          
         }
@@ -420,7 +437,7 @@ static esp_err_t esp_mqtt_event_handler(esp_mqtt_event_handle_t event)
 
       if (azure_iot_mqtt_client_publish_completed(&azure_iot, event->msg_id) != 0)
       {
-        LogError("azure_iot_mqtt_client_publish_completed failed.");
+        LogError("azure_iot_mqtt_client_publish_completed failed (message id=%d).", event->msg_id);
       }
 
       break;
@@ -434,7 +451,7 @@ static esp_err_t esp_mqtt_event_handler(esp_mqtt_event_handle_t event)
 
       if (azure_iot_mqtt_client_message_received(&azure_iot, &mqtt_message) != 0)
       {
-        LogError("azure_iot_mqtt_client_subscribe_completed failed.");
+        LogError("azure_iot_mqtt_client_message_received failed (topic=%.*s).", event->topic_len, event->topic);
       }
 
       break;

@@ -4,63 +4,14 @@
 #include "AzureIoT.h"
 #include <stdarg.h>
 
+/* --- Function Returns --- */
+#define RESULT_OK       0
+#define RESULT_ERROR    __LINE__
+
 /* --- Logging --- */
 #ifndef DISABLE_LOGGING
 log_function_t default_logging_function = NULL;
 #endif // DISABLE_LOGGING
-
-/* --- az_core extensions --- */
-#define az_span_is_empty(span) az_span_is_content_equal(span, AZ_SPAN_EMPTY)
-
-static az_span az_span_split(az_span span, int32_t size, az_span* remainder)
-{
-  az_span result = az_span_slice(span, 0, size);
-
-  if (remainder != NULL && !az_span_is_empty(result))
-  {
-    *remainder = az_span_slice(span, size, az_span_size(span));
-  }
-
-  return result;
-}
-
-/**
- * @brief Splits `destination` into two parts, copy `source` into the first one and returns the second through `remainder`.
- * 
- * @param[in]    destination    A span large enough to contain the copy of the contents of `source`.
- * @param[in]    source         The span to copy the contents from.
- * @param[in]    remainder      The pointer where to store the remainder of `destination` after `source` is copied.
- * 
- * @return az_span A slice of `destination` (from its start) with the exact content and size of `source`.
- */
-static az_span az_span_split_copy(az_span destination, az_span source, az_span* remainder)
-{
-  az_span result = az_span_split(destination, az_span_size(source), remainder);
-
-  if (az_span_is_empty(*remainder))
-  {
-    result = AZ_SPAN_EMPTY;
-  }
-
-  if (!az_span_is_empty(result))
-  {
-    (void)az_span_copy(result, source);
-  }
-
-  return result;
-}
-
-/**
- * @brief Returns an #az_span expression over a variable containing a null-terminated string.
- *
- * For example:
- * `char* string_var = "this is a null-terminated string";`
- * `az_span string_span = AZ_SPAN_FROM_STRING_VAR(string_var);`
- *
- * Will result in:
- * `az_span string_span = az_span_create((uint8_t*)string_var, strlen(string_var));`
- */
-#define AZ_SPAN_FROM_STRING_VAR(string_var) az_span_create((uint8_t*)string_var, strlen(string_var))
 
 /* --- Azure Abstractions --- */
 #define IOT_HUB_MQTT_PORT                           8883
@@ -86,7 +37,7 @@ static az_span az_span_split_copy(az_span destination, az_span source, az_span* 
                                                                       \
     if (az_result_failed(result))                                     \
     {                                                                 \
-      LogError("Function returned az_result=0x%08x", result);             \
+      LogError("Function returned az_result=0x%08x", result);         \
       LogError(message, ##__VA_ARGS__ );                              \
       return retcode;                                                 \
     }                                                                 \
@@ -558,16 +509,37 @@ int azure_iot_send_telemetry(azure_iot_t* azure_iot, const unsigned char* messag
   mqtt_message.qos = mqtt_qos_at_most_once;
 
   int packet_id = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
+  EXIT_IF_TRUE(packet_id < 0, RESULT_ERROR, "Failed publishing to telemetry topic");
 
-  if (packet_id < 0)
-  {
-    LogError("Failed publishing to telemetry topic");
-    return RESULT_ERROR;
-  }
-  else
-  {
-    return RESULT_OK;    
-  }
+  return RESULT_OK;
+}
+
+int azure_iot_send_properties_update(azure_iot_t* azure_iot, uint32_t request_id, const uint8_t* message, size_t length)
+{
+  // TODO: error check.
+
+  az_result azr;
+  size_t topic_length;
+  mqtt_message_t mqtt_message;
+  az_span data_buffer = azure_iot->data_buffer;
+  az_span request_id_span = data_buffer;
+
+  azr = az_span_u32toa(request_id_span, request_id, &data_buffer);
+  EXIT_IF_TRUE(az_result_failed(azr), RESULT_ERROR, "Failed generating Twin request id.");
+  request_id_span = az_span_slice(request_id_span, 0, az_span_size(request_id_span) - az_span_size(data_buffer));
+
+  azr = az_iot_hub_client_properties_get_reported_publish_topic(
+      &azure_iot->iot_hub_client, request_id_span, (char*)az_span_ptr(data_buffer), az_span_size(data_buffer), &topic_length);
+  EXIT_IF_AZ_FAILED(azr, RESULT_ERROR, "Failed to get the repoted properties publish topic");
+
+  mqtt_message.topic = az_span_slice(data_buffer, 0, topic_length);
+  mqtt_message.payload = az_span_create((uint8_t*)message, length);
+  mqtt_message.qos = mqtt_qos_at_most_once;
+
+  int packet_id = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
+  EXIT_IF_TRUE(packet_id < 0, RESULT_ERROR, "Failed publishing to reported properties topic.");
+
+  return RESULT_OK;
 }
 
 int azure_iot_mqtt_client_connected(azure_iot_t* azure_iot)
@@ -674,10 +646,10 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
 {
   // TODO: error check.
   int result;
+  az_result azrc;
 
   if (azure_iot->state == azure_iot_state_provisioning_waiting)
   {
-    az_result azrc;
     az_iot_provisioning_client_register_response register_response;
 
     azrc = az_iot_provisioning_client_parse_received_topic_and_payload(
@@ -696,7 +668,7 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
 
         if (az_span_is_empty(azure_iot->dps_operation_id))
         {
-          azure_iot->dps_operation_id = az_span_split_copy(azure_iot->data_buffer, register_response.operation_id, &azure_iot->data_buffer);
+          azure_iot->dps_operation_id = az_span_slice_and_copy(azure_iot->data_buffer, register_response.operation_id, &azure_iot->data_buffer);
 
           if (az_span_is_empty(azure_iot->dps_operation_id))
           {
@@ -717,7 +689,7 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
         az_span data_buffer = azure_iot->config->data_buffer; // Operation ID is no longer needed.
         azure_iot->data_buffer = data_buffer; // In case any step below fails.
 
-        azure_iot->config->iot_hub_fqdn = az_span_split_copy(data_buffer, register_response.registration_state.assigned_hub_hostname, &data_buffer);
+        azure_iot->config->iot_hub_fqdn = az_span_slice_and_copy(data_buffer, register_response.registration_state.assigned_hub_hostname, &data_buffer);
         
         if (az_span_is_empty(azure_iot->config->iot_hub_fqdn))
         {
@@ -727,7 +699,7 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
         }
         else
         {
-          azure_iot->config->device_id = az_span_split_copy(data_buffer, register_response.registration_state.device_id, &data_buffer);
+          azure_iot->config->device_id = az_span_slice_and_copy(data_buffer, register_response.registration_state.device_id, &data_buffer);
                     
           if (az_span_is_empty(azure_iot->config->device_id))
           {
@@ -751,10 +723,82 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
       }
     }
   }
+  else if (azure_iot->state == azure_iot_state_ready)
+  {
+    // This message should either be:
+    // - a response to a properties update request, or
+    // - a response to a get properties request, or
+    // - a command request.
+
+    az_iot_hub_client_properties_message property_message;
+    azrc = az_iot_hub_client_properties_parse_received_topic(&azure_iot->iot_hub_client, mqtt_message->topic, &property_message);
+
+    if (az_result_succeeded(azrc))
+    {
+      switch (property_message.message_type)
+      {
+        // A response from a property GET publish message with the property document as a payload.
+        case AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_TYPE_GET_RESPONSE:
+          LogInfo("Message Type: GET");
+          result = RESULT_OK;
+          break;
+    
+        // An update to the desired properties with the properties as a payload.
+        case AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_TYPE_WRITABLE_UPDATED:
+          LogInfo("Message Type: Desired Properties");
+          result = RESULT_OK;
+          break;
+    
+        // When the device publishes a property update, this message type arrives when
+        // server acknowledges this.
+        case AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_TYPE_ACKNOWLEDGEMENT:
+          result = RESULT_OK;
+
+          if (azure_iot->config->on_properties_update_completed != NULL)
+          {
+            uint32_t request_id = 0;
+            
+            if (az_result_failed(az_span_atou32(property_message.request_id, &request_id)))
+            {
+              LogError("Failed parsing properties update request id (%.*s)", 
+                az_span_size(property_message.request_id), az_span_ptr(property_message.request_id));
+              result = RESULT_ERROR;
+            }
+            else
+            {
+              azure_iot->config->on_properties_update_completed(request_id, property_message.status);
+            }
+          }
+          break;
+    
+        // An error has occurred
+        case AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_TYPE_ERROR:
+          LogError("Message Type: Request Error");
+          result = RESULT_ERROR;
+          break;
+      }
+    }
+    else
+    {
+      az_iot_hub_client_command_request command_request;
+      azrc = az_iot_hub_client_commands_parse_received_topic(&azure_iot->iot_hub_client, mqtt_message->topic, &command_request);
+
+      if (az_result_succeeded(azrc))
+      {
+        result = RESULT_OK;
+      }
+      else
+      {
+        LogError("Could not recognize MQTT message (%.*s).", az_span_size(mqtt_message->topic), az_span_ptr(mqtt_message->topic));
+        result = RESULT_ERROR;
+      }
+    }
+    
+  }
   else
   {
     LogError("No PUBLISH notification expected");
-    result = RESULT_ERROR;    
+    result = RESULT_ERROR;
   }
   
   return result;
@@ -1095,4 +1139,34 @@ static az_span generate_dps_register_custom_property(az_span model_id, az_span d
   EXIT_IF_TRUE(az_span_is_empty(data_buffer), AZ_SPAN_EMPTY, "Failed generating DPS register custom property (suffix).");
   
   return custom_property;
+}
+
+/* --- az_core extensions --- */
+az_span az_span_split(az_span span, int32_t size, az_span* remainder)
+{
+  az_span result = az_span_slice(span, 0, size);
+
+  if (remainder != NULL && !az_span_is_empty(result))
+  {
+    *remainder = az_span_slice(span, size, az_span_size(span));
+  }
+
+  return result;
+}
+
+az_span az_span_slice_and_copy(az_span destination, az_span source, az_span* remainder)
+{
+  az_span result = az_span_split(destination, az_span_size(source), remainder);
+
+  if (az_span_is_empty(*remainder))
+  {
+    result = AZ_SPAN_EMPTY;
+  }
+
+  if (!az_span_is_empty(result))
+  {
+    (void)az_span_copy(result, source);
+  }
+
+  return result;
 }

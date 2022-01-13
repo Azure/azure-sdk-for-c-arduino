@@ -18,10 +18,6 @@
 #define STR(x) STR_HELPER(x)
 static const uint8_t null_terminator = '\0';
 
-/* --- Function Returns --- */
-#define RESULT_OK    0
-#define RESULT_ERROR __LINE__
-
 /* --- Time --- */
 #define INDEFINITE_TIME ((time_t)-1)
 
@@ -174,6 +170,16 @@ typedef int (*base64_decode_function_t)(uint8_t* data, size_t data_length, uint8
 typedef int (*base64_encode_function_t)(uint8_t* data, size_t data_length, uint8_t* encoded, size_t encoded_size, size_t* encoded_length);
 typedef int (*hmac_sha512_encryption_function_t)(const uint8_t* key, size_t key_length, const uint8_t* payload, size_t payload_length, uint8_t* encrypted_payload, size_t encrypted_payload_size);
 
+/*
+ * @brief Defines the callback for notifying the completion of a reported properties update.
+ * 
+ * @param[in] request_id    Request ID provided by the caller when sending the reported properties update.
+ * @param[in] status_code   Result of the reported properties update (uses HTTP status code semantics).
+ *
+ * @return                  Nothing
+ */
+typedef void (*properties_update_completed_t)(uint32_t request_id, az_iot_status status_code);
+
 typedef struct data_manipulation_functions_t_struct
 {
   base64_decode_function_t base64_decode;
@@ -239,6 +245,8 @@ typedef struct azure_iot_config_t_struct
   data_manipulation_functions_t data_manipulation_functions;
 
   uint32_t sas_token_lifetime_in_minutes = DEFAULT_SAS_TOKEN_LIFETIME_IN_MINUTES;
+
+  properties_update_completed_t on_properties_update_completed;
 }
 azure_iot_config_t;
 
@@ -265,10 +273,60 @@ azure_iot_status_t azure_iot_get_status(azure_iot_t* azure_iot);
 void azure_iot_do_work(azure_iot_t* azure_iot);
 int azure_iot_send_telemetry(azure_iot_t* azure_iot, const uint8_t* message, size_t length);
 
+/**
+ * @brief Checks whether `span` is equal AZ_SPAN_EMPTY.
+ *
+ * @param[in]    azure_iot                         The pointer to the azure_iot_t instance that holds the state of the Azure IoT client.
+ * @param[in]    message                           The message with the reported properties update
+ *                                                 (a JSON document formatted according to the DTDL specification).
+ *                                                 `message` gets passed as-is to the MQTT client publish function as the payload, so if 
+ *                                                 your MQTT client expects a null-terminated string for payload, make sure `message` is
+ *                                                 a null-terminated string.
+ * @param[in]    length                            The length of `message`.
+ * @param[in]    request_id                        An unique identification number to correlate the response with when
+ *                                                 `on_properties_update_completed` (set in azure_iot_config_t) is invoked.
+ *
+ * @return       int                               0 if the function succeeds, or non-zero if any failure occurs.
+ */
+int azure_iot_send_properties_update(azure_iot_t* azure_iot, uint32_t request_id, const uint8_t* message, size_t length);
+
 int azure_iot_mqtt_client_connected(azure_iot_t* azure_iot);
 int azure_iot_mqtt_client_disconnected(azure_iot_t* azure_iot);
 int azure_iot_mqtt_client_subscribe_completed(azure_iot_t* azure_iot, int packet_id);
 int azure_iot_mqtt_client_publish_completed(azure_iot_t* azure_iot, int packet_id);
 int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_t* mqtt_message);
+
+/* --- az_core extensions --- */
+
+/**
+ * @brief Checks whether `span` is equal AZ_SPAN_EMPTY.
+ *
+ * @param[in]    span           A span to be verified.
+ *
+ * @return       boolean        True if `span`'s pointer and size are equal to AZ_SPAN_EMPTY, or false otherwise.
+ */
+#define az_span_is_empty(span) az_span_is_content_equal(span, AZ_SPAN_EMPTY)
+
+/**
+ * @brief Slices `span` at position `size`, returns the first slice and assigns the second slice to `remainder`.
+ *
+ * @param[in]    span           A span to be sliced.
+ * @param[in]    source         The span to copy the contents from.
+ * @param[out]   remainder      The pointer where to store the remainder of `span` after it is sliced.
+ *
+ * @return       az_span        A slice of `span` from position zero to `size`.
+ */
+az_span az_span_split(az_span span, int32_t size, az_span* remainder);
+
+/**
+ * @brief Slices `destination` to fit `source`, copy `source` into the first slice and returns the second through `remainder`.
+ *
+ * @param[in]    destination    A span large enough to contain the copy of the contents of `source`.
+ * @param[in]    source         The span to copy the contents from.
+ * @param[out]   remainder      The pointer where to store the remainder of `destination` after `source` is copied.
+ *
+ * @return       az_span        A slice of `destination` with the same size as `source`, with `source`'s content copied over.
+ */
+static az_span az_span_slice_and_copy(az_span destination, az_span source, az_span* remainder);
 
 #endif // AZURE_IOT_H
