@@ -180,6 +180,19 @@ typedef int (*hmac_sha512_encryption_function_t)(const uint8_t* key, size_t key_
  */
 typedef void (*properties_update_completed_t)(uint32_t request_id, az_iot_status status_code);
 
+typedef void (*properties_received_t)(az_span properties);
+
+typedef struct command_request_t_struct
+{
+  az_span request_id;
+  az_span component_name;
+  az_span command_name;
+  az_span payload;
+}
+command_request_t;
+
+typedef void (*command_request_received_t)(command_request_t command);
+
 typedef struct data_manipulation_functions_t_struct
 {
   base64_decode_function_t base64_decode;
@@ -247,6 +260,8 @@ typedef struct azure_iot_config_t_struct
   uint32_t sas_token_lifetime_in_minutes = DEFAULT_SAS_TOKEN_LIFETIME_IN_MINUTES;
 
   properties_update_completed_t on_properties_update_completed;
+  properties_received_t on_properties_received;
+  command_request_received_t on_command_request_received;
 }
 azure_iot_config_t;
 
@@ -289,6 +304,8 @@ int azure_iot_send_telemetry(azure_iot_t* azure_iot, const uint8_t* message, siz
  * @return       int                               0 if the function succeeds, or non-zero if any failure occurs.
  */
 int azure_iot_send_properties_update(azure_iot_t* azure_iot, uint32_t request_id, const uint8_t* message, size_t length);
+
+int azure_iot_send_command_response(azure_iot_t* azure_iot, az_span request_id, uint16_t response_status, az_span payload);
 
 int azure_iot_mqtt_client_connected(azure_iot_t* azure_iot);
 int azure_iot_mqtt_client_disconnected(azure_iot_t* azure_iot);

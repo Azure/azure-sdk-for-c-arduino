@@ -29,4 +29,6 @@ int azure_pnp_send_telemetry(azure_iot_t* azure_iot);
 
 int azure_pnp_update_properties(azure_iot_t* azure_iot);
 
+int azure_pnp_handle_command_request(azure_iot_t* azure_iot, command_request_t command_request);
+
 #endif // AZURE_IOT_PNP_TEMPLATE_H

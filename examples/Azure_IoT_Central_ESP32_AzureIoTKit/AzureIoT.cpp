@@ -30,28 +30,18 @@ log_function_t default_logging_function = NULL;
 #define DPS_REGISTER_CUSTOM_PAYLOAD_BEGIN           "{\"modelId\":\""
 #define DPS_REGISTER_CUSTOM_PAYLOAD_END             "\"}"
 
-#define EXIT_IF_AZ_FAILED(azfn, retcode, message, ...)                \
-  do                                                                  \
-  {                                                                   \
-    az_result const result = (azfn);                                  \
-                                                                      \
-    if (az_result_failed(result))                                     \
-    {                                                                 \
-      LogError("Function returned az_result=0x%08x", result);         \
-      LogError(message, ##__VA_ARGS__ );                              \
-      return retcode;                                                 \
-    }                                                                 \
+#define EXIT_IF_TRUE(condition, retcode, message, ...)                              \
+  do                                                                                \
+  {                                                                                 \
+    if (condition)                                                                  \
+    {                                                                               \
+      LogError(message, ##__VA_ARGS__ );                                            \
+      return retcode;                                                               \
+    }                                                                               \
   } while (0)
 
-#define EXIT_IF_TRUE(condition, retcode, message, ...)                \
-  do                                                                  \
-  {                                                                   \
-    if (condition)                                                    \
-    {                                                                 \
-      LogError(message, ##__VA_ARGS__ );                              \
-      return retcode;                                                 \
-    }                                                                 \
-  } while (0)
+#define EXIT_IF_AZ_FAILED(azresult, retcode, message, ...)                          \
+  EXIT_IF_TRUE(az_result_failed(azresult), retcode, message, ##__VA_ARGS__ )
 
 /* --- Internal function prototypes --- */
 static uint32_t get_current_unix_time();
@@ -648,7 +638,95 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
   int result;
   az_result azrc;
 
-  if (azure_iot->state == azure_iot_state_provisioning_waiting)
+  if (azure_iot->state == azure_iot_state_ready)
+  {
+    // This message should either be:
+    // - a response to a properties update request, or
+    // - a response to a get properties request, or
+    // - a command request.
+
+    az_iot_hub_client_properties_message property_message;
+    azrc = az_iot_hub_client_properties_parse_received_topic(&azure_iot->iot_hub_client, mqtt_message->topic, &property_message);
+
+    if (az_result_succeeded(azrc))
+    {
+      switch (property_message.message_type)
+      {
+        // A response from a property GET publish message with the property document as a payload.
+        case AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_TYPE_GET_RESPONSE:
+          LogInfo("Message Type: GET");
+          // TODO: implement get twin.
+          result = RESULT_OK;
+          break;
+    
+        // An update to the desired properties with the properties as a payload.
+        case AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_TYPE_WRITABLE_UPDATED:
+          if (azure_iot->config->on_properties_received != NULL)
+          {
+            azure_iot->config->on_properties_received(mqtt_message->payload);
+            // TODO: continue from here. Implement sending response for properties update
+          }
+          result = RESULT_OK;
+          break;
+    
+        // When the device publishes a property update, this message type arrives when
+        // server acknowledges this.
+        case AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_TYPE_ACKNOWLEDGEMENT:
+          result = RESULT_OK;
+
+          if (azure_iot->config->on_properties_update_completed != NULL)
+          {
+            uint32_t request_id = 0;
+            
+            if (az_result_failed(az_span_atou32(property_message.request_id, &request_id)))
+            {
+              LogError("Failed parsing properties update request id (%.*s)", 
+                az_span_size(property_message.request_id), az_span_ptr(property_message.request_id));
+              result = RESULT_ERROR;
+            }
+            else
+            {
+              azure_iot->config->on_properties_update_completed(request_id, property_message.status);
+            }
+          }
+          break;
+    
+        // An error has occurred
+        case AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_TYPE_ERROR:
+          LogError("Message Type: Request Error");
+          result = RESULT_ERROR;
+          break;
+      }
+    }
+    else
+    {
+      az_iot_hub_client_command_request az_sdk_command_request;
+      azrc = az_iot_hub_client_commands_parse_received_topic(&azure_iot->iot_hub_client, mqtt_message->topic, &az_sdk_command_request);
+
+      if (az_result_succeeded(azrc))
+      {
+        if (azure_iot->config->on_command_request_received != NULL)
+        {
+          command_request_t command_request;
+          command_request.request_id = az_sdk_command_request.request_id;
+          command_request.component_name = az_sdk_command_request.component_name;
+          command_request.command_name = az_sdk_command_request.command_name;
+          command_request.payload = mqtt_message->payload;
+        
+          azure_iot->config->on_command_request_received(command_request);
+        }
+
+        result = RESULT_OK;
+      }
+      else
+      {
+        LogError("Could not recognize MQTT message (%.*s).", az_span_size(mqtt_message->topic), az_span_ptr(mqtt_message->topic));
+        result = RESULT_ERROR;
+      }
+    }
+    
+  }
+  else if (azure_iot->state == azure_iot_state_provisioning_waiting)
   {
     az_iot_provisioning_client_register_response register_response;
 
@@ -723,78 +801,6 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
       }
     }
   }
-  else if (azure_iot->state == azure_iot_state_ready)
-  {
-    // This message should either be:
-    // - a response to a properties update request, or
-    // - a response to a get properties request, or
-    // - a command request.
-
-    az_iot_hub_client_properties_message property_message;
-    azrc = az_iot_hub_client_properties_parse_received_topic(&azure_iot->iot_hub_client, mqtt_message->topic, &property_message);
-
-    if (az_result_succeeded(azrc))
-    {
-      switch (property_message.message_type)
-      {
-        // A response from a property GET publish message with the property document as a payload.
-        case AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_TYPE_GET_RESPONSE:
-          LogInfo("Message Type: GET");
-          result = RESULT_OK;
-          break;
-    
-        // An update to the desired properties with the properties as a payload.
-        case AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_TYPE_WRITABLE_UPDATED:
-          LogInfo("Message Type: Desired Properties");
-          result = RESULT_OK;
-          break;
-    
-        // When the device publishes a property update, this message type arrives when
-        // server acknowledges this.
-        case AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_TYPE_ACKNOWLEDGEMENT:
-          result = RESULT_OK;
-
-          if (azure_iot->config->on_properties_update_completed != NULL)
-          {
-            uint32_t request_id = 0;
-            
-            if (az_result_failed(az_span_atou32(property_message.request_id, &request_id)))
-            {
-              LogError("Failed parsing properties update request id (%.*s)", 
-                az_span_size(property_message.request_id), az_span_ptr(property_message.request_id));
-              result = RESULT_ERROR;
-            }
-            else
-            {
-              azure_iot->config->on_properties_update_completed(request_id, property_message.status);
-            }
-          }
-          break;
-    
-        // An error has occurred
-        case AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_TYPE_ERROR:
-          LogError("Message Type: Request Error");
-          result = RESULT_ERROR;
-          break;
-      }
-    }
-    else
-    {
-      az_iot_hub_client_command_request command_request;
-      azrc = az_iot_hub_client_commands_parse_received_topic(&azure_iot->iot_hub_client, mqtt_message->topic, &command_request);
-
-      if (az_result_succeeded(azrc))
-      {
-        result = RESULT_OK;
-      }
-      else
-      {
-        LogError("Could not recognize MQTT message (%.*s).", az_span_size(mqtt_message->topic), az_span_ptr(mqtt_message->topic));
-        result = RESULT_ERROR;
-      }
-    }
-    
-  }
   else
   {
     LogError("No PUBLISH notification expected");
@@ -802,6 +808,39 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
   }
   
   return result;
+}
+
+int azure_iot_send_command_response(azure_iot_t* azure_iot, az_span request_id, uint16_t response_status, az_span payload)
+{
+  // TODO: error check.
+  az_result azrc;
+  mqtt_message_t mqtt_message;
+  size_t topic_length;
+  int packet_id;
+
+  mqtt_message.topic = azure_iot->data_buffer;
+
+  azrc = az_iot_hub_client_commands_response_get_publish_topic(
+      &azure_iot->iot_hub_client, request_id, response_status, 
+      (char*)az_span_ptr(mqtt_message.topic), az_span_size(mqtt_message.topic), &topic_length);
+  EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed to get the commands response topic");
+
+  mqtt_message.topic = az_span_slice(mqtt_message.topic, 0, topic_length);
+  mqtt_message.payload = payload;
+  mqtt_message.qos = mqtt_qos_at_most_once;
+
+  packet_id = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
+  
+  if (packet_id < 0)
+  {
+    azure_iot->state = azure_iot_state_error;
+    LogError("Failed publishing command response (%.*s).", az_span_size(request_id), az_span_ptr(request_id));
+    return RESULT_ERROR;
+  }
+  else
+  {
+    return RESULT_OK;
+  }
 }
 
 /* --- Implementation of internal functions --- */

@@ -48,6 +48,12 @@
 #define TELEMETRY_PROP_NAME_ACCELEROMETERY             "accelerometerY"
 #define TELEMETRY_PROP_NAME_ACCELEROMETERZ             "accelerometerZ"
 
+static az_span COMMAND_NAME_TOGGLE_LED_1 = AZ_SPAN_FROM_STR("ToggleLed1");
+static az_span COMMAND_NAME_TOGGLE_LED_2 = AZ_SPAN_FROM_STR("ToggleLed2");
+static az_span COMMAND_NAME_DISPLAY_TEXT = AZ_SPAN_FROM_STR("DisplayText");
+#define COMMAND_RESPONSE_CODE_ACCEPTED                 202
+#define COMMAND_RESPONSE_CODE_REJECTED                 404
+
 #define DOUBLE_DECIMAL_PLACE_DIGITS 2
 
 /* --- Function Checks and Returns --- */
@@ -76,6 +82,9 @@ static size_t telemetry_frequency_in_seconds = 10; // With default frequency of 
 static time_t last_telemetry_send_time = INDEFINITE_TIME;
 
 #define OLED_SPLASH_MESSAGE              "Azure IoT Central ESP32 Sample"
+
+static bool led1_on = false;
+static bool led2_on = false;
 
 /* --- Function Prototypes --- */
 /* Please find the function implementations at the bottom of this file */
@@ -157,6 +166,37 @@ int azure_pnp_update_properties(azure_iot_t* azure_iot)
   return result;
 }
 
+int azure_pnp_handle_command_request(azure_iot_t* azure_iot, command_request_t command)
+{
+  // TODO: error/argument check.
+  uint16_t response_code;
+
+  if (az_span_is_content_equal(command.command_name, COMMAND_NAME_TOGGLE_LED_1))
+  {
+    led1_on = !led1_on;
+    esp32_azureiotkit_led1_set_state(led1_on ? LED_STATE_ON : LED_STATE_OFF);
+    response_code = COMMAND_RESPONSE_CODE_ACCEPTED;
+  }
+  else if (az_span_is_content_equal(command.command_name, COMMAND_NAME_TOGGLE_LED_2))
+  {
+    led2_on = !led2_on;
+    esp32_azureiotkit_led2_set_state(led2_on ? LED_STATE_ON : LED_STATE_OFF);
+    response_code = COMMAND_RESPONSE_CODE_ACCEPTED;
+  }
+  else if (az_span_is_content_equal(command.command_name, COMMAND_NAME_DISPLAY_TEXT))
+  {
+    // The payload comes surrounded by quotes, so to remove them we offset the payload by 1 and its size by 2.
+    esp32_azureiotkit_oled_show_message(az_span_ptr(command.payload) + 1, az_span_size(command.payload) - 2);
+    response_code = COMMAND_RESPONSE_CODE_ACCEPTED;
+  }
+  else
+  {
+    LogError("Command not recognized (%.*s).", az_span_size(command.command_name), az_span_ptr(command.command_name));
+    response_code = COMMAND_RESPONSE_CODE_REJECTED;
+  }
+
+  return azure_iot_send_command_response(azure_iot, command.request_id, response_code, AZ_SPAN_EMPTY);
+}
 
 /* --- Internal Functions --- */
 

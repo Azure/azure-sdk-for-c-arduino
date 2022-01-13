@@ -242,6 +242,26 @@ static void on_properties_update_completed(uint32_t request_id, az_iot_status st
   LogInfo("Properties update request completed (id=%d, status=%d)", request_id, status_code);
 }
 
+void on_properties_received(az_span properties)
+{
+  LogInfo("Properties update received: %.*s", az_span_size(properties), az_span_ptr(properties));
+}
+
+static void on_command_request_received(command_request_t command)
+{  
+  az_span component_name = az_span_size(command.component_name) == 0 ? AZ_SPAN_FROM_STR("") : command.component_name;
+  
+  LogInfo("Command request received (id=%.*s, component=%.*s, name=%.*s)", 
+    az_span_size(command.request_id), az_span_ptr(command.request_id),
+    az_span_size(component_name), az_span_ptr(component_name),
+    az_span_size(command.command_name), az_span_ptr(command.command_name));
+
+  // Here the request is being processed within the callback that delivers the command request.
+  // However, for production application the recommendation is to save `command` and process it outside
+  // this callback, usually inside the main thread/task/loop.
+  (void)azure_pnp_handle_command_request(&azure_iot, command);
+}
+
 /* --- Arduino setup and loop Functions --- */
 void setup()
 {
@@ -275,6 +295,8 @@ void setup()
   azure_iot_config.data_manipulation_functions.base64_decode = base64_decode;
   azure_iot_config.data_manipulation_functions.base64_encode = base64_encode;
   azure_iot_config.on_properties_update_completed = on_properties_update_completed;
+  azure_iot_config.on_properties_received = on_properties_received;
+  azure_iot_config.on_command_request_received = on_command_request_received;
 
   if (azure_iot_init(&azure_iot, &azure_iot_config) != 0)
   {
