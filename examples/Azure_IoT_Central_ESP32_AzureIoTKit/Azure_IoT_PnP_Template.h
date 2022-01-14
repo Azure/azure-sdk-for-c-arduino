@@ -31,4 +31,6 @@ int azure_pnp_update_properties(azure_iot_t* azure_iot);
 
 int azure_pnp_handle_command_request(azure_iot_t* azure_iot, command_request_t command_request);
 
+int azure_pnp_handle_properties_update(azure_iot_t* azure_iot, az_span properties, uint32_t request_id);
+
 #endif // AZURE_IOT_PNP_TEMPLATE_H

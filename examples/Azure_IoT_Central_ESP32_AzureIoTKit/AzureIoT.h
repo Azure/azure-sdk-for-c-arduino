@@ -257,7 +257,7 @@ typedef struct azure_iot_config_t_struct
   mqtt_client_interface_t mqtt_client_interface;
   data_manipulation_functions_t data_manipulation_functions;
 
-  uint32_t sas_token_lifetime_in_minutes = DEFAULT_SAS_TOKEN_LIFETIME_IN_MINUTES;
+  uint32_t sas_token_lifetime_in_minutes;
 
   properties_update_completed_t on_properties_update_completed;
   properties_received_t on_properties_received;

@@ -245,6 +245,13 @@ static void on_properties_update_completed(uint32_t request_id, az_iot_status st
 void on_properties_received(az_span properties)
 {
   LogInfo("Properties update received: %.*s", az_span_size(properties), az_span_ptr(properties));
+
+  // It is recommended not to perform work within callbacks.
+  // The properties are being handled here to simplify the sample.
+  if (azure_pnp_handle_properties_update(&azure_iot, properties, properties_request_id++) != 0)
+  {
+    LogError("Failed handling properties update.");
+  }
 }
 
 static void on_command_request_received(command_request_t command)

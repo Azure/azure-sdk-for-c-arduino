@@ -81,6 +81,11 @@ int azure_iot_init(azure_iot_t* azure_iot, azure_iot_config_t* iot_config)
   azure_iot->state = azure_iot_state_initialized;
   azure_iot->dps_operation_id = AZ_SPAN_EMPTY;
 
+  if (azure_iot->config->sas_token_lifetime_in_minutes == 0)
+  {
+    azure_iot->config->sas_token_lifetime_in_minutes = DEFAULT_SAS_TOKEN_LIFETIME_IN_MINUTES;
+  }
+
   return RESULT_OK;
 }
 
@@ -206,8 +211,6 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
     case azure_iot_state_initialized:
       break;
     case azure_iot_state_started:
-      mqtt_client_config_t mqtt_client_config;
-
       if (azure_iot->config->use_device_provisioning &&
           !is_device_provisioned(azure_iot))
       {
@@ -216,7 +219,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
         // azure_iot->data_buffer is an intermediate pointer. It starts by pointint to azure_iot->config->data_buffer.
         // In the steps below the code might need to retain part of azure_iot->data_buffer for saving some critical information,
         // namely the DPS operation id, the provisioned IoT Hub FQDN and provisioned Device ID (if provisioning is being used).
-        // In these cases, azure_iot->data_buffer will then point to `the remaining available space of azure_iot->config->data_buffer
+        // In these cases, azure_iot->data_buffer will then point to `the remaining available space` of azure_iot->config->data_buffer
         // after deducting the spaces for the data mentioned above (DPS operation id, IoT Hub FQDN and Device ID).
         // Not all these data exist at the same time though.
         // Memory (from azure_iot->data_buffer) is taken/reserved for the `Operation ID` while provisioning is in progress,
@@ -624,12 +627,15 @@ int azure_iot_mqtt_client_subscribe_completed(azure_iot_t* azure_iot, int packet
   return result;
 }
 
+/*
+ * Currently unused.
+ */
 int azure_iot_mqtt_client_publish_completed(azure_iot_t* azure_iot, int packet_id)
 {
-  // TODO: error check.
-  int result = RESULT_OK;
-  // TODO: reassess and remove if not needed.  
-  return result;
+  (void)azure_iot;
+  (void)packet_id;
+
+  return RESULT_OK;
 }
 
 int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_t* mqtt_message)
@@ -654,9 +660,7 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
       {
         // A response from a property GET publish message with the property document as a payload.
         case AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_TYPE_GET_RESPONSE:
-          LogInfo("Message Type: GET");
-          // TODO: implement get twin.
-          result = RESULT_OK;
+          result = RESULT_ERROR; // TODO: change to RESULT_OK once implemented.
           break;
     
         // An update to the desired properties with the properties as a payload.
@@ -664,7 +668,6 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
           if (azure_iot->config->on_properties_received != NULL)
           {
             azure_iot->config->on_properties_received(mqtt_message->payload);
-            // TODO: continue from here. Implement sending response for properties update
           }
           result = RESULT_OK;
           break;

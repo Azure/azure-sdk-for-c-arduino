@@ -54,6 +54,9 @@ static az_span COMMAND_NAME_DISPLAY_TEXT = AZ_SPAN_FROM_STR("DisplayText");
 #define COMMAND_RESPONSE_CODE_ACCEPTED                 202
 #define COMMAND_RESPONSE_CODE_REJECTED                 404
 
+#define WRITABLE_PROPERTY_TELEMETRY_FREQ_SECS          "telemetryFrequencySecs"
+#define WRITABLE_PROPERTY_RESPONSE_SUCCESS             "success"
+
 #define DOUBLE_DECIMAL_PLACE_DIGITS 2
 
 /* --- Function Checks and Returns --- */
@@ -70,8 +73,8 @@ static az_span COMMAND_NAME_DISPLAY_TEXT = AZ_SPAN_FROM_STR("DisplayText");
     }                                                                               \
   } while (0)
 
-#define EXIT_IF_AZ_FAILED(azresult, message, ...)                                   \
-  EXIT_IF_TRUE(az_result_failed(azresult), RESULT_ERROR, message, ##__VA_ARGS__ )
+#define EXIT_IF_AZ_FAILED(azresult, retcode, message, ...)                                   \
+  EXIT_IF_TRUE(az_result_failed(azresult), retcode, message, ##__VA_ARGS__ )
 
 /* --- Data --- */
 #define DATA_BUFFER_SIZE 1024
@@ -88,8 +91,14 @@ static bool led2_on = false;
 
 /* --- Function Prototypes --- */
 /* Please find the function implementations at the bottom of this file */
-static int generate_telemetry_payload(uint8_t* payload_buffer, size_t payload_buffer_size, size_t* payload_buffer_length);
-static int generate_device_info_payload(az_iot_hub_client const* hub_client, uint8_t* payload_buffer, size_t payload_buffer_size, size_t* payload_buffer_length);
+static int generate_telemetry_payload(
+  uint8_t* payload_buffer, size_t payload_buffer_size, size_t* payload_buffer_length);
+static int generate_device_info_payload(
+  az_iot_hub_client const* hub_client, uint8_t* payload_buffer,
+  size_t payload_buffer_size, size_t* payload_buffer_length);
+static int consume_properties_and_generate_response(
+  azure_iot_t* azure_iot, az_span properties,
+  uint8_t* buffer, size_t buffer_size, size_t* response_length);
 
 /* --- Public Functions --- */
 void azure_pnp_init()
@@ -198,6 +207,20 @@ int azure_pnp_handle_command_request(azure_iot_t* azure_iot, command_request_t c
   return azure_iot_send_command_response(azure_iot, command.request_id, response_code, AZ_SPAN_EMPTY);
 }
 
+int azure_pnp_handle_properties_update(azure_iot_t* azure_iot, az_span properties, uint32_t request_id)
+{
+  int result;
+  size_t length;
+
+  result = consume_properties_and_generate_response(azure_iot, properties, data_buffer, DATA_BUFFER_SIZE, &length);
+  EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed generating properties ack payload.");
+
+  result = azure_iot_send_properties_update(azure_iot, request_id, data_buffer, length);
+  EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed sending reported properties update.");
+
+  return RESULT_OK;
+}
+
 /* --- Internal Functions --- */
 
 static int generate_telemetry_payload(uint8_t* payload_buffer, size_t payload_buffer_size, size_t* payload_buffer_length)
@@ -219,78 +242,78 @@ static int generate_telemetry_payload(uint8_t* payload_buffer, size_t payload_bu
   esp32_azureiotkit_get_pitch_roll_accel(&pitch, &roll, &accelerationX, &accelerationY, &accelerationZ);
 
   rc = az_json_writer_init(&jw, payload_buffer_span, NULL);
-  EXIT_IF_AZ_FAILED(rc, "Failed initializing json writer for telemetry.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed initializing json writer for telemetry.");
 
   rc = az_json_writer_append_begin_object(&jw);
-  EXIT_IF_AZ_FAILED(rc, "Failed setting telemetry json root.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed setting telemetry json root.");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(TELEMETRY_PROP_NAME_TEMPERATURE));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding temperature property name to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding temperature property name to telemetry payload.");
   rc = az_json_writer_append_double(&jw, temperature, DOUBLE_DECIMAL_PLACE_DIGITS);
-  EXIT_IF_AZ_FAILED(rc, "Failed adding temperature property value to telemetry payload. ");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding temperature property value to telemetry payload. ");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(TELEMETRY_PROP_NAME_HUMIDITY));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding humidity property name to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding humidity property name to telemetry payload.");
   rc = az_json_writer_append_double(&jw, humidity, DOUBLE_DECIMAL_PLACE_DIGITS);
-  EXIT_IF_AZ_FAILED(rc, "Failed adding humidity property value to telemetry payload. ");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding humidity property value to telemetry payload. ");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(TELEMETRY_PROP_NAME_LIGHT));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding light property name to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding light property name to telemetry payload.");
   rc = az_json_writer_append_double(&jw, light, DOUBLE_DECIMAL_PLACE_DIGITS);
-  EXIT_IF_AZ_FAILED(rc, "Failed adding light property value to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding light property value to telemetry payload.");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(TELEMETRY_PROP_NAME_PRESSURE));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding pressure property name to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding pressure property name to telemetry payload.");
   rc = az_json_writer_append_double(&jw, pressure, DOUBLE_DECIMAL_PLACE_DIGITS);
-  EXIT_IF_AZ_FAILED(rc, "Failed adding pressure property value to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding pressure property value to telemetry payload.");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(TELEMETRY_PROP_NAME_ALTITUDE));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding altitude property name to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding altitude property name to telemetry payload.");
   rc = az_json_writer_append_double(&jw, altitude, DOUBLE_DECIMAL_PLACE_DIGITS);
-  EXIT_IF_AZ_FAILED(rc, "Failed adding altitude property value to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding altitude property value to telemetry payload.");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(TELEMETRY_PROP_NAME_MAGNETOMETERX));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding magnetometer(X) property name to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding magnetometer(X) property name to telemetry payload.");
   rc = az_json_writer_append_int32(&jw, magneticFieldX);
-  EXIT_IF_AZ_FAILED(rc, "Failed adding magnetometer(X) property value to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding magnetometer(X) property value to telemetry payload.");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(TELEMETRY_PROP_NAME_MAGNETOMETERY));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding magnetometer(Y) property name to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding magnetometer(Y) property name to telemetry payload.");
   rc = az_json_writer_append_int32(&jw, magneticFieldY);
-  EXIT_IF_AZ_FAILED(rc, "Failed adding magnetometer(Y) property value to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding magnetometer(Y) property value to telemetry payload.");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(TELEMETRY_PROP_NAME_MAGNETOMETERZ));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding magnetometer(Z) property name to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding magnetometer(Z) property name to telemetry payload.");
   rc = az_json_writer_append_int32(&jw, magneticFieldZ);
-  EXIT_IF_AZ_FAILED(rc, "Failed adding magnetometer(Z) property value to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding magnetometer(Z) property value to telemetry payload.");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(TELEMETRY_PROP_NAME_PITCH));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding pitch property name to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding pitch property name to telemetry payload.");
   rc = az_json_writer_append_int32(&jw, pitch);
-  EXIT_IF_AZ_FAILED(rc, "Failed adding pitch property value to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding pitch property value to telemetry payload.");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(TELEMETRY_PROP_NAME_ROLL));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding roll property name to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding roll property name to telemetry payload.");
   rc = az_json_writer_append_int32(&jw, roll);
-  EXIT_IF_AZ_FAILED(rc, "Failed adding roll property value to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding roll property value to telemetry payload.");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(TELEMETRY_PROP_NAME_ACCELEROMETERX));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding acceleration(X) property name to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding acceleration(X) property name to telemetry payload.");
   rc = az_json_writer_append_int32(&jw, accelerationX);
-  EXIT_IF_AZ_FAILED(rc, "Failed adding acceleration(X) property value to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding acceleration(X) property value to telemetry payload.");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(TELEMETRY_PROP_NAME_ACCELEROMETERY));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding acceleration(Y) property name to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding acceleration(Y) property name to telemetry payload.");
   rc = az_json_writer_append_int32(&jw, accelerationY);
-  EXIT_IF_AZ_FAILED(rc, "Failed adding acceleration(Y) property value to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding acceleration(Y) property value to telemetry payload.");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(TELEMETRY_PROP_NAME_ACCELEROMETERZ));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding acceleration(Z) property name to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding acceleration(Z) property name to telemetry payload.");
   rc = az_json_writer_append_int32(&jw, accelerationZ);
-  EXIT_IF_AZ_FAILED(rc, "Failed adding acceleration(Z) property value to telemetry payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding acceleration(Z) property value to telemetry payload.");
 
   rc = az_json_writer_append_end_object(&jw);
-  EXIT_IF_AZ_FAILED(rc, "Failed closing telemetry json payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed closing telemetry json payload.");
 
   payload_buffer_span = az_json_writer_get_bytes_used_in_destination(&jw);
 
@@ -314,60 +337,60 @@ static int generate_device_info_payload(az_iot_hub_client const* hub_client, uin
   az_span json_span;
 
   rc = az_json_writer_init(&jw, payload_buffer_span, NULL);
-  EXIT_IF_AZ_FAILED(rc, "Failed initializing json writer for telemetry.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed initializing json writer for telemetry.");
 
   rc = az_json_writer_append_begin_object(&jw);
-  EXIT_IF_AZ_FAILED(rc, "Failed setting telemetry json root.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed setting telemetry json root.");
   
   rc = az_iot_hub_client_properties_writer_begin_component(
     hub_client, &jw, AZ_SPAN_FROM_STR(SAMPLE_DEVICE_INFORMATION_NAME));
-  EXIT_IF_AZ_FAILED(rc, "Failed writting component name.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed writting component name.");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(SAMPLE_MANUFACTURER_PROPERTY_NAME));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_MANUFACTURER_PROPERTY_NAME to payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_MANUFACTURER_PROPERTY_NAME to payload.");
   rc = az_json_writer_append_string(&jw, AZ_SPAN_FROM_STR(SAMPLE_MANUFACTURER_PROPERTY_VALUE));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_MANUFACTURER_PROPERTY_VALUE to payload. ");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_MANUFACTURER_PROPERTY_VALUE to payload. ");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(SAMPLE_MODEL_PROPERTY_NAME));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_MODEL_PROPERTY_NAME to payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_MODEL_PROPERTY_NAME to payload.");
   rc = az_json_writer_append_string(&jw, AZ_SPAN_FROM_STR(SAMPLE_MODEL_PROPERTY_VALUE));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_MODEL_PROPERTY_VALUE to payload. ");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_MODEL_PROPERTY_VALUE to payload. ");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(SAMPLE_SOFTWARE_VERSION_PROPERTY_NAME));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_SOFTWARE_VERSION_PROPERTY_NAME to payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_SOFTWARE_VERSION_PROPERTY_NAME to payload.");
   rc = az_json_writer_append_string(&jw, AZ_SPAN_FROM_STR(SAMPLE_VERSION_PROPERTY_VALUE));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_VERSION_PROPERTY_VALUE to payload. ");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_VERSION_PROPERTY_VALUE to payload. ");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(SAMPLE_OS_NAME_PROPERTY_NAME));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_OS_NAME_PROPERTY_NAME to payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_OS_NAME_PROPERTY_NAME to payload.");
   rc = az_json_writer_append_string(&jw, AZ_SPAN_FROM_STR(SAMPLE_OS_NAME_PROPERTY_VALUE));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_OS_NAME_PROPERTY_VALUE to payload. ");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_OS_NAME_PROPERTY_VALUE to payload. ");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(SAMPLE_PROCESSOR_ARCHITECTURE_PROPERTY_NAME));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_PROCESSOR_ARCHITECTURE_PROPERTY_NAME to payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_PROCESSOR_ARCHITECTURE_PROPERTY_NAME to payload.");
   rc = az_json_writer_append_string(&jw, AZ_SPAN_FROM_STR(SAMPLE_ARCHITECTURE_PROPERTY_VALUE));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_ARCHITECTURE_PROPERTY_VALUE to payload. ");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_ARCHITECTURE_PROPERTY_VALUE to payload. ");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(SAMPLE_PROCESSOR_MANUFACTURER_PROPERTY_NAME));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_PROCESSOR_MANUFACTURER_PROPERTY_NAME to payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_PROCESSOR_MANUFACTURER_PROPERTY_NAME to payload.");
   rc = az_json_writer_append_string(&jw, AZ_SPAN_FROM_STR(SAMPLE_PROCESSOR_MANUFACTURER_PROPERTY_VALUE));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_PROCESSOR_MANUFACTURER_PROPERTY_VALUE to payload. ");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_PROCESSOR_MANUFACTURER_PROPERTY_VALUE to payload. ");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(SAMPLE_TOTAL_STORAGE_PROPERTY_NAME));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_TOTAL_STORAGE_PROPERTY_NAME to payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_TOTAL_STORAGE_PROPERTY_NAME to payload.");
   rc = az_json_writer_append_double(&jw, SAMPLE_TOTAL_STORAGE_PROPERTY_VALUE, DOUBLE_DECIMAL_PLACE_DIGITS);
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_TOTAL_STORAGE_PROPERTY_VALUE to payload. ");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_TOTAL_STORAGE_PROPERTY_VALUE to payload. ");
 
   rc = az_json_writer_append_property_name(&jw, AZ_SPAN_FROM_STR(SAMPLE_TOTAL_MEMORY_PROPERTY_NAME));
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_TOTAL_MEMORY_PROPERTY_NAME to payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_TOTAL_MEMORY_PROPERTY_NAME to payload.");
   rc = az_json_writer_append_double(&jw, SAMPLE_TOTAL_MEMORY_PROPERTY_VALUE, DOUBLE_DECIMAL_PLACE_DIGITS);
-  EXIT_IF_AZ_FAILED(rc, "Failed adding SAMPLE_TOTAL_MEMORY_PROPERTY_VALUE to payload. ");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed adding SAMPLE_TOTAL_MEMORY_PROPERTY_VALUE to payload. ");
 
   rc = az_iot_hub_client_properties_writer_end_component(hub_client, &jw);
-  EXIT_IF_AZ_FAILED(rc, "Failed closing component object.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed closing component object.");
 
   rc = az_json_writer_append_end_object(&jw);
-  EXIT_IF_AZ_FAILED(rc, "Failed closing telemetry json payload.");
+  EXIT_IF_AZ_FAILED(rc, RESULT_ERROR, "Failed closing telemetry json payload.");
 
   payload_buffer_span = az_json_writer_get_bytes_used_in_destination(&jw);
 
@@ -380,5 +403,110 @@ static int generate_device_info_payload(az_iot_hub_client const* hub_client, uin
   payload_buffer[az_span_size(payload_buffer_span)] = null_terminator;
   *payload_buffer_length = az_span_size(payload_buffer_span);
  
+  return RESULT_OK;
+}
+
+static int generate_properties_update_response(
+  azure_iot_t* azure_iot,
+  az_span component_name, int32_t frequency, int32_t version,
+  uint8_t* buffer, size_t buffer_size, size_t* response_length)
+{
+  az_result azrc;
+  az_json_writer jw;
+  az_span response = az_span_create(buffer, buffer_size);
+
+  azrc = az_json_writer_init(&jw, response, NULL);
+  EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed initializing json writer for properties update response.");
+
+  azrc = az_json_writer_append_begin_object(&jw);
+  EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed opening json in properties update response.");
+
+  // This Azure PnP Template does not have a named component,
+  // so az_iot_hub_client_properties_writer_begin_component is not needed.
+
+  azrc = az_iot_hub_client_properties_writer_begin_response_status(
+    &azure_iot->iot_hub_client,
+    &jw,
+    AZ_SPAN_FROM_STR(WRITABLE_PROPERTY_TELEMETRY_FREQ_SECS),
+    (int32_t)AZ_IOT_STATUS_OK,
+    version,
+    AZ_SPAN_FROM_STR(WRITABLE_PROPERTY_RESPONSE_SUCCESS));
+  EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed appending status to properties update response.");
+
+  azrc = az_json_writer_append_int32(&jw, frequency);
+  EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed appending frequency value to properties update response.");
+
+  azrc = az_iot_hub_client_properties_writer_end_response_status(&azure_iot->iot_hub_client, &jw);
+  EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed closing status section in properties update response.");
+
+  // This Azure PnP Template does not have a named component,
+  // so az_iot_hub_client_properties_writer_end_component is not needed.
+
+  azrc = az_json_writer_append_end_object(&jw);
+  EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed closing json in properties update response.");
+
+  *response_length = az_span_size(az_json_writer_get_bytes_used_in_destination(&jw));
+
+  return RESULT_OK;
+}
+
+static int consume_properties_and_generate_response(
+  azure_iot_t* azure_iot, az_span properties,
+  uint8_t* buffer, size_t buffer_size, size_t* response_length)
+{
+  int result;
+  az_json_reader jr;
+  az_span component_name;
+  int32_t version = 0;
+
+  az_result azrc = az_json_reader_init(&jr, properties, NULL);
+  EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed initializing json reader for properties update.");
+
+  const az_iot_hub_client_properties_message_type message_type =
+    AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_TYPE_WRITABLE_UPDATED;
+
+  azrc = az_iot_hub_client_properties_get_properties_version(
+    &azure_iot->iot_hub_client, &jr, message_type, &version);
+  EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed writable properties version.");
+
+  azrc = az_json_reader_init(&jr, properties, NULL);
+  EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed re-initializing json reader for properties update.");
+
+  while (az_result_succeeded(
+    azrc = az_iot_hub_client_properties_get_next_component_property(
+      &azure_iot->iot_hub_client, &jr, message_type,
+      AZ_IOT_HUB_CLIENT_PROPERTY_WRITABLE, &component_name)))
+  {
+    if (az_json_token_is_text_equal(&jr.token, AZ_SPAN_FROM_STR(WRITABLE_PROPERTY_TELEMETRY_FREQ_SECS)))
+    {
+      int32_t value;
+      azrc = az_json_reader_next_token(&jr);
+      EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed getting writable properties next token.");
+
+      azrc = az_json_token_get_int32(&jr.token, &value);
+      EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed getting writable properties int32_t value.");
+
+      azure_pnp_set_telemetry_frequency((size_t)value);
+
+      result = generate_properties_update_response(
+        azure_iot, component_name, value, version, buffer, buffer_size, response_length);
+      EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "generate_properties_update_response failed.");
+    }
+    else
+    {
+      LogError("Unexpected property received (%.*s)",
+        az_span_size(jr.token.slice), az_span_ptr(jr.token.slice));
+    }
+
+    azrc = az_json_reader_next_token(&jr);
+    EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed moving to next json token of writable properties.");
+
+    azrc = az_json_reader_skip_children(&jr);
+    EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed skipping children of writable properties.");
+
+    azrc = az_json_reader_next_token(&jr);
+    EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed moving to next json token of writable properties (again).");
+  }
+
   return RESULT_OK;
 }
