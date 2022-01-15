@@ -10,6 +10,8 @@
 #include "AzureIoT.h"
 #include "Azure_IoT_PnP_Template.h"
 
+#include <az_precondition_internal.h>
+
 /* --- Defines --- */
 #define AZURE_PNP_MODEL_ID "dtmi:azureiot:devkit:freertos:Esp32AzureIotKit;1"
 
@@ -117,6 +119,8 @@ void azure_pnp_set_telemetry_frequency(size_t frequency_in_seconds)
 
 int azure_pnp_send_telemetry(azure_iot_t* azure_iot)
 {
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+
   time_t now = time(NULL);
 
   if (now == INDEFINITE_TIME)
@@ -137,7 +141,7 @@ int azure_pnp_send_telemetry(azure_iot_t* azure_iot)
       return RESULT_ERROR;
     }
 
-    if (azure_iot_send_telemetry(azure_iot, data_buffer, payload_size) != 0)
+    if (azure_iot_send_telemetry(azure_iot, az_span_create(data_buffer, payload_size)) != 0)
     {
       LogError("Failed sending telemetry.");
       return RESULT_ERROR;
@@ -149,28 +153,24 @@ int azure_pnp_send_telemetry(azure_iot_t* azure_iot)
 
 int azure_pnp_send_device_info(azure_iot_t* azure_iot, uint32_t request_id)
 {
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+
   int result;
   size_t length;  
     
   result = generate_device_info_payload(&azure_iot->iot_hub_client, data_buffer, DATA_BUFFER_SIZE, &length);
   EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed generating telemetry payload.");
 
-  result = azure_iot_send_properties_update(azure_iot, request_id, data_buffer, length);
+  result = azure_iot_send_properties_update(azure_iot, request_id, az_span_create(data_buffer, length));
   EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed sending reported properties update.");
 
   return RESULT_OK;
 }
 
-int azure_pnp_update_properties(azure_iot_t* azure_iot)
-{
-  int result = RESULT_OK;
-
-  return result;
-}
-
 int azure_pnp_handle_command_request(azure_iot_t* azure_iot, command_request_t command)
 {
-  // TODO: error/argument check.
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+
   uint16_t response_code;
 
   if (az_span_is_content_equal(command.command_name, COMMAND_NAME_TOGGLE_LED_1))
@@ -202,13 +202,16 @@ int azure_pnp_handle_command_request(azure_iot_t* azure_iot, command_request_t c
 
 int azure_pnp_handle_properties_update(azure_iot_t* azure_iot, az_span properties, uint32_t request_id)
 {
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+  _az_PRECONDITION_VALID_SPAN(properties, 1, false);
+
   int result;
   size_t length;
 
   result = consume_properties_and_generate_response(azure_iot, properties, data_buffer, DATA_BUFFER_SIZE, &length);
   EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed generating properties ack payload.");
 
-  result = azure_iot_send_properties_update(azure_iot, request_id, data_buffer, length);
+  result = azure_iot_send_properties_update(azure_iot, request_id, az_span_create(data_buffer, length));
   EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed sending reported properties update.");
 
   return RESULT_OK;
@@ -262,7 +265,7 @@ static int generate_telemetry_payload(uint8_t* payload_buffer, size_t payload_bu
   int32_t magneticFieldX, magneticFieldY, magneticFieldZ;
   int32_t pitch, roll, accelerationX, accelerationY, accelerationZ;
 
-  // Acquiring data from Espressif's ESP32 Azure IoT Kit sensors.
+  // Acquiring the simulated data.
   temperature = simulated_get_temperature();
   humidity = simulated_get_humidity();
   light = simulated_get_ambientLight();

@@ -4,6 +4,8 @@
 #include "AzureIoT.h"
 #include <stdarg.h>
 
+#include <az_precondition_internal.h>
+
 /* --- Function Returns --- */
 #define RESULT_OK       0
 #define RESULT_ERROR    __LINE__
@@ -72,11 +74,39 @@ static az_span generate_dps_register_custom_property(az_span model_id, az_span d
   (!az_span_is_empty(azure_iot->config->iot_hub_fqdn) && !az_span_is_empty(azure_iot->config->device_id))
 
 /* --- Public API --- */
-int azure_iot_init(azure_iot_t* azure_iot, azure_iot_config_t* iot_config)
+int azure_iot_init(azure_iot_t* azure_iot, azure_iot_config_t* azure_iot_config)
 {
-  // TODO: error check
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+  _az_PRECONDITION_NOT_NULL(azure_iot_config);
+  if (azure_iot_config->use_device_provisioning)
+  {
+    _az_PRECONDITION(az_span_is_empty(azure_iot_config->iot_hub_fqdn));
+    _az_PRECONDITION(az_span_is_empty(azure_iot_config->device_id));
+    _az_PRECONDITION_VALID_SPAN(azure_iot_config->dps_id_scope, 1, false);
+    _az_PRECONDITION_VALID_SPAN(azure_iot_config->dps_registration_id, 1, false);
+  }
+  else
+  {
+    _az_PRECONDITION_VALID_SPAN(azure_iot_config->iot_hub_fqdn, 1, false);
+    _az_PRECONDITION_VALID_SPAN(azure_iot_config->device_id, 1, false);
+    _az_PRECONDITION(az_span_is_empty(azure_iot_config->dps_id_scope));
+    _az_PRECONDITION(az_span_is_empty(azure_iot_config->dps_registration_id));
+  }
+  _az_PRECONDITION_VALID_SPAN(azure_iot_config->device_key, 1, false);
+  _az_PRECONDITION_VALID_SPAN(azure_iot_config->data_buffer, 1, false);
+  _az_PRECONDITION_NOT_NULL(azure_iot_config->data_manipulation_functions.base64_decode);
+  _az_PRECONDITION_NOT_NULL(azure_iot_config->data_manipulation_functions.base64_encode);
+  _az_PRECONDITION_NOT_NULL(azure_iot_config->data_manipulation_functions.hmac_sha512_encrypt);
+  _az_PRECONDITION_NOT_NULL(azure_iot_config->mqtt_client_interface.mqtt_client_init);
+  _az_PRECONDITION_NOT_NULL(azure_iot_config->mqtt_client_interface.mqtt_client_deinit);
+  _az_PRECONDITION_NOT_NULL(azure_iot_config->mqtt_client_interface.mqtt_client_subscribe);
+  _az_PRECONDITION_NOT_NULL(azure_iot_config->mqtt_client_interface.mqtt_client_publish);
+  _az_PRECONDITION_NOT_NULL(azure_iot_config->on_properties_update_completed);
+  _az_PRECONDITION_NOT_NULL(azure_iot_config->on_properties_received);
+  _az_PRECONDITION_NOT_NULL(azure_iot_config->on_command_request_received);
+
   (void)memset(azure_iot, 0, sizeof(azure_iot_t));
-  azure_iot->config = iot_config;
+  azure_iot->config = azure_iot_config;
   azure_iot->data_buffer = azure_iot->config->data_buffer;
   azure_iot->state = azure_iot_state_initialized;
   azure_iot->dps_operation_id = AZ_SPAN_EMPTY;
@@ -91,7 +121,8 @@ int azure_iot_init(azure_iot_t* azure_iot, azure_iot_config_t* iot_config)
 
 int azure_iot_start(azure_iot_t* azure_iot)
 {
-  // TODO: error check
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+
   int result;
 
   if (azure_iot->state == azure_iot_state_not_initialized)
@@ -116,7 +147,8 @@ int azure_iot_start(azure_iot_t* azure_iot)
 
 int azure_iot_stop(azure_iot_t* azure_iot)
 {
-  // TODO: error check
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+
   int result;
 
   if (azure_iot->state == azure_iot_state_not_initialized)
@@ -154,7 +186,8 @@ int azure_iot_stop(azure_iot_t* azure_iot)
 
 azure_iot_status_t azure_iot_get_status(azure_iot_t* azure_iot)
 {
-  // TODO: error check.
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+
   azure_iot_status_t status;
 
   switch (azure_iot->state)
@@ -195,8 +228,9 @@ azure_iot_status_t azure_iot_get_status(azure_iot_t* azure_iot)
 
 void azure_iot_do_work(azure_iot_t* azure_iot)
 {
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+
   int result;
-  // TODO: error check.
   int64_t now;
   int packet_id;
   az_result azrc;
@@ -485,9 +519,10 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
   }
 }
 
-int azure_iot_send_telemetry(azure_iot_t* azure_iot, const unsigned char* message, size_t length)
+int azure_iot_send_telemetry(azure_iot_t* azure_iot, az_span message)
 {
-  // TODO: check errors (azure_iot status, etc).
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+  _az_PRECONDITION_VALID_SPAN(message, 1, false);
   
   az_result azr;
   size_t topic_length;
@@ -498,7 +533,7 @@ int azure_iot_send_telemetry(azure_iot_t* azure_iot, const unsigned char* messag
   EXIT_IF_AZ_FAILED(azr, RESULT_ERROR, "Failed to get the telemetry topic");
 
   mqtt_message.topic = az_span_slice(azure_iot->data_buffer, 0, topic_length);
-  mqtt_message.payload = az_span_create((uint8_t*)message, length);
+  mqtt_message.payload = message;
   mqtt_message.qos = mqtt_qos_at_most_once;
 
   int packet_id = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
@@ -507,9 +542,10 @@ int azure_iot_send_telemetry(azure_iot_t* azure_iot, const unsigned char* messag
   return RESULT_OK;
 }
 
-int azure_iot_send_properties_update(azure_iot_t* azure_iot, uint32_t request_id, const uint8_t* message, size_t length)
+int azure_iot_send_properties_update(azure_iot_t* azure_iot, uint32_t request_id, az_span message)
 {
-  // TODO: error check.
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+  _az_PRECONDITION_VALID_SPAN(message, 1, false);
 
   az_result azr;
   size_t topic_length;
@@ -526,7 +562,7 @@ int azure_iot_send_properties_update(azure_iot_t* azure_iot, uint32_t request_id
   EXIT_IF_AZ_FAILED(azr, RESULT_ERROR, "Failed to get the repoted properties publish topic");
 
   mqtt_message.topic = az_span_slice(data_buffer, 0, topic_length);
-  mqtt_message.payload = az_span_create((uint8_t*)message, length);
+  mqtt_message.payload = message;
   mqtt_message.qos = mqtt_qos_at_most_once;
 
   int packet_id = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
@@ -537,7 +573,8 @@ int azure_iot_send_properties_update(azure_iot_t* azure_iot, uint32_t request_id
 
 int azure_iot_mqtt_client_connected(azure_iot_t* azure_iot)
 {
-  // TODO: error check.
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+  
   int result;
 
   if (azure_iot->state == azure_iot_state_connecting_to_dps)
@@ -571,7 +608,8 @@ int azure_iot_mqtt_client_connected(azure_iot_t* azure_iot)
 
 int azure_iot_mqtt_client_disconnected(azure_iot_t* azure_iot)
 {
-  // TODO: error check.
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+
   int result;
 
   if (azure_iot->state == azure_iot_state_refreshing_sas)
@@ -593,9 +631,9 @@ int azure_iot_mqtt_client_disconnected(azure_iot_t* azure_iot)
 
 int azure_iot_mqtt_client_subscribe_completed(azure_iot_t* azure_iot, int packet_id)
 {
-  (void)packet_id;
+  _az_PRECONDITION_NOT_NULL(azure_iot);
 
-  // TODO: error check.
+  (void)packet_id;
   int result;
 
   if (azure_iot->state == azure_iot_state_subscribing_to_dps)
@@ -632,7 +670,8 @@ int azure_iot_mqtt_client_subscribe_completed(azure_iot_t* azure_iot, int packet
  */
 int azure_iot_mqtt_client_publish_completed(azure_iot_t* azure_iot, int packet_id)
 {
-  (void)azure_iot;
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+
   (void)packet_id;
 
   return RESULT_OK;
@@ -640,7 +679,10 @@ int azure_iot_mqtt_client_publish_completed(azure_iot_t* azure_iot, int packet_i
 
 int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_t* mqtt_message)
 {
-  // TODO: error check.
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+  _az_PRECONDITION_NOT_NULL(mqtt_message);
+  _az_PRECONDITION_VALID_SPAN(mqtt_message->topic, 1, false);
+
   int result;
   az_result azrc;
 
@@ -815,7 +857,9 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
 
 int azure_iot_send_command_response(azure_iot_t* azure_iot, az_span request_id, uint16_t response_status, az_span payload)
 {
-  // TODO: error check.
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+  _az_PRECONDITION_VALID_SPAN(request_id, 1, false);
+
   az_result azrc;
   mqtt_message_t mqtt_message;
   size_t topic_length;

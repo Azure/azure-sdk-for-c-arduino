@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 /*
- * This is an Arduino-based Azure IoT Central sample specific for the Espressif ESP32 Azure IoT Kit board.
+ * This is an Arduino-based Azure IoT Central sample specific for Espressif ESP32.
  * It uses our Azure Embedded SDK for C to help interact with Azure IoT.
  * For reference, please visit https://github.com/azure/azure-sdk-for-c and https://azureiotcentral.com/.
  * 

@@ -11,6 +11,8 @@
 #include "Azure_IoT_PnP_Template.h"
 #include "esp32_azureiotkit_sensors.h"
 
+#include <az_precondition_internal.h>
+
 /* --- Defines --- */
 #define AZURE_PNP_MODEL_ID "dtmi:azureiot:devkit:freertos:Esp32AzureIotKit;1"
 
@@ -84,7 +86,7 @@ static uint32_t telemetry_send_count = 0;
 static size_t telemetry_frequency_in_seconds = 10; // With default frequency of once in 10 seconds.
 static time_t last_telemetry_send_time = INDEFINITE_TIME;
 
-#define OLED_SPLASH_MESSAGE              "Azure IoT Central ESP32 Sample"
+#define OLED_SPLASH_MESSAGE              "Espressif ESP32 Azure IoT Kit + Azure IoT Central"
 
 static bool led1_on = false;
 static bool led2_on = false;
@@ -124,6 +126,8 @@ void azure_pnp_set_telemetry_frequency(size_t frequency_in_seconds)
 
 int azure_pnp_send_telemetry(azure_iot_t* azure_iot)
 {
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+
   time_t now = time(NULL);
 
   if (now == INDEFINITE_TIME)
@@ -144,7 +148,7 @@ int azure_pnp_send_telemetry(azure_iot_t* azure_iot)
       return RESULT_ERROR;
     }
 
-    if (azure_iot_send_telemetry(azure_iot, data_buffer, payload_size) != 0)
+    if (azure_iot_send_telemetry(azure_iot, az_span_create(data_buffer, payload_size)) != 0)
     {
       LogError("Failed sending telemetry.");
       return RESULT_ERROR;
@@ -156,28 +160,24 @@ int azure_pnp_send_telemetry(azure_iot_t* azure_iot)
 
 int azure_pnp_send_device_info(azure_iot_t* azure_iot, uint32_t request_id)
 {
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+
   int result;
   size_t length;  
     
   result = generate_device_info_payload(&azure_iot->iot_hub_client, data_buffer, DATA_BUFFER_SIZE, &length);
   EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed generating telemetry payload.");
 
-  result = azure_iot_send_properties_update(azure_iot, request_id, data_buffer, length);
+  result = azure_iot_send_properties_update(azure_iot, request_id, az_span_create(data_buffer, length));
   EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed sending reported properties update.");
 
   return RESULT_OK;
 }
 
-int azure_pnp_update_properties(azure_iot_t* azure_iot)
-{
-  int result = RESULT_OK;
-
-  return result;
-}
-
 int azure_pnp_handle_command_request(azure_iot_t* azure_iot, command_request_t command)
 {
-  // TODO: error/argument check.
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+
   uint16_t response_code;
 
   if (az_span_is_content_equal(command.command_name, COMMAND_NAME_TOGGLE_LED_1))
@@ -209,13 +209,16 @@ int azure_pnp_handle_command_request(azure_iot_t* azure_iot, command_request_t c
 
 int azure_pnp_handle_properties_update(azure_iot_t* azure_iot, az_span properties, uint32_t request_id)
 {
+  _az_PRECONDITION_NOT_NULL(azure_iot);
+  _az_PRECONDITION_VALID_SPAN(properties, 1, false);
+
   int result;
   size_t length;
 
   result = consume_properties_and_generate_response(azure_iot, properties, data_buffer, DATA_BUFFER_SIZE, &length);
   EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed generating properties ack payload.");
 
-  result = azure_iot_send_properties_update(azure_iot, request_id, data_buffer, length);
+  result = azure_iot_send_properties_update(azure_iot, request_id, az_span_create(data_buffer, length));
   EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed sending reported properties update.");
 
   return RESULT_OK;
