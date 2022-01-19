@@ -1,6 +1,6 @@
 ---
 page_type: sample
-description: Connecting ESPRESSIF ESP32-Azure IoT Kit to Azure IoT using the Azure SDK for C Arduino library
+description: Connecting ESPRESSIF ESP32-Azure IoT Kit to Azure IoT Central using the Azure SDK for C Arduino library
 languages:
 - c
 products:

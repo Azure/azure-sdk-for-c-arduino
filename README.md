@@ -5,11 +5,15 @@ For more details about the Azure Embedded SDK for C please refer to the [officia
 This library package contains the following samples.
 Please refer to their documentation for setup and execution instructions.
 
-[ESPRESSIF ESP-8266](examples/Azure_IoT_Hub_ESP8266/readme.md)
+[Azure IoT Central ESPRESSIF ESP32 Azure IoT Kit](examples/Azure_IoT_Central_ESP32_AzureIoTKit/readme.md)
 
-[ESPRESSIF ESP-32](examples/Azure_IoT_Hub_ESP32/readme.md)
+[Azure IoT Central ESPRESSIF ESP32](examples/Azure_IoT_Central_ESP32/readme.md)
 
-[Realtek AmebaD](examples/Azure_IoT_Hub_RealtekAmebaD/readme.md)
+[Azure IoT Hub ESPRESSIF ESP-8266](examples/Azure_IoT_Hub_ESP8266/readme.md)
+
+[Azure IoT Hub ESPRESSIF ESP-32](examples/Azure_IoT_Hub_ESP32/readme.md)
+
+[Azure IoT Hub Realtek AmebaD](examples/Azure_IoT_Hub_RealtekAmebaD/readme.md)
 
 ## Contributing
 
