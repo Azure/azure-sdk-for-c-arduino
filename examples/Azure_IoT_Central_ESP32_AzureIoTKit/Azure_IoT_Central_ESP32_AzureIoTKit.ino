@@ -141,11 +141,9 @@ static int mqtt_client_init_function(mqtt_client_config_t* mqtt_client_config, m
   mqtt_config.disable_auto_reconnect = false;
   mqtt_config.event_handle = esp_mqtt_event_handler;
   mqtt_config.user_context = NULL;
-  mqtt_config.buffer_size = 1024;
   mqtt_config.cert_pem = (const char*)ca_pem;
 
   LogInfo("MQTT client target uri set to '%s'", mqtt_broker_uri);
-
   mqtt_client = esp_mqtt_client_init(&mqtt_config);
 
   if (mqtt_client == NULL)
@@ -181,7 +179,7 @@ static int mqtt_client_deinit_function(mqtt_client_handle_t mqtt_client_handle)
   esp_mqtt_client_handle_t esp_mqtt_client_handle = (esp_mqtt_client_handle_t)mqtt_client_handle;
 
   LogInfo("MQTT client being disconnected.");
-  
+
   if (esp_mqtt_client_stop(esp_mqtt_client_handle) != ESP_OK)
   {
     LogError("Failed stopping MQTT client.");
