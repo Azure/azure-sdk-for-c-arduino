@@ -36,7 +36,7 @@
 static const char* ssid = IOT_CONFIG_WIFI_SSID;
 static const char* password = IOT_CONFIG_WIFI_PASSWORD;
 static const char* host = IOT_CONFIG_IOTHUB_FQDN;
-static const int mqtt_port = 8883;
+static const int mqtt_port = AZ_IOT_DEFAULT_MQTT_CONNECT_PORT;
 
 // Memory allocated for the sample's variables and structures.
 static WiFiUDP ntp_udp_client;
