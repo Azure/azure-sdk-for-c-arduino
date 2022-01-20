@@ -15,8 +15,8 @@
 log_function_t default_logging_function = NULL;
 #endif // DISABLE_LOGGING
 
-/* --- Azure Abstractions --- */
-#define IOT_HUB_MQTT_PORT                           8883
+/* --- Azure Definitions --- */
+#define IOT_HUB_MQTT_PORT                           AZ_IOT_DEFAULT_MQTT_CONNECT_PORT
 #define MQTT_PROTOCOL_PREFIX                        "mqtts://"
 #define DPS_GLOBAL_ENDPOINT_MQTT_URI                MQTT_PROTOCOL_PREFIX DPS_GLOBAL_ENDPOINT_FQDN
 #define DPS_GLOBAL_ENDPOINT_MQTT_URI_WITH_PORT      DPS_GLOBAL_ENDPOINT_MQTT_URI ":" STR(DPS_GLOBAL_ENDPOINT_PORT)
@@ -45,6 +45,8 @@ log_function_t default_logging_function = NULL;
 #define EXIT_IF_AZ_FAILED(azresult, retcode, message, ...)                          \
   EXIT_IF_TRUE(az_result_failed(azresult), retcode, message, ##__VA_ARGS__ )
 
+#define NUMBER_OF_SECONDS_IN_A_MINUTE               60
+
 /* --- Internal function prototypes --- */
 static uint32_t get_current_unix_time();
 
@@ -71,17 +73,17 @@ static int get_mqtt_client_config_for_iot_hub(azure_iot_t* azure_iot, mqtt_clien
 static az_span generate_dps_register_custom_property(az_span model_id, az_span data_buffer, az_span* remainder);
 
 #define is_device_provisioned(azure_iot) \
-  (!az_span_is_empty(azure_iot->config->iot_hub_fqdn) && !az_span_is_empty(azure_iot->config->device_id))
+  (!is_az_span_empty(azure_iot->config->iot_hub_fqdn) && !is_az_span_empty(azure_iot->config->device_id))
 
 /* --- Public API --- */
-int azure_iot_init(azure_iot_t* azure_iot, azure_iot_config_t* azure_iot_config)
+void azure_iot_init(azure_iot_t* azure_iot, azure_iot_config_t* azure_iot_config)
 {
   _az_PRECONDITION_NOT_NULL(azure_iot);
   _az_PRECONDITION_NOT_NULL(azure_iot_config);
   if (azure_iot_config->use_device_provisioning)
   {
-    _az_PRECONDITION(az_span_is_empty(azure_iot_config->iot_hub_fqdn));
-    _az_PRECONDITION(az_span_is_empty(azure_iot_config->device_id));
+    _az_PRECONDITION(is_az_span_empty(azure_iot_config->iot_hub_fqdn));
+    _az_PRECONDITION(is_az_span_empty(azure_iot_config->device_id));
     _az_PRECONDITION_VALID_SPAN(azure_iot_config->dps_id_scope, 1, false);
     _az_PRECONDITION_VALID_SPAN(azure_iot_config->dps_registration_id, 1, false);
   }
@@ -89,14 +91,14 @@ int azure_iot_init(azure_iot_t* azure_iot, azure_iot_config_t* azure_iot_config)
   {
     _az_PRECONDITION_VALID_SPAN(azure_iot_config->iot_hub_fqdn, 1, false);
     _az_PRECONDITION_VALID_SPAN(azure_iot_config->device_id, 1, false);
-    _az_PRECONDITION(az_span_is_empty(azure_iot_config->dps_id_scope));
-    _az_PRECONDITION(az_span_is_empty(azure_iot_config->dps_registration_id));
+    _az_PRECONDITION(is_az_span_empty(azure_iot_config->dps_id_scope));
+    _az_PRECONDITION(is_az_span_empty(azure_iot_config->dps_registration_id));
   }
   _az_PRECONDITION_VALID_SPAN(azure_iot_config->device_key, 1, false);
   _az_PRECONDITION_VALID_SPAN(azure_iot_config->data_buffer, 1, false);
   _az_PRECONDITION_NOT_NULL(azure_iot_config->data_manipulation_functions.base64_decode);
   _az_PRECONDITION_NOT_NULL(azure_iot_config->data_manipulation_functions.base64_encode);
-  _az_PRECONDITION_NOT_NULL(azure_iot_config->data_manipulation_functions.hmac_sha512_encrypt);
+  _az_PRECONDITION_NOT_NULL(azure_iot_config->data_manipulation_functions.hmac_sha256_encrypt);
   _az_PRECONDITION_NOT_NULL(azure_iot_config->mqtt_client_interface.mqtt_client_init);
   _az_PRECONDITION_NOT_NULL(azure_iot_config->mqtt_client_interface.mqtt_client_deinit);
   _az_PRECONDITION_NOT_NULL(azure_iot_config->mqtt_client_interface.mqtt_client_subscribe);
@@ -115,8 +117,6 @@ int azure_iot_init(azure_iot_t* azure_iot, azure_iot_config_t* azure_iot_config)
   {
     azure_iot->config->sas_token_lifetime_in_minutes = DEFAULT_SAS_TOKEN_LIFETIME_IN_MINUTES;
   }
-
-  return RESULT_OK;
 }
 
 int azure_iot_start(azure_iot_t* azure_iot)
@@ -237,7 +237,8 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
   size_t length;
   mqtt_client_config_t mqtt_client_config;
   mqtt_message_t mqtt_message;
-  az_span data_buffer, dps_register_custom_property;
+  az_span data_buffer;
+  az_span dps_register_custom_property;
       
   switch (azure_iot->state)
   {
@@ -250,7 +251,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       {
         // This seems harmless, but...
         // azure_iot->config->data_buffer always points to the original buffer provided by the user.
-        // azure_iot->data_buffer is an intermediate pointer. It starts by pointint to azure_iot->config->data_buffer.
+        // azure_iot->data_buffer is an intermediate pointer. It starts by pointing to azure_iot->config->data_buffer.
         // In the steps below the code might need to retain part of azure_iot->data_buffer for saving some critical information,
         // namely the DPS operation id, the provisioned IoT Hub FQDN and provisioned Device ID (if provisioning is being used).
         // In these cases, azure_iot->data_buffer will then point to `the remaining available space` of azure_iot->config->data_buffer
@@ -277,6 +278,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed initializing MQTT client.");
+        return;
       }
 
       break;
@@ -287,15 +289,15 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       azure_iot->state = azure_iot_state_subscribing_to_dps;
 
       packet_id = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
-          azure_iot->mqtt_client_handle, 
-          (const uint8_t*)AZ_IOT_PROVISIONING_CLIENT_REGISTER_SUBSCRIBE_TOPIC,
-          lengthof(AZ_IOT_PROVISIONING_CLIENT_REGISTER_SUBSCRIBE_TOPIC),
+          azure_iot->mqtt_client_handle,
+          AZ_SPAN_FROM_STR(AZ_IOT_PROVISIONING_CLIENT_REGISTER_SUBSCRIBE_TOPIC),
           mqtt_qos_at_most_once);
           
       if (packet_id < 0)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed subscribing to Azure Device Provisioning respose topic.");
+        return;
       }
 
       break;
@@ -314,19 +316,19 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
         return;
       }
 
-      mqtt_message.topic = az_span_split(data_buffer, length, &data_buffer);
+      mqtt_message.topic = split_az_span(data_buffer, length, &data_buffer);
 
-      if (az_span_is_empty(mqtt_message.topic) || az_span_is_empty(data_buffer))
+      if (is_az_span_empty(mqtt_message.topic) || is_az_span_empty(data_buffer))
       {
         azure_iot->state = azure_iot_state_error;
-        LogError("Failed allocating memory for DPS register payload.");
+        LogError("Failed reserving memory for DPS register payload.");
         return;
       }
 
       dps_register_custom_property = generate_dps_register_custom_property(
         azure_iot->config->model_id, data_buffer, &mqtt_message.payload);
 
-      if (az_span_is_empty(dps_register_custom_property))
+      if (is_az_span_empty(dps_register_custom_property))
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed generating DPS register custom property payload.");
@@ -359,6 +361,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed publishing to DPS registration topic");
+        return;
       }
 
       break;
@@ -405,6 +408,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed publishing to DPS status query topic");
+        return;
       }
 
       break;
@@ -437,7 +441,8 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       if (azure_iot->config->mqtt_client_interface.mqtt_client_init(&mqtt_client_config, &azure_iot->mqtt_client_handle) != 0)
       {
         azure_iot->state = azure_iot_state_error;
-        LogError("Failed initializing MQTT client.");
+        LogError("Failed initializing MQTT client for IoT Hub connection.");
+        return;
       }
 
       break;
@@ -447,13 +452,15 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       azure_iot->state = azure_iot_state_subscribing_to_pnp_cmds;
       
       packet_id = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
-          azure_iot->mqtt_client_handle, (const uint8_t*)AZ_IOT_HUB_CLIENT_COMMANDS_SUBSCRIBE_TOPIC,
-          lengthof(AZ_IOT_HUB_CLIENT_COMMANDS_SUBSCRIBE_TOPIC), mqtt_qos_at_least_once);
+          azure_iot->mqtt_client_handle,
+          AZ_SPAN_FROM_STR(AZ_IOT_HUB_CLIENT_COMMANDS_SUBSCRIBE_TOPIC),
+          mqtt_qos_at_least_once);
 
       if (packet_id < 0)
       {
         azure_iot->state = azure_iot_state_error;
-        LogError("Failed subscribing to Azure Plug and Play commands topic.");
+        LogError("Failed subscribing to IoT Plug and Play commands topic.");
+        return;
       }
 
       break;
@@ -463,30 +470,33 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       azure_iot->state = azure_iot_state_subscribing_to_pnp_props;
 
       packet_id = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
-          azure_iot->mqtt_client_handle, (const uint8_t*)AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_SUBSCRIBE_TOPIC, 
-          lengthof(AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_SUBSCRIBE_TOPIC), mqtt_qos_at_least_once);
+          azure_iot->mqtt_client_handle, 
+          AZ_SPAN_FROM_STR(AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_SUBSCRIBE_TOPIC), 
+          mqtt_qos_at_least_once);
 
       if (packet_id < 0)
       {
         azure_iot->state = azure_iot_state_error;
-        LogError("Failed subscribing to Azure Plug and Play properties topic.");
+        LogError("Failed subscribing to IoT Plug and Play properties topic.");
+        return;
       }
-    
-      break;
 
+      break;
     case azure_iot_state_subscribing_to_pnp_props:
       break;
     case azure_iot_state_subscribed_to_pnp_props:
       azure_iot->state = azure_iot_state_subscribing_to_pnp_writable_props;
     
       packet_id = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
-          azure_iot->mqtt_client_handle, (const uint8_t*)AZ_IOT_HUB_CLIENT_PROPERTIES_WRITABLE_UPDATES_SUBSCRIBE_TOPIC,
-          lengthof(AZ_IOT_HUB_CLIENT_PROPERTIES_WRITABLE_UPDATES_SUBSCRIBE_TOPIC), mqtt_qos_at_least_once);
+          azure_iot->mqtt_client_handle,
+          AZ_SPAN_FROM_STR(AZ_IOT_HUB_CLIENT_PROPERTIES_WRITABLE_UPDATES_SUBSCRIBE_TOPIC),
+          mqtt_qos_at_least_once);
 
       if (packet_id < 0)
       {
         azure_iot->state = azure_iot_state_error;
-        LogError("Failed subscribing to Azure Plug and Play writable properties topic.");
+        LogError("Failed subscribing to IoT Plug and Play writable properties topic.");
+        return;
       }
 
       break;
@@ -501,13 +511,14 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
         azure_iot->state = azure_iot_state_error;
         LogError("Failed getting current time for checking SAS token expiration.");
       }
-      else if ((azure_iot->sas_token_expiration_time - now) < SAS_TOKEN_REFRESH_THRESHOLD_SECS)
+      else if ((azure_iot->sas_token_expiration_time - now) < SAS_TOKEN_REFRESH_THRESHOLD_IN_SECS)
       {
         azure_iot->state = azure_iot_state_refreshing_sas;
         if (azure_iot->config->mqtt_client_interface.mqtt_client_deinit(&azure_iot->mqtt_client_handle) != 0)
         {
           azure_iot->state = azure_iot_state_error;
           LogError("Failed de-initializing MQTT client.");
+          return;
         }
       }
       break;
@@ -559,7 +570,7 @@ int azure_iot_send_properties_update(azure_iot_t* azure_iot, uint32_t request_id
 
   azr = az_iot_hub_client_properties_get_reported_publish_topic(
       &azure_iot->iot_hub_client, request_id_span, (char*)az_span_ptr(data_buffer), az_span_size(data_buffer), &topic_length);
-  EXIT_IF_AZ_FAILED(azr, RESULT_ERROR, "Failed to get the repoted properties publish topic");
+  EXIT_IF_AZ_FAILED(azr, RESULT_ERROR, "Failed to get the reported properties publish topic");
 
   mqtt_message.topic = az_span_slice(data_buffer, 0, topic_length);
   mqtt_message.payload = message;
@@ -690,7 +701,7 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
   {
     // This message should either be:
     // - a response to a properties update request, or
-    // - a response to a get properties request, or
+    // - a response to a "get" properties request, or
     // - a command request.
 
     az_iot_hub_client_properties_message property_message;
@@ -725,7 +736,7 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
             
             if (az_result_failed(az_span_atou32(property_message.request_id, &request_id)))
             {
-              LogError("Failed parsing properties update request id (%.*s)", 
+              LogError("Failed parsing properties update request id (%.*s).", 
                 az_span_size(property_message.request_id), az_span_ptr(property_message.request_id));
               result = RESULT_ERROR;
             }
@@ -789,14 +800,14 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
       {
         result = RESULT_OK;
 
-        if (az_span_is_empty(azure_iot->dps_operation_id))
+        if (is_az_span_empty(azure_iot->dps_operation_id))
         {
-          azure_iot->dps_operation_id = az_span_slice_and_copy(azure_iot->data_buffer, register_response.operation_id, &azure_iot->data_buffer);
+          azure_iot->dps_operation_id = slice_and_copy_az_span(azure_iot->data_buffer, register_response.operation_id, &azure_iot->data_buffer);
 
-          if (az_span_is_empty(azure_iot->dps_operation_id))
+          if (is_az_span_empty(azure_iot->dps_operation_id))
           {
             azure_iot->state = azure_iot_state_error;
-            LogError("Failed allocating memory for DPS operation id.");
+            LogError("Failed reserving memory for DPS operation id.");
             result = RESULT_ERROR;
           }
         }
@@ -812,9 +823,9 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
         az_span data_buffer = azure_iot->config->data_buffer; // Operation ID is no longer needed.
         azure_iot->data_buffer = data_buffer; // In case any step below fails.
 
-        azure_iot->config->iot_hub_fqdn = az_span_slice_and_copy(data_buffer, register_response.registration_state.assigned_hub_hostname, &data_buffer);
+        azure_iot->config->iot_hub_fqdn = slice_and_copy_az_span(data_buffer, register_response.registration_state.assigned_hub_hostname, &data_buffer);
         
-        if (az_span_is_empty(azure_iot->config->iot_hub_fqdn))
+        if (is_az_span_empty(azure_iot->config->iot_hub_fqdn))
         {
           azure_iot->state = azure_iot_state_error;
           LogError("Failed saving IoT Hub fqdn from provisioning.");
@@ -822,9 +833,9 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
         }
         else
         {
-          azure_iot->config->device_id = az_span_slice_and_copy(data_buffer, register_response.registration_state.device_id, &data_buffer);
+          azure_iot->config->device_id = slice_and_copy_az_span(data_buffer, register_response.registration_state.device_id, &data_buffer);
                     
-          if (az_span_is_empty(azure_iot->config->device_id))
+          if (is_az_span_empty(azure_iot->config->device_id))
           {
             azure_iot->state = azure_iot_state_error;
             LogError("Failed saving device id from provisioning.");
@@ -848,7 +859,7 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
   }
   else
   {
-    LogError("No PUBLISH notification expected");
+    LogError("No PUBLISH notification expected.");
     result = RESULT_ERROR;
   }
   
@@ -870,7 +881,7 @@ int azure_iot_send_command_response(azure_iot_t* azure_iot, az_span request_id, 
   azrc = az_iot_hub_client_commands_response_get_publish_topic(
       &azure_iot->iot_hub_client, request_id, response_status, 
       (char*)az_span_ptr(mqtt_message.topic), az_span_size(mqtt_message.topic), &topic_length);
-  EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed to get the commands response topic");
+  EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed to get the commands response topic.");
 
   mqtt_message.topic = az_span_slice(mqtt_message.topic, 0, topic_length);
   mqtt_message.payload = payload;
@@ -903,7 +914,7 @@ static uint32_t get_current_unix_time()
 }
 
 /*
- * @brief           Initializes the Device Provisioning client and generates the config for a MQTT client.
+ * @brief           Initializes the Device Provisioning client and generates the config for an MQTT client.
  * @param[in]       azure_iot          A pointer to an initialized instance of azure_iot_t.
  * @param[in]       mqtt_client_config A pointer to a generic structure to contain the configuration for
  *                                     creating and connecting an MQTT client to Azure Device Provisioning service.
@@ -912,8 +923,13 @@ static uint32_t get_current_unix_time()
  */
 static int get_mqtt_client_config_for_dps(azure_iot_t* azure_iot, mqtt_client_config_t* mqtt_client_config)
 {
-  az_span data_buffer_span, client_id_span, username_span, password_span;
-  size_t client_id_length, username_length, password_length;
+  az_span data_buffer_span;
+  az_span client_id_span;
+  az_span username_span;
+  az_span password_span;
+  size_t client_id_length;
+  size_t username_length;
+  size_t password_length;
   az_result azrc;
 
   azrc = az_iot_provisioning_client_init(
@@ -926,8 +942,8 @@ static int get_mqtt_client_config_for_dps(azure_iot_t* azure_iot, mqtt_client_co
 
   data_buffer_span = azure_iot->data_buffer;
   
-  password_span = az_span_split(data_buffer_span, MQTT_PASSWORD_BUFFER_SIZE, &data_buffer_span);
-  EXIT_IF_TRUE(az_span_is_empty(password_span), RESULT_ERROR, "Failed allocating buffer for password_span.");
+  password_span = split_az_span(data_buffer_span, MQTT_PASSWORD_BUFFER_SIZE, &data_buffer_span);
+  EXIT_IF_TRUE(is_az_span_empty(password_span), RESULT_ERROR, "Failed reserving buffer for password_span.");
 
   password_length = generate_sas_token_for_dps(
     &azure_iot->dps_client,
@@ -939,14 +955,14 @@ static int get_mqtt_client_config_for_dps(azure_iot_t* azure_iot, mqtt_client_co
     &azure_iot->sas_token_expiration_time);
   EXIT_IF_TRUE(password_length == 0, RESULT_ERROR, "Failed creating mqtt password for DPS connection.");    
 
-  client_id_span = az_span_split(data_buffer_span, MQTT_CLIENT_ID_BUFFER_SIZE, &data_buffer_span);
-  EXIT_IF_TRUE(az_span_is_empty(client_id_span), RESULT_ERROR, "Failed allocating buffer for client_id_span.");
+  client_id_span = split_az_span(data_buffer_span, MQTT_CLIENT_ID_BUFFER_SIZE, &data_buffer_span);
+  EXIT_IF_TRUE(is_az_span_empty(client_id_span), RESULT_ERROR, "Failed reserving buffer for client_id_span.");
 
   azrc = az_iot_provisioning_client_get_client_id(
       &azure_iot->dps_client, (char*)az_span_ptr(client_id_span), az_span_size(client_id_span), &client_id_length);
   EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed getting client id for DPS connection.");
 
-  username_span = az_span_split(data_buffer_span, MQTT_USERNAME_BUFFER_SIZE, &data_buffer_span);
+  username_span = split_az_span(data_buffer_span, MQTT_USERNAME_BUFFER_SIZE, &data_buffer_span);
 
   azrc = az_iot_provisioning_client_get_user_name(
       &azure_iot->dps_client, (char*)az_span_ptr(username_span), az_span_size(username_span), &username_length);
@@ -963,7 +979,7 @@ static int get_mqtt_client_config_for_dps(azure_iot_t* azure_iot, mqtt_client_co
 }
 
 /*
- * @brief           Initializes the Azure IoT Hub client and generates the config for a MQTT client.
+ * @brief           Initializes the Azure IoT Hub client and generates the config for an MQTT client.
  * @param[in]       azure_iot          A pointer to an initialized instance of azure_iot_t.
  * @param[in]       mqtt_client_config A pointer to a generic structure to contain the configuration for
  *                                     creating and connecting an MQTT client to Azure IoT Hub.
@@ -972,8 +988,13 @@ static int get_mqtt_client_config_for_dps(azure_iot_t* azure_iot, mqtt_client_co
  */
 static int get_mqtt_client_config_for_iot_hub(azure_iot_t* azure_iot, mqtt_client_config_t* mqtt_client_config)
 {
-  az_span data_buffer_span, client_id_span, username_span, password_span;
-  size_t client_id_length, username_length, password_length;
+  az_span data_buffer_span;
+  az_span client_id_span;
+  az_span username_span;
+  az_span password_span;
+  size_t client_id_length;
+  size_t username_length;
+  size_t password_length;
   az_result azrc;
 
   azure_iot->iot_hub_client_options = az_iot_hub_client_options_default();
@@ -989,8 +1010,8 @@ static int get_mqtt_client_config_for_iot_hub(azure_iot_t* azure_iot, mqtt_clien
 
   data_buffer_span = azure_iot->data_buffer;
   
-  password_span = az_span_split(data_buffer_span, MQTT_PASSWORD_BUFFER_SIZE, &data_buffer_span);
-  EXIT_IF_TRUE(az_span_is_empty(password_span), RESULT_ERROR, "Failed allocating buffer for password_span.");
+  password_span = split_az_span(data_buffer_span, MQTT_PASSWORD_BUFFER_SIZE, &data_buffer_span);
+  EXIT_IF_TRUE(is_az_span_empty(password_span), RESULT_ERROR, "Failed reserving buffer for password_span.");
 
   password_length = generate_sas_token_for_iot_hub(
     &azure_iot->iot_hub_client,
@@ -1002,14 +1023,14 @@ static int get_mqtt_client_config_for_iot_hub(azure_iot_t* azure_iot, mqtt_clien
     &azure_iot->sas_token_expiration_time);
   EXIT_IF_TRUE(password_length == 0, RESULT_ERROR, "Failed creating mqtt password for IoT Hub connection.");    
 
-  client_id_span = az_span_split(data_buffer_span, MQTT_CLIENT_ID_BUFFER_SIZE, &data_buffer_span);
-  EXIT_IF_TRUE(az_span_is_empty(client_id_span), RESULT_ERROR, "Failed allocating buffer for client_id_span.");
+  client_id_span = split_az_span(data_buffer_span, MQTT_CLIENT_ID_BUFFER_SIZE, &data_buffer_span);
+  EXIT_IF_TRUE(is_az_span_empty(client_id_span), RESULT_ERROR, "Failed reserving buffer for client_id_span.");
 
   azrc = az_iot_hub_client_get_client_id(
       &azure_iot->iot_hub_client, (char*)az_span_ptr(client_id_span), az_span_size(client_id_span), &client_id_length);
   EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed getting client id for IoT Hub connection.");
 
-  username_span = az_span_split(data_buffer_span, MQTT_USERNAME_BUFFER_SIZE, &data_buffer_span);
+  username_span = split_az_span(data_buffer_span, MQTT_USERNAME_BUFFER_SIZE, &data_buffer_span);
 
   azrc = az_iot_hub_client_get_user_name(
       &azure_iot->iot_hub_client, (char*)az_span_ptr(username_span), az_span_size(username_span), &username_length);
@@ -1064,32 +1085,32 @@ static int generate_sas_token_for_dps(
   current_unix_time = get_current_unix_time();
   EXIT_IF_TRUE(current_unix_time == 0, 0, "Failed getting current unix time.");
 
-  *expiration_time = current_unix_time + duration_in_minutes * 60;
+  *expiration_time = current_unix_time + duration_in_minutes * NUMBER_OF_SECONDS_IN_A_MINUTE;
 
   // Step 2.a.
-  plain_sas_signature = az_span_split(data_buffer_span, PLAIN_SAS_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
-  EXIT_IF_TRUE(az_span_is_empty(plain_sas_signature), 0, "Failed allocating buffer for plain sas token.");
+  plain_sas_signature = split_az_span(data_buffer_span, PLAIN_SAS_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
+  EXIT_IF_TRUE(is_az_span_empty(plain_sas_signature), 0, "Failed reserving buffer for plain sas token.");
 
   rc = az_iot_provisioning_client_sas_get_signature(
       provisioning_client, *expiration_time, plain_sas_signature, &plain_sas_signature);
-  EXIT_IF_AZ_FAILED(rc, 0, "Could not get the signature for SAS key");
+  EXIT_IF_AZ_FAILED(rc, 0, "Could not get the signature for SAS key.");
 
   // Step 2.b.
-  sas_signature = az_span_split(data_buffer_span, SAS_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
-  EXIT_IF_TRUE(az_span_is_empty(sas_signature), 0, "Failed allocating buffer for sas_signature.");
+  sas_signature = split_az_span(data_buffer_span, SAS_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
+  EXIT_IF_TRUE(is_az_span_empty(sas_signature), 0, "Failed reserving buffer for sas_signature.");
   
-  decoded_sas_key = az_span_split(data_buffer_span, DECODED_SAS_KEY_BUFFER_SIZE, &data_buffer_span);
-  EXIT_IF_TRUE(az_span_is_empty(decoded_sas_key), 0, "Failed allocating buffer for decoded_sas_key.");
+  decoded_sas_key = split_az_span(data_buffer_span, DECODED_SAS_KEY_BUFFER_SIZE, &data_buffer_span);
+  EXIT_IF_TRUE(is_az_span_empty(decoded_sas_key), 0, "Failed reserving buffer for decoded_sas_key.");
 
   result = data_manipulation_functions.base64_decode(
     az_span_ptr(device_key), az_span_size(device_key), az_span_ptr(decoded_sas_key), az_span_size(decoded_sas_key), &decoded_sas_key_length);
   EXIT_IF_TRUE(result != 0, 0, "Failed decoding SAS key.");
 
   // Step 2.c.
-  sas_hmac256_signed_signature = az_span_split(data_buffer_span, SAS_HMAC256_ENCRIPTED_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
-  EXIT_IF_TRUE(az_span_is_empty(sas_hmac256_signed_signature), 0, "Failed allocating buffer for sas_hmac256_signed_signature.");
+  sas_hmac256_signed_signature = split_az_span(data_buffer_span, SAS_HMAC256_ENCRIPTED_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
+  EXIT_IF_TRUE(is_az_span_empty(sas_hmac256_signed_signature), 0, "Failed reserving buffer for sas_hmac256_signed_signature.");
 
-  result = data_manipulation_functions.hmac_sha512_encrypt(
+  result = data_manipulation_functions.hmac_sha256_encrypt(
     az_span_ptr(decoded_sas_key), decoded_sas_key_length, 
     az_span_ptr(plain_sas_signature), az_span_size(plain_sas_signature), 
     az_span_ptr(sas_hmac256_signed_signature), az_span_size(sas_hmac256_signed_signature));
@@ -1155,32 +1176,32 @@ static int generate_sas_token_for_iot_hub(
   current_unix_time = get_current_unix_time();
   EXIT_IF_TRUE(current_unix_time == 0, 0, "Failed getting current unix time.");
 
-  *expiration_time = current_unix_time + duration_in_minutes * 60;
+  *expiration_time = current_unix_time + duration_in_minutes * NUMBER_OF_SECONDS_IN_A_MINUTE;
 
   // Step 2.a.
-  plain_sas_signature = az_span_split(data_buffer_span, PLAIN_SAS_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
-  EXIT_IF_TRUE(az_span_is_empty(plain_sas_signature), 0, "Failed allocating buffer for plain sas token.");
+  plain_sas_signature = split_az_span(data_buffer_span, PLAIN_SAS_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
+  EXIT_IF_TRUE(is_az_span_empty(plain_sas_signature), 0, "Failed reserving buffer for plain sas token.");
 
   rc = az_iot_hub_client_sas_get_signature(
       iot_hub_client, *expiration_time, plain_sas_signature, &plain_sas_signature);
-  EXIT_IF_AZ_FAILED(rc, 0, "Could not get the signature for SAS key");
+  EXIT_IF_AZ_FAILED(rc, 0, "Could not get the signature for SAS key.");
 
   // Step 2.b.
-  sas_signature = az_span_split(data_buffer_span, SAS_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
-  EXIT_IF_TRUE(az_span_is_empty(sas_signature), 0, "Failed allocating buffer for sas_signature.");
+  sas_signature = split_az_span(data_buffer_span, SAS_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
+  EXIT_IF_TRUE(is_az_span_empty(sas_signature), 0, "Failed reserving buffer for sas_signature.");
   
-  decoded_sas_key = az_span_split(data_buffer_span, DECODED_SAS_KEY_BUFFER_SIZE, &data_buffer_span);
-  EXIT_IF_TRUE(az_span_is_empty(decoded_sas_key), 0, "Failed allocating buffer for decoded_sas_key.");
+  decoded_sas_key = split_az_span(data_buffer_span, DECODED_SAS_KEY_BUFFER_SIZE, &data_buffer_span);
+  EXIT_IF_TRUE(is_az_span_empty(decoded_sas_key), 0, "Failed reserving buffer for decoded_sas_key.");
 
   result = data_manipulation_functions.base64_decode(
     az_span_ptr(device_key), az_span_size(device_key), az_span_ptr(decoded_sas_key), az_span_size(decoded_sas_key), &decoded_sas_key_length);
   EXIT_IF_TRUE(result != 0, 0, "Failed decoding SAS key.");
 
   // Step 2.c.
-  sas_hmac256_signed_signature = az_span_split(data_buffer_span, SAS_HMAC256_ENCRIPTED_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
-  EXIT_IF_TRUE(az_span_is_empty(sas_hmac256_signed_signature), 0, "Failed allocating buffer for sas_hmac256_signed_signature.");
+  sas_hmac256_signed_signature = split_az_span(data_buffer_span, SAS_HMAC256_ENCRIPTED_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
+  EXIT_IF_TRUE(is_az_span_empty(sas_hmac256_signed_signature), 0, "Failed reserving buffer for sas_hmac256_signed_signature.");
 
-  result = data_manipulation_functions.hmac_sha512_encrypt(
+  result = data_manipulation_functions.hmac_sha256_encrypt(
     az_span_ptr(decoded_sas_key), decoded_sas_key_length, 
     az_span_ptr(plain_sas_signature), az_span_size(plain_sas_signature), 
     az_span_ptr(sas_hmac256_signed_signature), az_span_size(sas_hmac256_signed_signature));
@@ -1207,32 +1228,45 @@ static int generate_sas_token_for_iot_hub(
   return mqtt_password_length;
 }
 
+/**
+ * @brief        Generates a custom payload for DPS registration request containing the Azure PnP model ID.
+ * @remark       This payload with the model ID is required for Azure IoT Central to properly
+ *               assign the IoT Plug and Play template.
+ * 
+ * @param[in]    mode_id        The string with the IoT Plug and Play model ID.
+ * @param[in]    data_buffer    Buffer where to write the resulting payload.
+ * @param[in]    remainder      The remainder space of `data_buffer` after enough is reserved for
+ *                              the resulting payload. 
+ * 
+ * @return       az_span        An az_span (reserved from `data_buffer`) containing the payload
+ *                              for the DPS registration request.
+ */
 static az_span generate_dps_register_custom_property(az_span model_id, az_span data_buffer, az_span* remainder)
 {
   az_span custom_property;
   size_t length = lengthof(DPS_REGISTER_CUSTOM_PAYLOAD_BEGIN) + az_span_size(model_id) + lengthof(DPS_REGISTER_CUSTOM_PAYLOAD_END);
       
-  custom_property = az_span_split(data_buffer, length, remainder);
-  EXIT_IF_TRUE(az_span_is_empty(custom_property), AZ_SPAN_EMPTY, "Failed generating DPS register custom property.");
+  custom_property = split_az_span(data_buffer, length, remainder);
+  EXIT_IF_TRUE(is_az_span_empty(custom_property), AZ_SPAN_EMPTY, "Failed generating DPS register custom property (not enough space).");
 
   data_buffer = az_span_copy(data_buffer, AZ_SPAN_FROM_STR(DPS_REGISTER_CUSTOM_PAYLOAD_BEGIN));
-  EXIT_IF_TRUE(az_span_is_empty(data_buffer), AZ_SPAN_EMPTY, "Failed generating DPS register custom property (prefix).");
+  EXIT_IF_TRUE(is_az_span_empty(data_buffer), AZ_SPAN_EMPTY, "Failed generating DPS register custom property (prefix).");
   
   data_buffer = az_span_copy(data_buffer, model_id);
-  EXIT_IF_TRUE(az_span_is_empty(data_buffer), AZ_SPAN_EMPTY, "Failed generating DPS register custom property (model id).");
+  EXIT_IF_TRUE(is_az_span_empty(data_buffer), AZ_SPAN_EMPTY, "Failed generating DPS register custom property (model id).");
   
   data_buffer = az_span_copy(data_buffer, AZ_SPAN_FROM_STR(DPS_REGISTER_CUSTOM_PAYLOAD_END));
-  EXIT_IF_TRUE(az_span_is_empty(data_buffer), AZ_SPAN_EMPTY, "Failed generating DPS register custom property (suffix).");
+  EXIT_IF_TRUE(is_az_span_empty(data_buffer), AZ_SPAN_EMPTY, "Failed generating DPS register custom property (suffix).");
   
   return custom_property;
 }
 
 /* --- az_core extensions --- */
-az_span az_span_split(az_span span, int32_t size, az_span* remainder)
+az_span split_az_span(az_span span, int32_t size, az_span* remainder)
 {
   az_span result = az_span_slice(span, 0, size);
 
-  if (remainder != NULL && !az_span_is_empty(result))
+  if (remainder != NULL && !is_az_span_empty(result))
   {
     *remainder = az_span_slice(span, size, az_span_size(span));
   }
@@ -1240,16 +1274,16 @@ az_span az_span_split(az_span span, int32_t size, az_span* remainder)
   return result;
 }
 
-az_span az_span_slice_and_copy(az_span destination, az_span source, az_span* remainder)
+az_span slice_and_copy_az_span(az_span destination, az_span source, az_span* remainder)
 {
-  az_span result = az_span_split(destination, az_span_size(source), remainder);
+  az_span result = split_az_span(destination, az_span_size(source), remainder);
 
-  if (az_span_is_empty(*remainder))
+  if (is_az_span_empty(*remainder))
   {
     result = AZ_SPAN_EMPTY;
   }
 
-  if (!az_span_is_empty(result))
+  if (!is_az_span_empty(result))
   {
     (void)az_span_copy(result, source);
   }

@@ -6,9 +6,9 @@
  * It uses our Azure Embedded SDK for C to help interact with Azure IoT.
  * For reference, please visit https://github.com/azure/azure-sdk-for-c.
  * 
- * To connect and work with Azure IoT Hub you need a MQTT client, connecting, subscribing
+ * To connect and work with Azure IoT Hub you need an MQTT client, connecting, subscribing
  * and publishing to specific topics to use the messaging features of the hub.
- * Our azure-sdk-for-c is a MQTT client support library, helping composing and parsing the
+ * Our azure-sdk-for-c is an MQTT client support library, helping composing and parsing the
  * MQTT topic names and messages exchanged with the Azure IoT Hub.
  *
  * This sample performs the following tasks:
@@ -64,7 +64,7 @@ static const char* password = IOT_CONFIG_WIFI_PASSWORD;
 static const char* host = IOT_CONFIG_IOTHUB_FQDN;
 static const char* mqtt_broker_uri = "mqtts://" IOT_CONFIG_IOTHUB_FQDN;
 static const char* device_id = IOT_CONFIG_DEVICE_ID;
-static const int mqtt_port = 8883;
+static const int mqtt_port = AZ_IOT_DEFAULT_MQTT_CONNECT_PORT;
 
 // Memory allocated for the sample's variables and structures.
 static esp_mqtt_client_handle_t mqtt_client;

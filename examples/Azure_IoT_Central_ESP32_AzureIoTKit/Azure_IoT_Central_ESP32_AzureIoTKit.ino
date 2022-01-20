@@ -12,9 +12,9 @@
  * It uses our Azure Embedded SDK for C to help interact with Azure IoT.
  * For reference, please visit https://github.com/azure/azure-sdk-for-c and https://azureiotcentral.com/.
  * 
- * To connect and work with Azure IoT Hub you need a MQTT client, connecting, subscribing
+ * To connect and work with Azure IoT Hub you need an MQTT client, connecting, subscribing
  * and publishing to specific topics to use the messaging features of the hub.
- * Our azure-sdk-for-c is a MQTT client support library, helping composing and parsing the
+ * Our azure-sdk-for-c is an MQTT client support library, helping composing and parsing the
  * MQTT topic names and messages exchanged with the Azure IoT Hub.
  * 
  * The additional layers in this sketch provide a structured use of azure-sdk-for-c and
@@ -28,7 +28,7 @@
  * - Perform data manipulations (HMAC SHA256 encryption, Base64 decoding and encoding),
  * - Receive the callbacks for Plug and Play properties and commands.
  * 
- * Azure_IoT_PnP_Template.cpp contains the actual implementation of the Azure Plug-and-Play template
+ * Azure_IoT_PnP_Template.cpp contains the actual implementation of the IoT Plug and Play template
  * specific for the Espressif ESP32 Azure IoT Kit board.
  * 
  * To properly connect to your Azure IoT services, please fill the information in the `iot_configs.h` file. 
@@ -203,13 +203,13 @@ static int mqtt_client_deinit_function(mqtt_client_handle_t mqtt_client_handle)
 /*
  * See the documentation of `mqtt_client_subscribe_function_t` in AzureIoT.h for details.
  */
-static int mqtt_client_subscribe_function(mqtt_client_handle_t mqtt_client_handle, const uint8_t* topic, size_t topic_length, mqtt_qos_t qos)
+static int mqtt_client_subscribe_function(mqtt_client_handle_t mqtt_client_handle, az_span topic, mqtt_qos_t qos)
 {
-  LogInfo("MQTT client subscribing to '%s'", topic);
+  LogInfo("MQTT client subscribing to '%.*s'", az_span_size(topic), az_span_ptr(topic));
        
   // As per documentation, `topic` always ends with a null-terminator.
   // esp_mqtt_client_subscribe returns the packet id or negative on error already, so no conversion is needed.
-  int packet_id = esp_mqtt_client_subscribe((esp_mqtt_client_handle_t)mqtt_client_handle, (const char*)topic, (int)qos);
+  int packet_id = esp_mqtt_client_subscribe((esp_mqtt_client_handle_t)mqtt_client_handle, (const char*)az_span_ptr(topic), (int)qos);
 
   return packet_id;
 }
@@ -242,7 +242,7 @@ static int mqtt_client_publish_function(mqtt_client_handle_t mqtt_client_handle,
 /* --- Other Interface functions required by Azure IoT --- */
 
 /*
- * See the documentation of `hmac_sha512_encryption_function_t` in AzureIoT.h for details.
+ * See the documentation of `hmac_sha256_encryption_function_t` in AzureIoT.h for details.
  */
 static int mbedtls_hmac_sha256(const uint8_t* key, size_t key_length, const uint8_t* payload, size_t payload_length, uint8_t* signed_payload, size_t signed_payload_size)
 {
@@ -330,7 +330,7 @@ void setup()
 
   /* 
    * The configuration structure used by Azure IoT must remain unchanged (including data buffer) 
-   * throughout the lifetime of the sample. This variable must also not loose context so other
+   * throughout the lifetime of the sample. This variable must also not lose context so other
    * components do not overwrite any information within this structure.
    */
   azure_iot_config.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT_WORKAROUND);
@@ -347,22 +347,17 @@ void setup()
   azure_iot_config.mqtt_client_interface.mqtt_client_deinit = mqtt_client_deinit_function;
   azure_iot_config.mqtt_client_interface.mqtt_client_subscribe = mqtt_client_subscribe_function;
   azure_iot_config.mqtt_client_interface.mqtt_client_publish = mqtt_client_publish_function;
-  azure_iot_config.data_manipulation_functions.hmac_sha512_encrypt = mbedtls_hmac_sha256;
+  azure_iot_config.data_manipulation_functions.hmac_sha256_encrypt = mbedtls_hmac_sha256;
   azure_iot_config.data_manipulation_functions.base64_decode = base64_decode;
   azure_iot_config.data_manipulation_functions.base64_encode = base64_encode;
   azure_iot_config.on_properties_update_completed = on_properties_update_completed;
   azure_iot_config.on_properties_received = on_properties_received;
   azure_iot_config.on_command_request_received = on_command_request_received;
 
-  if (azure_iot_init(&azure_iot, &azure_iot_config) != 0)
-  {
-    LogError("Failed initializing the Azure IoT client.");
-  }
-  else
-  {
-    LogInfo("Azure IoT client initialized (state=%d)", azure_iot.state);
-    azure_iot_start(&azure_iot);
-  }
+  azure_iot_init(&azure_iot, &azure_iot_config);
+  azure_iot_start(&azure_iot);
+
+  LogInfo("Azure IoT client initialized (state=%d)", azure_iot.state);
 }
 
 void loop()
@@ -451,7 +446,7 @@ static esp_err_t esp_mqtt_event_handler(esp_mqtt_event_handle_t event)
     int i, r;
 
     case MQTT_EVENT_ERROR:
-     LogError("MQTT client in ERROR state.");
+      LogError("MQTT client in ERROR state.");
       LogError( 
         "esp_tls_stack_err=%d; esp_tls_cert_verify_flags=%d;esp_transport_sock_errno=%d;error_type=%d;connect_return_code=%d",  
         event->error_handle->esp_tls_stack_err,
@@ -481,7 +476,7 @@ static esp_err_t esp_mqtt_event_handler(esp_mqtt_event_handle_t event)
           LogError("connect_return_code=MQTT_CONNECTION_REFUSE_NOT_AUTHORIZED"); 
           break; 
         default: 
-          LogError("connect_return_code=unknown"); 
+          LogError("connect_return_code=unknown (%d)", event->error_handle->connect_return_code); 
           break; 
       };
 
@@ -543,7 +538,7 @@ static esp_err_t esp_mqtt_event_handler(esp_mqtt_event_handle_t event)
       LogInfo("MQTT client connecting.");
       break;
     default:
-      LogError("MQTT event UNKNOWN");
+      LogError("MQTT event UNKNOWN.");
       break;
   }
 

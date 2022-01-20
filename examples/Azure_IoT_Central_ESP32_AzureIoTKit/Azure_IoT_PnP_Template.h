@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 /*
- * Azure_IoT_PnP_Template.cpp implements the the Azure Plug-and-Play template
+ * Azure_IoT_PnP_Template.cpp implements the IoT Plug and Play template
  * specific for the Espressif ESP32 Azure IoT Kit board.
  */
  
@@ -19,8 +19,8 @@
 void azure_pnp_init();
 
 /*
- * @brief     Returns the model id of the Azure Plug and Play template implemented by this module.
- * @remark    Every Azure Plug and Play template has a model id that must be informed by the 
+ * @brief     Returns the model id of the IoT Plug and Play template implemented by this device.
+ * @remark    Every IoT Plug and Play template has a model id that must be informed by the 
  *            device during Azure IoT provisioning and connection with the Azure IoT Hub.
  * @return    az_span       An `az_span` containing the model id implemented by this module.
  */
@@ -52,12 +52,12 @@ int azure_pnp_send_device_info(azure_iot_t* azure_iot, uint32_t request_id);
 void azure_pnp_set_telemetry_frequency(size_t frequency_in_seconds);
 
 /*
- * @brief     Sends telemetry implemented by this Azure Plug and Play application to Azure IoT Central.
- * @remark    The Azure Plug and Play template implemented by this module is specific to the
+ * @brief     Sends telemetry implemented by this IoT Plug and Play application to Azure IoT Central.
+ * @remark    The IoT Plug and Play template implemented by this device is specific to the
  *            Espressif ESP32 Azure IoT Kit board, which contains several sensors.
  *            The template defines telemetry data points for temperature, humidity, 
  *            pressure, altitude, luminosity, magnetic field, rolling and pitch angles, 
- *            as well as acceleration. All of these data is read from the board sensors and sent to 
+ *            as well as acceleration. All of these data are read from the board sensors and sent to 
  *            Azure IoT Central when `azure_pnp_send_telemetry` is called.
  *            This function must be called frequently enough, no slower than the frequency set
  *            with `azure_pnp_set_telemetry_frequency` (or the default frequency of 10 seconds).
@@ -72,7 +72,7 @@ int azure_pnp_send_telemetry(azure_iot_t* azure_iot);
 /*
  * @brief     Handles a command when it is received from Azure IoT Central.
  * @remark    This function will perform the task requested by the command received 
- *            (if the command matches the expected name) and send back a response to 
+ *            (if the command matches the expected name) and sends back a response to 
  *            Azure IoT Central.
  *
  * @param[in]    azure_iot          A pointer to a azure_iot_t instance, previously initialized 

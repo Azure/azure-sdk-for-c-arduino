@@ -86,7 +86,7 @@ static uint32_t telemetry_send_count = 0;
 static size_t telemetry_frequency_in_seconds = 10; // With default frequency of once in 10 seconds.
 static time_t last_telemetry_send_time = INDEFINITE_TIME;
 
-#define OLED_SPLASH_MESSAGE              "Espressif ESP32 Azure IoT Kit + Azure IoT Central"
+#define OLED_SPLASH_MESSAGE              "Espressif ESP32 Azure IoT Kit + Central"
 
 static bool led1_on = false;
 static bool led2_on = false;
@@ -109,6 +109,9 @@ void azure_pnp_init()
 
   esp32_azureiotkit_oled_clean_screen();
   esp32_azureiotkit_oled_show_message((uint8_t*)OLED_SPLASH_MESSAGE, lengthof(OLED_SPLASH_MESSAGE));
+
+  esp32_azureiotkit_led1_set_state(LED_STATE_OFF);
+  esp32_azureiotkit_led2_set_state(LED_STATE_OFF);
 }
 
 const az_span azure_pnp_get_model_id()
@@ -216,7 +219,7 @@ int azure_pnp_handle_properties_update(azure_iot_t* azure_iot, az_span propertie
   size_t length;
 
   result = consume_properties_and_generate_response(azure_iot, properties, data_buffer, DATA_BUFFER_SIZE, &length);
-  EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed generating properties ack payload.");
+  EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed consuming/generating properties ack payload.");
 
   result = azure_iot_send_properties_update(azure_iot, request_id, az_span_create(data_buffer, length));
   EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed sending reported properties update.");
@@ -322,7 +325,7 @@ static int generate_telemetry_payload(uint8_t* payload_buffer, size_t payload_bu
 
   if ((payload_buffer_size - az_span_size(payload_buffer_span)) < 1)
   {
-    LogError("Insuficient space for telemetry payload null terminator.");
+    LogError("Insufficient space for telemetry payload null terminator.");
     return RESULT_ERROR;
   }
 
@@ -399,7 +402,7 @@ static int generate_device_info_payload(az_iot_hub_client const* hub_client, uin
 
   if ((payload_buffer_size - az_span_size(payload_buffer_span)) < 1)
   {
-    LogError("Insuficient space for telemetry payload null terminator.");
+    LogError("Insufficient space for telemetry payload null terminator.");
     return RESULT_ERROR;
   }
 
@@ -497,8 +500,9 @@ static int consume_properties_and_generate_response(
     }
     else
     {
-      LogError("Unexpected property received (%.*s)",
+      LogError("Unexpected property received (%.*s).",
         az_span_size(jr.token.slice), az_span_ptr(jr.token.slice));
+        return RESULT_ERROR;
     }
 
     azrc = az_json_reader_next_token(&jr);

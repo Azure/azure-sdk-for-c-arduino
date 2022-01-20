@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 /*
- * AzureIoT.cpp contains a state machine that implements those steps, plus abstractions to simplify
- * its overall use. Besides the basic configuration needed to access the Azure IoT services,
+ * AzureIoT.cpp contains a state machine that implements the necessary calls to azure-sdk-for-c
+ * for aiding to connect and work with Azure IoT services, plus abstractions to
+ * simplify overall use of azure-sdk-for-c.
+ * Besides the basic configuration needed to access the Azure IoT services,
  * all that is needed is to provide the functions required by that layer to:
  * - Interact with your MQTT client,
  * - Perform data manipulations (HMAC SHA256 encryption, Base64 decoding and encoding),
@@ -57,13 +59,13 @@ extern log_function_t default_logging_function;
 #endif // DISABLE_LOGGING
 
 
-/* --- Azure Abstraction --- */
+/* --- Azure Definitions --- */
 #define DPS_GLOBAL_ENDPOINT_FQDN          "global.azure-devices-provisioning.net"
-#define DPS_GLOBAL_ENDPOINT_PORT          8883
-#define IOT_HUB_ENDPOINT_PORT             8883
+#define DPS_GLOBAL_ENDPOINT_PORT          AZ_IOT_DEFAULT_MQTT_CONNECT_PORT
+#define IOT_HUB_ENDPOINT_PORT             AZ_IOT_DEFAULT_MQTT_CONNECT_PORT
 
 #define DEFAULT_SAS_TOKEN_LIFETIME_IN_MINUTES 60
-#define SAS_TOKEN_REFRESH_THRESHOLD_SECS 30 
+#define SAS_TOKEN_REFRESH_THRESHOLD_IN_SECS 30 
 
 /*
  * The structures below define a generic interface to abstract the interaction of this module, 
@@ -83,12 +85,13 @@ typedef enum mqtt_qos_t_enum
 mqtt_qos_t;
 
 /*
- * @brief     Defines a generic MQTT message to be exchanged between the AzureIoT.h layer
+ * @brief     Defines a generic MQTT message to be exchanged between the AzureIoT layer
  *            and the user application. 
  * @remark    It uses azure-sdk-for-c's az_span construct, which is merely a structure that
  *            has a pointer to a buffer and its size. Messages without a payload will have
  *            the `payload` member set to AZ_SPAN_EMPTY.
- *            Please see the az_span.h in azure-sdk-for-c for more details.
+ *            Please see the az_span.h in azure-sdk-for-c for more details at
+ *            https://azuresdkdocs.blob.core.windows.net/$web/c/az_core/1.2.0/az__span_8h.html
  */
 typedef struct mqtt_message_t_struct
 {
@@ -105,12 +108,12 @@ mqtt_message_t;
 typedef struct mqtt_client_config_t_struct
 {
   /*
-   * @brief    FQDN address of the broker the MQTT client shall connect to.
+   * @brief    FQDN address of the broker that the MQTT client shall connect to.
    */
   az_span address;
 
   /*
-   * @brief    Port of the broker the MQTT client shall connect to.
+   * @brief    Port of the broker that the MQTT client shall connect to.
    */
   int port;
 
@@ -133,12 +136,12 @@ mqtt_client_config_t;
 
 /*
  * @brief    Generic pointer to the actual instance of the application MQTT client.
- * @remark   set by the user application when the `mqtt_client_init_function_t` calback is invoked.
+ * @remark   set by the user application when the `mqtt_client_init_function_t` callback is invoked.
  */
 typedef void* mqtt_client_handle_t;
 
 /*
- * @brief         Function to initialize and connect a MQTT client.
+ * @brief         Function to initialize and connect an MQTT client.
  * @remark        When this function is called, it provides the information necessary to initialize a 
  *                specific MQTT client (whichever is used by the user application). In this callback
  *                it is expected that the MQTT client will be created/initialized, started and that it
@@ -155,7 +158,7 @@ typedef void* mqtt_client_handle_t;
 typedef int (*mqtt_client_init_function_t)(mqtt_client_config_t* mqtt_client_config, mqtt_client_handle_t* mqtt_client_handle);
 
 /*
- * @brief        Function to disconnect and deinitialize a MQTT client.
+ * @brief        Function to disconnect and deinitialize an MQTT client.
  * @remark       When this function is called the MQTT client instance referenced by `mqtt_client_handle` shall disconnect
  *               from the server and any functions of the MQTT client API that destroy the instance shall be called
  *               (so any allocated memory resources can be released).
@@ -193,10 +196,8 @@ typedef int (*mqtt_client_publish_function_t)(mqtt_client_handle_t mqtt_client_h
  *               `mqtt_client_handle`) to invoke the appropriate function in the MQTT client API to subscribe to 
  *               an MQTT topic.
  *
- * @param[in]    topic           The string containing the complete MQTT topic name to subscribed to.
+ * @param[in]    topic           The az_span with the string containing the complete MQTT topic name to subscribed to.
  *                               This string is always NULL-terminated.
- * @param[in]    topic_length    The length of `topic`. It can be used in case the MQTT client takes a 
- *                               topic name as a non-NULL-terminated string.
  * @param[in]    qos             MQTT QoS to be used for the topic subscription.
  * 
  *
@@ -204,7 +205,7 @@ typedef int (*mqtt_client_publish_function_t)(mqtt_client_handle_t mqtt_client_h
  *                               Azure IoT client expects `azure_iot_mqtt_client_subscribe_completed` to be called once the
  *                               MQTT client receives a SUBACK.
  */
-typedef int (*mqtt_client_subscribe_function_t)(mqtt_client_handle_t mqtt_client_handle, const uint8_t* topic, size_t topic_lenght, mqtt_qos_t qos);
+typedef int (*mqtt_client_subscribe_function_t)(mqtt_client_handle_t mqtt_client_handle, az_span topic, mqtt_qos_t qos);
 
 /*
  * @brief    Structure that consolidates all the abstracted MQTT functions.
@@ -213,13 +214,13 @@ typedef struct mqtt_client_interface_t_struct
 {
   mqtt_client_init_function_t mqtt_client_init;
   mqtt_client_deinit_function_t mqtt_client_deinit;
-  mqtt_client_subscribe_function_t mqtt_client_subscribe;
   mqtt_client_publish_function_t mqtt_client_publish;
+  mqtt_client_subscribe_function_t mqtt_client_subscribe;
 }
 mqtt_client_interface_t;
 
 /*
- * @brief    This function must be provided by the user for the AzureIoT.h layer
+ * @brief    This function must be provided by the user for the AzureIoT layer
  *           to perform the generation of the SAS tokens used as MQTT passwords.
  * 
  * @param[in]     data              Buffer containing the Base64-encoded content.
@@ -234,14 +235,14 @@ mqtt_client_interface_t;
 typedef int (*base64_decode_function_t)(uint8_t* data, size_t data_length, uint8_t* decoded, size_t decoded_size, size_t* decoded_length);
 
 /*
- * @brief         This function must be provided by the user for the AzureIoT.h layer
+ * @brief         This function must be provided by the user for the AzureIoT layer
  *                to perform the generation of the SAS tokens used as MQTT passwords.
  * 
  * @param[in]     data              Buffer containing the Base64-decoded content.
  * @param[in]     data_length       Length of `data`.
- * @param[in]     decoded           Buffer where to write the Base64-encoded content of `data`.
- * @param[in]     decoded_size      Size of `encoded`.
- * @param[out]    decoded_length    The final length of the Base64-encoded content written in 
+ * @param[in]     encoded           Buffer where to write the Base64-encoded content of `data`.
+ * @param[in]     encoded_size      Size of `encoded`.
+ * @param[out]    encoded_length    The final length of the Base64-encoded content written in 
  *                                  the `encoded` buffer.
  * 
  * @return        int               0 on success, or non-zero if any failure occurs.
@@ -249,19 +250,19 @@ typedef int (*base64_decode_function_t)(uint8_t* data, size_t data_length, uint8
 typedef int (*base64_encode_function_t)(uint8_t* data, size_t data_length, uint8_t* encoded, size_t encoded_size, size_t* encoded_length);
 
 /*
- * @brief        This function must be provided by the user for the AzureIoT.h layer
+ * @brief        This function must be provided by the user for the AzureIoT layer
  *               to perform the generation of the SAS tokens used as MQTT passwords.
  * 
  * @param[in]    key                       Encryption key to be used in the HMAC-SHA256 algorithm.
  * @param[in]    key_length                Length of `key`.
  * @param[in]    payload                   Buffer containing the data to be encrypted.
  * @param[in]    payload_size              Size of `payload`.
- * @param[in]    encrypted_payload         Buffer where to write teh HMAC-SHA256 encrypted content of `payload`.
+ * @param[in]    encrypted_payload         Buffer where to write the HMAC-SHA256 encrypted content of `payload`.
  * @param[in]    encrypted_payload_size    The size of the `encrypted_payload` buffer.
  * 
  * @return       int                       0 on success, or non-zero if any failure occurs.
  */
-typedef int (*hmac_sha512_encryption_function_t)(const uint8_t* key, size_t key_length, const uint8_t* payload, size_t payload_length, uint8_t* encrypted_payload, size_t encrypted_payload_size);
+typedef int (*hmac_sha256_encryption_function_t)(const uint8_t* key, size_t key_length, const uint8_t* payload, size_t payload_length, uint8_t* encrypted_payload, size_t encrypted_payload_size);
 
 /*
  * @brief    Structure that consolidates all the data manipulation functions.
@@ -270,7 +271,7 @@ typedef struct data_manipulation_functions_t_struct
 {
   base64_decode_function_t base64_decode;
   base64_encode_function_t base64_encode;
-  hmac_sha512_encryption_function_t hmac_sha512_encrypt;
+  hmac_sha256_encryption_function_t hmac_sha256_encrypt;
 }
 data_manipulation_functions_t;
 
@@ -295,7 +296,7 @@ typedef void (*properties_update_completed_t)(uint32_t request_id, az_iot_status
 typedef void (*properties_received_t)(az_span properties);
 
 /*
- * @brief    Structure containing all the details of a Azure Plug and Play Command.
+ * @brief    Structure containing all the details of a IoT Plug and Play Command.
  */
 typedef struct command_request_t_struct
 {
@@ -323,7 +324,7 @@ typedef struct command_request_t_struct
 command_request_t;
 
 /*
- * @brief        Defines the callback for receiving an Azure Plug-and-Play Command.
+ * @brief        Defines the callback for receiving an IoT Plug and Play Command.
  * @remark       A response for this command MUST be provided to Azure by calling 
  *               `azure_iot_send_command_response`.
  * 
@@ -335,7 +336,7 @@ command_request_t;
 typedef void (*command_request_received_t)(command_request_t command);
 
 /*
- * @brief    All the possible status returned by `azure_iot_get_status`.
+ * @brief    All the possible statuses returned by `azure_iot_get_status`.
  */
 typedef enum azure_iot_status_t_struct
 {
@@ -407,7 +408,7 @@ azure_iot_client_state_t;
  *           Also make sure that the instance of `azure_iot_config_t` (and its members) do not
  *           lose scope throughout the lifetime of the Azure IoT client.
  *           Most of the members of this structure use az_span for encapsulating a buffer and
- *           its size. For more details on az_span, please explorer the code at 
+ *           its size. For more details on az_span, please explore the code at 
  *           https://github.com/azure/azure-sdk-for-c.
  */
 typedef struct azure_iot_config_t_struct
@@ -447,8 +448,8 @@ typedef struct azure_iot_config_t_struct
   az_span device_id;
 
   /*
-   * @brief     Symetric key of the device to authenticate as when connecting to Azure IoT Hub.
-   * @remark    This key will be used to generate the MQTT client password, is using SAS-token
+   * @brief     Symmetric key of the device to authenticate as when connecting to Azure IoT Hub.
+   * @remark    This key will be used to generate the MQTT client password, if using SAS-token
    *            authentication (which is used, for example, when connecting to Azure IoT Central).
    */
   az_span device_key;
@@ -456,7 +457,7 @@ typedef struct azure_iot_config_t_struct
   /*
    * @brief     The "Registration ID" to authenticate with when connecting to
    *            Azure Device Provisioning service.
-   * @remark    This information only when performing device-provisioning (which is used,
+   * @remark    This information is only needed when performing device-provisioning (which is used,
                 for example, when connecting to Azure IoT Central). If device-provisioning is
                 not being used (i.e., Azure IoT client is connecting directly to Azure IoT Hub)
                 this member MUST be set with AZ_SPAN_EMPTY.
@@ -468,7 +469,7 @@ typedef struct azure_iot_config_t_struct
   /*
    * @brief     The "ID Scope" to authenticate with when connecting to
    *            Azure Device Provisioning service.
-   * @remark    This information only when performing device-provisioning (which is used,
+   * @remark    This information is only needed when performing device-provisioning (which is used,
                 for example, when connecting to Azure IoT Central). If device-provisioning is
                 not being used (i.e., Azure IoT client is connecting directly to Azure IoT Hub)
                 this member MUST be set with AZ_SPAN_EMPTY.
@@ -476,8 +477,8 @@ typedef struct azure_iot_config_t_struct
   az_span dps_id_scope;
 
   /*
-   * @brief     Model ID of the Azure Plug-and-Play template implemented by the user application.
-   * @remark    This is used only when the application uses/implements Azure IoT Plug-and-Play.
+   * @brief     Model ID of the IoT Plug and Play template implemented by the user application.
+   * @remark    This is used only when the application uses/implements IoT Plug and Play.
    */
   az_span model_id;
 
@@ -533,9 +534,9 @@ typedef struct azure_iot_config_t_struct
 
   /*
    * @brief    Amount of minutes for which the MQTT password should be valid.
-   * @remark   If set to zero, Azure Iot client sets it to the default value of 60 minutes.
+   * @remark   If set to zero, Azure IoT client sets it to the default value of 60 minutes.
    *           Once this amount of minutes has passed and the MQTT password is expired,
-   *           Azure IoT client trigers its logic to generate a new password and reconnect with
+   *           Azure IoT client triggers its logic to generate a new password and reconnect with
    *           Azure IoT Hub.
    */
   uint32_t sas_token_lifetime_in_minutes;
@@ -543,7 +544,7 @@ typedef struct azure_iot_config_t_struct
   /*
    * @brief     Callback handler used by Azure IoT client to inform the user application of
    *            a completion of properties update.
-   * @remark    A properties update is trigered by the user application when
+   * @remark    A properties update is triggered by the user application when
    *            `azure_iot_send_properties_update` is called.
    */
   properties_update_completed_t on_properties_update_completed;
@@ -551,7 +552,7 @@ typedef struct azure_iot_config_t_struct
   /*
    * @brief     Callback handler used by Azure IoT client to inform the user application of
    *            a writable-properties update received from Azure IoT Hub.
-   * @remark    If Azure IoT Plug.-and-Play is used, a response must be sent back to
+   * @remark    If IoT Plug and Play is used, a response must be sent back to
    *            Azure IoT Hub.
    */
   properties_received_t on_properties_received;
@@ -590,7 +591,7 @@ typedef struct azure_iot_t_struct
 azure_iot_t;
 
 /*
- * @brief        Initialies the azure_iot_t structure that holds the Azure IoT client state.
+ * @brief        Initializes the azure_iot_t structure that holds the Azure IoT client state.
  * @remark       This function must be called only once per `azure_iot_t` instance,
  *               before any other function can be called using it.
  * 
@@ -598,9 +599,9 @@ azure_iot_t;
  * @param[in]    azure_iot_config    A pointer to a `azure_iot_config_t` containing all the
  *                                   configuration neeeded for the client to connect and work with
  *                                   the Azure IoT services.
- * @return       int                 0 on success, or non-zero if any failure occurs.
+ * @return                           Nothing.
  */
-int azure_iot_init(azure_iot_t* azure_iot, azure_iot_config_t* azure_iot_config);
+void azure_iot_init(azure_iot_t* azure_iot, azure_iot_config_t* azure_iot_config);
 
 /*
  * @brief        Starts an Azure IoT client.
@@ -673,23 +674,23 @@ void azure_iot_do_work(azure_iot_t* azure_iot);
 int azure_iot_send_telemetry(azure_iot_t* azure_iot, az_span message);
 
 /**
- * @brief Checks whether `span` is equal AZ_SPAN_EMPTY.
+ * @brief        Sends a property update message to Azure IoT Hub.
  *
- * @param[in]    azure_iot                         The pointer to the azure_iot_t instance that holds the state of the Azure IoT client.
- * @param[in]    message                           An `az_span` with the message with the reported properties update
- *                                                 (a JSON document formatted according to the DTDL specification).
- *                                                 `message` gets passed as-is to the MQTT client publish function as the payload, so if 
- *                                                 your MQTT client expects a null-terminated string for payload, make sure `message` is
- *                                                 a null-terminated string.
- * @param[in]    request_id                        An unique identification number to correlate the response with when
- *                                                 `on_properties_update_completed` (set in azure_iot_config_t) is invoked.
+ * @param[in]    azure_iot     The pointer to the azure_iot_t instance that holds the state of the Azure IoT client.
+ * @param[in]    request_id    An unique identification number to correlate the response with when
+ * @param[in]    message       An `az_span` with the message with the reported properties update
+ *                             (a JSON document formatted according to the DTDL specification).
+ *                             `message` gets passed as-is to the MQTT client publish function as the payload, so if 
+ *                             your MQTT client expects a null-terminated string for payload, make sure `message` is
+ *                             a null-terminated string.
+ *                             `on_properties_update_completed` (set in azure_iot_config_t) is invoked.
  *
- * @return       int                               0 if the function succeeds, or non-zero if any failure occurs.
+ * @return       int           0 if the function succeeds, or non-zero if any failure occurs.
  */
 int azure_iot_send_properties_update(azure_iot_t* azure_iot, uint32_t request_id, az_span message);
 
 /**
- * @brief Checks whether `span` is equal AZ_SPAN_EMPTY.
+ * @brief        Sends a property update message to Azure IoT Hub.
  *
  * @param[in]    azure_iot          The pointer to the azure_iot_t instance that holds the state of the Azure IoT client.
  * @param[in]    request_id         The same `request_id` of the device command received from Azure IoT Hub.
@@ -720,7 +721,7 @@ int azure_iot_mqtt_client_connected(azure_iot_t* azure_iot);
 /*
  * @brief        Informs the Azure IoT client that the MQTT client is disconnected.
  * @remark       This must be called after Azure IoT client invokes the `mqtt_client_deinit` callback
- *               (provided in the azure_iot_config_t instance) so it knows the MQTT client has disconencted
+ *               (provided in the azure_iot_config_t instance) so it knows the MQTT client has disconnected
  *               from the Azure IoT service.
  * 
  * @param[in]    azure_iot    A pointer to the instance of `azure_iot_t` previously initialized by the caller.
@@ -746,7 +747,7 @@ int azure_iot_mqtt_client_subscribe_completed(azure_iot_t* azure_iot, int packet
  * @brief        Informs the Azure IoT client that the MQTT client has completed a PUBLISH.
  * @remark       This must be called after Azure IoT client invokes the `mqtt_client_publish` callback
  *               (provided in the azure_iot_config_t instance) so it knows the MQTT client has
- *               completed a MQTT PUBLISH. If the QoS is 0 (AT MOST ONCE), this shall be called by 
+ *               completed an MQTT PUBLISH. If the QoS is 0 (AT MOST ONCE), this shall be called by 
  *               the user application right after `mqtt_client_publish` is invoked. If the QoS of
  *               is 1 (AT LEAST ONCE), this shall be called whenever a PUBACK is received.
  * 
@@ -776,13 +777,13 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
  */
 
 /**
- * @brief Checks whether `span` is equal AZ_SPAN_EMPTY.
+ * @brief Checks whether `span` is equal to AZ_SPAN_EMPTY.
  *
  * @param[in]    span           A span to be verified.
  *
  * @return       boolean        True if `span`'s pointer and size are equal to AZ_SPAN_EMPTY, or false otherwise.
  */
-#define az_span_is_empty(span) az_span_is_content_equal(span, AZ_SPAN_EMPTY)
+#define is_az_span_empty(span) az_span_is_content_equal(span, AZ_SPAN_EMPTY)
 
 /**
  * @brief Slices `span` at position `size`, returns the first slice and assigns the second slice to `remainder`.
@@ -793,7 +794,7 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
  *
  * @return       az_span        A slice of `span` from position zero to `size`.
  */
-az_span az_span_split(az_span span, int32_t size, az_span* remainder);
+az_span split_az_span(az_span span, int32_t size, az_span* remainder);
 
 /**
  * @brief Slices `destination` to fit `source`, copy `source` into the first slice and returns the second through `remainder`.
@@ -804,6 +805,6 @@ az_span az_span_split(az_span span, int32_t size, az_span* remainder);
  *
  * @return       az_span        A slice of `destination` with the same size as `source`, with `source`'s content copied over.
  */
-static az_span az_span_slice_and_copy(az_span destination, az_span source, az_span* remainder);
+static az_span slice_and_copy_az_span(az_span destination, az_span source, az_span* remainder);
 
 #endif // AZURE_IOT_H

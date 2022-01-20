@@ -351,7 +351,7 @@ static int generate_telemetry_payload(uint8_t* payload_buffer, size_t payload_bu
 
   if ((payload_buffer_size - az_span_size(payload_buffer_span)) < 1)
   {
-    LogError("Insuficient space for telemetry payload null terminator.");
+    LogError("Insufficient space for telemetry payload null terminator.");
     return RESULT_ERROR;
   }
 
@@ -428,7 +428,7 @@ static int generate_device_info_payload(az_iot_hub_client const* hub_client, uin
 
   if ((payload_buffer_size - az_span_size(payload_buffer_span)) < 1)
   {
-    LogError("Insuficient space for telemetry payload null terminator.");
+    LogError("Insufficient space for telemetry payload null terminator.");
     return RESULT_ERROR;
   }
 
@@ -526,7 +526,7 @@ static int consume_properties_and_generate_response(
     }
     else
     {
-      LogError("Unexpected property received (%.*s)",
+      LogError("Unexpected property received (%.*s).",
         az_span_size(jr.token.slice), az_span_ptr(jr.token.slice));
     }
 

@@ -12,7 +12,7 @@
 
 #define INDEFINITE_TIME ((time_t)-1)
 
-#define az_span_is_empty(x) (az_span_size(x) == az_span_size(AZ_SPAN_EMPTY) && az_span_ptr(x) == az_span_ptr(AZ_SPAN_EMPTY))
+#define is_az_span_empty(x) (az_span_size(x) == az_span_size(AZ_SPAN_EMPTY) && az_span_ptr(x) == az_span_ptr(AZ_SPAN_EMPTY))
 
 static uint32_t getSasTokenExpiration(const char* sasToken)
 {
@@ -242,7 +242,7 @@ int AzIoTSasToken::Generate(unsigned int expiryTimeInMinutes)
       expiryTimeInMinutes,
       this->sasTokenBuffer);
   
-  if (az_span_is_empty(this->sasToken))
+  if (is_az_span_empty(this->sasToken))
   {
     Logger.Error("Failed generating SAS token");
     return 1;

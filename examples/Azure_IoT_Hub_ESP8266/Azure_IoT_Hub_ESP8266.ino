@@ -6,7 +6,7 @@
  * It uses our Azure Embedded SDK for C to help interact with Azure IoT.
  * For reference, please visit https://github.com/azure/azure-sdk-for-c.
  * 
- * To connect and work with Azure IoT Hub you need a MQTT client, connecting, subscribing
+ * To connect and work with Azure IoT Hub you need an MQTT client, connecting, subscribing
  * and publishing to specific topics to use the messaging features of the hub.
  * Our azure-sdk-for-c is an MQTT client support library, helping to compose and parse the
  * MQTT topic names and messages exchanged with the Azure IoT Hub.
