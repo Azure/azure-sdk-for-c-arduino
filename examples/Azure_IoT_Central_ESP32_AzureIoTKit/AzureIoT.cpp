@@ -160,7 +160,7 @@ int azure_iot_stop(azure_iot_t* azure_iot)
   {
     if (azure_iot->mqtt_client_handle != NULL)
     {
-      if (azure_iot->config->mqtt_client_interface.mqtt_client_deinit(&azure_iot->mqtt_client_handle) != 0)
+      if (azure_iot->config->mqtt_client_interface.mqtt_client_deinit(azure_iot->mqtt_client_handle) != 0)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed deinitializing MQTT client.");
@@ -417,6 +417,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
     case azure_iot_state_provisioned:
       // Disconnect from Provisioning Service first.
       if (azure_iot->config->use_device_provisioning &&
+          azure_iot->mqtt_client_handle != NULL &&
           azure_iot->config->mqtt_client_interface.mqtt_client_deinit(azure_iot->mqtt_client_handle) != 0)
       {
         azure_iot->state = azure_iot_state_error;
@@ -510,16 +511,19 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed getting current time for checking SAS token expiration.");
+        return;
       }
       else if ((azure_iot->sas_token_expiration_time - now) < SAS_TOKEN_REFRESH_THRESHOLD_IN_SECS)
       {
         azure_iot->state = azure_iot_state_refreshing_sas;
-        if (azure_iot->config->mqtt_client_interface.mqtt_client_deinit(&azure_iot->mqtt_client_handle) != 0)
+        if (azure_iot->config->mqtt_client_interface.mqtt_client_deinit(azure_iot->mqtt_client_handle) != 0)
         {
           azure_iot->state = azure_iot_state_error;
           LogError("Failed de-initializing MQTT client.");
           return;
         }
+
+        azure_iot->mqtt_client_handle = NULL;
       }
       break;
     case azure_iot_state_refreshing_sas:
