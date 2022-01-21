@@ -135,7 +135,6 @@ static int mqtt_client_init_function(mqtt_client_config_t* mqtt_client_config, m
   mqtt_config.disable_auto_reconnect = false;
   mqtt_config.event_handle = esp_mqtt_event_handler;
   mqtt_config.user_context = NULL;
-  mqtt_config.buffer_size = 1024;
   mqtt_config.cert_pem = (const char*)ca_pem;
 
   LogInfo("MQTT client target uri set to '%s'", mqtt_broker_uri);

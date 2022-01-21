@@ -32,6 +32,8 @@ log_function_t default_logging_function = NULL;
 #define DPS_REGISTER_CUSTOM_PAYLOAD_BEGIN           "{\"modelId\":\""
 #define DPS_REGISTER_CUSTOM_PAYLOAD_END             "\"}"
 
+#define NUMBER_OF_SECONDS_IN_A_MINUTE               60
+
 #define EXIT_IF_TRUE(condition, retcode, message, ...)                              \
   do                                                                                \
   {                                                                                 \
@@ -44,8 +46,6 @@ log_function_t default_logging_function = NULL;
 
 #define EXIT_IF_AZ_FAILED(azresult, retcode, message, ...)                          \
   EXIT_IF_TRUE(az_result_failed(azresult), retcode, message, ##__VA_ARGS__ )
-
-#define NUMBER_OF_SECONDS_IN_A_MINUTE               60
 
 /* --- Internal function prototypes --- */
 static uint32_t get_current_unix_time();
@@ -160,7 +160,7 @@ int azure_iot_stop(azure_iot_t* azure_iot)
   {
     if (azure_iot->mqtt_client_handle != NULL)
     {
-      if (azure_iot->config->mqtt_client_interface.mqtt_client_deinit(&azure_iot->mqtt_client_handle) != 0)
+      if (azure_iot->config->mqtt_client_interface.mqtt_client_deinit(azure_iot->mqtt_client_handle) != 0)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed deinitializing MQTT client.");
@@ -289,7 +289,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       azure_iot->state = azure_iot_state_subscribing_to_dps;
 
       packet_id = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
-          azure_iot->mqtt_client_handle,
+          azure_iot->mqtt_client_handle, 
           AZ_SPAN_FROM_STR(AZ_IOT_PROVISIONING_CLIENT_REGISTER_SUBSCRIBE_TOPIC),
           mqtt_qos_at_most_once);
           
@@ -417,6 +417,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
     case azure_iot_state_provisioned:
       // Disconnect from Provisioning Service first.
       if (azure_iot->config->use_device_provisioning &&
+          azure_iot->mqtt_client_handle != NULL &&
           azure_iot->config->mqtt_client_interface.mqtt_client_deinit(azure_iot->mqtt_client_handle) != 0)
       {
         azure_iot->state = azure_iot_state_error;
@@ -470,7 +471,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       azure_iot->state = azure_iot_state_subscribing_to_pnp_props;
 
       packet_id = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
-          azure_iot->mqtt_client_handle, 
+          azure_iot->mqtt_client_handle,
           AZ_SPAN_FROM_STR(AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_SUBSCRIBE_TOPIC), 
           mqtt_qos_at_least_once);
 
@@ -510,16 +511,19 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed getting current time for checking SAS token expiration.");
+        return;
       }
       else if ((azure_iot->sas_token_expiration_time - now) < SAS_TOKEN_REFRESH_THRESHOLD_IN_SECS)
       {
         azure_iot->state = azure_iot_state_refreshing_sas;
-        if (azure_iot->config->mqtt_client_interface.mqtt_client_deinit(&azure_iot->mqtt_client_handle) != 0)
+        if (azure_iot->config->mqtt_client_interface.mqtt_client_deinit(azure_iot->mqtt_client_handle) != 0)
         {
           azure_iot->state = azure_iot_state_error;
           LogError("Failed de-initializing MQTT client.");
           return;
         }
+
+        azure_iot->mqtt_client_handle = NULL;
       }
       break;
     case azure_iot_state_refreshing_sas:
