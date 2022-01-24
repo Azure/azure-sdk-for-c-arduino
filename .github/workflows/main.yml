@@ -1,0 +1,34 @@
+name: Azure SDK for C Arduino library CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ewertonss/azure-sdk-for-c-ci:1.0
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - name: Install dependent Arduino libraries
+        run: |
+          arduino --install-library "PubSubClient",
+          arduino --install-library "Espressif ESP32 Azure IoT Kit Sensors"
+
+      - name: Install azure-sdk-for-c-arduino as local library
+        run: install-local-arduino-library.sh $GITHUB_WORKSPACE
+        
+      # Build samples
+      - name: Build Azure_IoT_Central_ESP32_AzureIoTKit
+        run: arduino --verify --board esp32:esp32:esp32 -v --preserve-temp-files $GITHUB_WORKSPACE/examples/Azure_IoT_Central_ESP32_AzureIoTKit/Azure_IoT_Central_ESP32_AzureIoTKit.ino
+        
+      - name: Build Azure_IoT_Central_ESP32
+        run: arduino --verify --board esp32:esp32:esp32 -v --preserve-temp-files $GITHUB_WORKSPACE/examples/Azure_IoT_Central_ESP32/Azure_IoT_Central_ESP32.ino
+        
