@@ -10,5 +10,8 @@
 #define IOT_CONFIG_DEVICE_ID ""
 #define IOT_CONFIG_DEVICE_KEY ""
 
+//Azure IoT Edge - only use if you are connecting to an IoT Edge Gateway
+//#define IOT_EDGE_GATEWAY "hostnameofgateway"
+
 // Publish 1 message every 2 seconds
 #define TELEMETRY_FREQUENCY_MILLISECS 2000

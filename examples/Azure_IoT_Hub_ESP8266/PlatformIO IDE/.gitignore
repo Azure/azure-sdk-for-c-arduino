@@ -5,3 +5,5 @@
 .vscode/ipch
 .vscode/
 iot_configs_current.h
+ca.h
+edgeRootCA.pem

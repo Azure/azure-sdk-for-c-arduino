@@ -46,9 +46,22 @@
 // Additional sample headers 
 #include "iot_configs_current.h"
 
+#if defined(IOT_EDGE_GATEWAY)
+
+  // Certificate header (Only needed for scenarios where custom TLS certificates are used, like an IoT Edge Gateway)
+  #include "ca.h"
+
+  static const char* host = IOT_EDGE_GATEWAY;
+  static X509List cert((const char*)edgeRootCA_pem);
+#else
+  static const char* host = IOT_CONFIG_IOTHUB_FQDN;
+  static X509List cert((const char*)ca_pem);
+#endif
+
+
 // When developing for your own Arduino-based platform,
 // please follow the format '(ard;<platform>)'. 
-#define AZURE_SDK_CLIENT_USER_AGENT "c/" AZ_SDK_VERSION_STRING "(ard;esp8266)"
+#define AZURE_SDK_CLIENT_USER_AGENT "DeviceClientType=iothubclient%2f" AZ_SDK_VERSION_STRING "(ard;esp8266)"
 
 // Utility macros and defines
 #define LED_PIN 2
@@ -60,14 +73,12 @@
 // Translate iot_configs.h defines into variables used by the sample
 static const char* ssid = IOT_CONFIG_WIFI_SSID;
 static const char* password = IOT_CONFIG_WIFI_PASSWORD;
-static const char* host = IOT_CONFIG_IOTHUB_FQDN;
 static const char* device_id = IOT_CONFIG_DEVICE_ID;
 static const char* device_key = IOT_CONFIG_DEVICE_KEY;
 static const int port = 8883;
 
 // Memory allocated for the sample's variables and structures.
 static WiFiClientSecure wifi_client;
-static X509List cert((const char*)ca_pem);
 static PubSubClient mqtt_client(wifi_client);
 static az_iot_hub_client client;
 static char sas_token[200];
@@ -145,6 +156,7 @@ static void initializeClients()
   az_iot_hub_client_options options = az_iot_hub_client_options_default();
   options.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT);
 
+  wifi_client.setSSLVersion(BR_TLS12);
   wifi_client.setTrustAnchors(&cert);
   if (az_result_failed(az_iot_hub_client_init(
           &client,
@@ -264,6 +276,7 @@ static int connectToAzureIoTHub()
     time_t now = time(NULL);
 
     Serial.print("MQTT connecting ... ");
+
 
     if (mqtt_client.connect(mqtt_client_id, mqtt_username, sas_token))
     {

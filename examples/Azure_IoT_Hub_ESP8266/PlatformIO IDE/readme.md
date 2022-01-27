@@ -29,10 +29,10 @@ This is a "to-the-point" guide outlining how to run an Azure SDK for Embedded C 
 
 ### What is Covered
 
-- Configuration instructions for the Arduino IDE to compile a sample using the Azure SDK for Embedded C.
+- Configuration instructions for the PlatformIO IDE to compile a sample using the Azure SDK for Embedded C.
 - Configuration, build, and run instructions for the IoT Hub telemetry sample.
 
-_The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with Arduino IDE 1.8.15 and Esp8266 module 3.0.1._
+_The following was run on Windows 10, Ubuntu Desktop 20.04, and macOS Monterey 12 environments, with Platform IO Core/Home 5.2.4/3.4.0 and platform Espressif 8266 3.2.0._
 
 ## Prerequisites
 
@@ -42,12 +42,9 @@ _The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with
 
     NOTE: Device keys are used to automatically generate a SAS token for authentication, which is only valid for one hour.
 
-- Have the latest [Arduino IDE](https://www.arduino.cc/en/Main/Software) installed.
+- Have the latest [Visual Studio Code](https://code.visualstudio.com/download) installed.
 
-- Have the [ESP8266 board support](https://github.com/esp8266/Arduino#installing-with-boards-manager) installed on Arduino IDE. ESP8266 boards are not natively supported by Arduino IDE, so you need to add them manually.
-
-    - ESP8266 boards are not natively supported by Arduino IDE, so you need to add them manually.
-    - Follow the [instructions](https://github.com/esp8266/Arduino#installing-with-boards-manager) in the official Esp8266 repository.
+- Have the latest [PlatformIO IDE](https://docs.platformio.org/en/latest/integration/ide/vscode.html) installed in Visual Studio Code.
 
 - Have one of the following interfaces to your Azure IoT Hub set up:
   - [Azure Command Line Interface](https://docs.microsoft.com/cli/azure/install-azure-cli?view=azure-cli-latest) (Azure CLI) utility installed, along with the [Azure IoT CLI extension](https://github.com/Azure/azure-iot-cli-extension).
@@ -66,6 +63,12 @@ _The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with
       $ curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
       $ az extension add --name azure-iot
       ```
+    
+    On Mac:
+
+      ```bash
+      $ brew update && brew install azure-cli
+      ```
 
       A list of all the Azure IoT CLI extension commands can be found [here](https://docs.microsoft.com/cli/azure/iot?view=azure-cli-latest).
 
@@ -75,115 +78,25 @@ _The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with
 
 ## Setup and Run Instructions
 
-1. Run the Arduino IDE.
+1. Open Visial Studio Code and select the PlatformIO icon on the left side of the screen.
 
-2. Install the Azure SDK for Embedded C library.
+2. Click `PIO Home` -> `Open`-> `Open Project` and select this project (the PlatformIO IDE folder).
 
-    - On the Arduino IDE, go to menu `Sketch`, `Include Library`, `Manage Libraries...`.
-    - Search for and install `azure-sdk-for-c`.
+3. Once the project is opened, select the PlatformIO icon on the left side of the screen and under `PROJECT TASKS`, click `Build`.
 
-3. Install the Arduino PubSubClient library. (PubSubClient is a popular MQTT client for Arduino.)
+4. Ensure the build completes with a status of `[SUCCESS]`.
 
-    - On the Arduino IDE, go to menu `Sketch`, `Include Library`, `Manage Libraries...`.
-    - Search for `PubSubClient` (by Nick O'Leary).
-    - Hover over the library item on the result list, then click on "Install".
+5. Under the `include` folder, create a copy of `iot_configs.h` and name it `iot_configs_current.h`.
 
-4. Open the ESPRESSIF ESP 8266 sample.
+6. In `iot_configs_current.h`, enter your Azure IoT Hub and device information.
+    - NOTE: `IOT_EDGE_GATEWAY` is the only macro that is optional and should only be used if you are connecting to an Edge Gateway, such as Azure IoT Edge, and not directly to Azure IoT Hub. If you want this sample to send telemetry to an Azure IoT Edge Gateway, uncomment and set this macro to the hostname of your gateway, copy your IoT Edge's root CA certificate to this project, name the certificate `edgeRootCA.pem`, and run the script `create_trusted_cert_header.sh`. For more details on this script and certificate usage, please review [Certificates - Important to know](#certificates---important-to-know)
 
-    - On the Arduino IDE, go to menu `File`, `Examples`, `azure-sdk-for-c`.
-    - Click on `az_esp8266` to open the sample.
+7. Connect the Esp8266 NodeMCU microcontroller to your USB port.
+    -   If you need to change the default COM port, board, serial monitor speed, or any other project configurations please review this [link](https://docs.platformio.org/en/latest/projectconf/index.html) on configuring the platform.ini file.
 
-5. Configure the ESPRESSIF ESP 8266 sample.
+8. Select the PlatformIO icon on the left side of the screen and under `PROJECT TASKS`, click `Upload and Monitor`. This project will now be uploaded to your Esp8266 and a terminal window will open at the bottom of Visual Studio Code, where you can monitor the serial output. 
 
-    Enter your Azure IoT Hub and device information into the sample's `iot_configs.h`.
-
-6. Connect the Esp8266 NodeMCU microcontroller to your USB port.
-
-7. On the Arduino IDE, select the board and port.
-
-    - Go to menu `Tools`, `Board` and select `NodeMCU 1.0 (ESP-12E Module)`.
-    - Go to menu `Tools`, `Port` and select the port to which the microcontroller is connected.
-
-8. Upload the sketch.
-
-    - Go to menu `Sketch` and click on `Upload`.
-
-        <details><summary><i>Expected output of the upload:</i></summary>
-        <p>
-
-        ```text
-        Executable segment sizes:
-        IROM   : 361788          - code in flash         (default or ICACHE_FLASH_ATTR)
-        IRAM   : 26972   / 32768 - code in IRAM          (ICACHE_RAM_ATTR, ISRs...)
-        DATA   : 1360  )         - initialized variables (global, static) in RAM/HEAP
-        RODATA : 2152  ) / 81920 - constants             (global, static) in RAM/HEAP
-        BSS    : 26528 )         - zeroed variables      (global, static) in RAM/HEAP
-        Sketch uses 392272 bytes (37%) of program storage space. Maximum is 1044464 bytes.
-        Global variables use 30040 bytes (36%) of dynamic memory, leaving 51880 bytes for local variables. Maximum is 81920 bytes.
-        /home/user/.arduino15/packages/esp8266/tools/python3/3.7.2-post1/python3 /home/user/.arduino15/packages/esp8266/hardware/esp8266/2.7.1/tools/upload.py --chip esp8266 --port /dev/ttyUSB0 --baud 230400 --before default_reset --after hard_reset write_flash 0x0 /tmp/arduino_build_826987/azure_iot_hub_telemetry.ino.bin
-        esptool.py v2.8
-        Serial port /dev/ttyUSB0
-        Connecting....
-        Chip is ESP8266EX
-        Features: WiFi
-        Crystal is 26MHz
-        MAC: dc:4f:22:5e:a7:09
-        Uploading stub...
-        Running stub...
-        Stub running...
-        Changing baud rate to 230400
-        Changed.
-        Configuring flash size...
-        Auto-detected Flash size: 4MB
-        Compressed 396432 bytes to 292339...
-
-        Writing at 0x00000000... (5 %)
-        Writing at 0x00004000... (11 %)
-        Writing at 0x00008000... (16 %)
-        Writing at 0x0000c000... (22 %)
-        Writing at 0x00010000... (27 %)
-        Writing at 0x00014000... (33 %)
-        Writing at 0x00018000... (38 %)
-        Writing at 0x0001c000... (44 %)
-        Writing at 0x00020000... (50 %)
-        Writing at 0x00024000... (55 %)
-        Writing at 0x00028000... (61 %)
-        Writing at 0x0002c000... (66 %)
-        Writing at 0x00030000... (72 %)
-        Writing at 0x00034000... (77 %)
-        Writing at 0x00038000... (83 %)
-        Writing at 0x0003c000... (88 %)
-        Writing at 0x00040000... (94 %)
-        Writing at 0x00044000... (100 %)
-        Wrote 396432 bytes (292339 compressed) at 0x00000000 in 13.0 seconds (effective 243.4 kbit/s)...
-        Hash of data verified.
-
-        Leaving...
-        Hard resetting via RTS pin...
-        ```
-
-        </p>
-        </details>
-
-9. Monitor the MCU (microcontroller) locally via the Serial Port.
-
-    - Go to menu `Tools`, `Serial Monitor`.
-
-        If you perform this step right away after uploading the sketch, the serial monitor will show an output similar to the following upon success:
-
-        ```text
-        Connecting to WIFI SSID buckaroo
-        .......................WiFi connected, IP address:
-        192.168.1.123
-        Setting time using SNTP..............................done!
-        Current time: Thu May 28 02:55:05 2020
-        Client ID: mydeviceid
-        Username: myiothub.azure-devices.net/mydeviceid/?api-version=2018-06-30&DeviceClientType=c%2F1.0.0
-        Password: SharedAccessSignature sr=myiothub.azure-devices.net%2Fdevices%2Fmydeviceid&sig=placeholder-password&se=1590620105
-        MQTT connecting ... connected.
-        ```
-
-10. Monitor the telemetry messages sent to the Azure IoT Hub using the connection string for the policy name `iothubowner` found under "Shared access policies" on your IoT Hub in the Azure portal.
+9. Monitor the telemetry messages sent to Azure IoT Hub using the connection string for the policy name `iothubowner` found under "Shared access policies" on your IoT Hub in the Azure portal.
 
     ```bash
     $ az iot hub monitor-events --login <your Azure IoT Hub owner connection string in quotes> --device-id <your device id>
@@ -241,6 +154,8 @@ _The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with
 The Azure IoT service certificates presented during TLS negotiation shall be always validated, on the device, using the appropriate trusted root CA certificate(s).
 
 For the Node MCU ESP8266 sample, our script `generate_arduino_zip_library.sh` automatically downloads the root certificate used in the United States regions (Baltimore CA certificate) and adds it to the Arduino sketch project.
+
+If you would like to change what certificate is used, our script `create_trusted_cert_header.sh` demonstrates how to create a cerfiticate header file. This new cerfiticate header can be used instead of the default trusted root CA certificate header. At the moment, the script only looks for and creates a certificate header file for an Azure IoT Edge root CA certificate named `edgeRootCA.pem`, but it can be modified to use any root CA certificate of choice.
 
 For other regions (and private cloud environments), please use the appropriate root CA certificate.
 
