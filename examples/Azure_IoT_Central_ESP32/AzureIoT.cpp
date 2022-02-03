@@ -316,7 +316,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
         return;
       }
 
-      mqtt_message.topic = split_az_span(data_buffer, length, &data_buffer);
+      mqtt_message.topic = split_az_span(data_buffer, length + 1, &data_buffer);
 
       if (is_az_span_empty(mqtt_message.topic) || is_az_span_empty(data_buffer))
       {
@@ -395,7 +395,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
         return;
       }
 
-      mqtt_message.topic = az_span_slice(azure_iot->data_buffer, 0, length);
+      mqtt_message.topic = az_span_slice(azure_iot->data_buffer, 0, length + 1);
       mqtt_message.payload = AZ_SPAN_EMPTY;
       mqtt_message.qos = mqtt_qos_at_most_once;
 
@@ -1111,7 +1111,7 @@ static int generate_sas_token_for_dps(
   EXIT_IF_TRUE(result != 0, 0, "Failed decoding SAS key.");
 
   // Step 2.c.
-  sas_hmac256_signed_signature = split_az_span(data_buffer_span, SAS_HMAC256_ENCRIPTED_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
+  sas_hmac256_signed_signature = split_az_span(data_buffer_span, SAS_HMAC256_ENCRYPTED_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
   EXIT_IF_TRUE(is_az_span_empty(sas_hmac256_signed_signature), 0, "Failed reserving buffer for sas_hmac256_signed_signature.");
 
   result = data_manipulation_functions.hmac_sha256_encrypt(
@@ -1202,7 +1202,7 @@ static int generate_sas_token_for_iot_hub(
   EXIT_IF_TRUE(result != 0, 0, "Failed decoding SAS key.");
 
   // Step 2.c.
-  sas_hmac256_signed_signature = split_az_span(data_buffer_span, SAS_HMAC256_ENCRIPTED_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
+  sas_hmac256_signed_signature = split_az_span(data_buffer_span, SAS_HMAC256_ENCRYPTED_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
   EXIT_IF_TRUE(is_az_span_empty(sas_hmac256_signed_signature), 0, "Failed reserving buffer for sas_hmac256_signed_signature.");
 
   result = data_manipulation_functions.hmac_sha256_encrypt(
