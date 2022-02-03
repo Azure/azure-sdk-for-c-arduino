@@ -22,12 +22,12 @@ log_function_t default_logging_function = NULL;
 #define DPS_GLOBAL_ENDPOINT_MQTT_URI_WITH_PORT      DPS_GLOBAL_ENDPOINT_MQTT_URI ":" STR(DPS_GLOBAL_ENDPOINT_PORT)
 
 #define MQTT_CLIENT_ID_BUFFER_SIZE                  256
-#define MQTT_USERNAME_BUFFER_SIZE                   256
+#define MQTT_USERNAME_BUFFER_SIZE                   350
 #define DECODED_SAS_KEY_BUFFER_SIZE                 32
 #define PLAIN_SAS_SIGNATURE_BUFFER_SIZE             256
-#define SAS_HMAC256_ENCRIPTED_SIGNATURE_BUFFER_SIZE 32
+#define SAS_HMAC256_ENCRYPTED_SIGNATURE_BUFFER_SIZE 32
 #define SAS_SIGNATURE_BUFFER_SIZE                   64
-#define MQTT_PASSWORD_BUFFER_SIZE                   256
+#define MQTT_PASSWORD_BUFFER_SIZE                   512
 
 #define DPS_REGISTER_CUSTOM_PAYLOAD_BEGIN           "{\"modelId\":\""
 #define DPS_REGISTER_CUSTOM_PAYLOAD_END             "\"}"
@@ -1111,7 +1111,7 @@ static int generate_sas_token_for_dps(
   EXIT_IF_TRUE(result != 0, 0, "Failed decoding SAS key.");
 
   // Step 2.c.
-  sas_hmac256_signed_signature = split_az_span(data_buffer_span, SAS_HMAC256_ENCRIPTED_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
+  sas_hmac256_signed_signature = split_az_span(data_buffer_span, SAS_HMAC256_ENCRYPTED_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
   EXIT_IF_TRUE(is_az_span_empty(sas_hmac256_signed_signature), 0, "Failed reserving buffer for sas_hmac256_signed_signature.");
 
   result = data_manipulation_functions.hmac_sha256_encrypt(
@@ -1202,7 +1202,7 @@ static int generate_sas_token_for_iot_hub(
   EXIT_IF_TRUE(result != 0, 0, "Failed decoding SAS key.");
 
   // Step 2.c.
-  sas_hmac256_signed_signature = split_az_span(data_buffer_span, SAS_HMAC256_ENCRIPTED_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
+  sas_hmac256_signed_signature = split_az_span(data_buffer_span, SAS_HMAC256_ENCRYPTED_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
   EXIT_IF_TRUE(is_az_span_empty(sas_hmac256_signed_signature), 0, "Failed reserving buffer for sas_hmac256_signed_signature.");
 
   result = data_manipulation_functions.hmac_sha256_encrypt(
