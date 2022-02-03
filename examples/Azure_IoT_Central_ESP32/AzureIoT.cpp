@@ -316,7 +316,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
         return;
       }
 
-      mqtt_message.topic = split_az_span(data_buffer, length, &data_buffer);
+      mqtt_message.topic = split_az_span(data_buffer, length + 1, &data_buffer);
 
       if (is_az_span_empty(mqtt_message.topic) || is_az_span_empty(data_buffer))
       {
@@ -395,7 +395,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
         return;
       }
 
-      mqtt_message.topic = az_span_slice(azure_iot->data_buffer, 0, length);
+      mqtt_message.topic = az_span_slice(azure_iot->data_buffer, 0, length + 1);
       mqtt_message.payload = AZ_SPAN_EMPTY;
       mqtt_message.qos = mqtt_qos_at_most_once;
 
