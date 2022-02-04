@@ -22,12 +22,12 @@ log_function_t default_logging_function = NULL;
 #define DPS_GLOBAL_ENDPOINT_MQTT_URI_WITH_PORT      DPS_GLOBAL_ENDPOINT_MQTT_URI ":" STR(DPS_GLOBAL_ENDPOINT_PORT)
 
 #define MQTT_CLIENT_ID_BUFFER_SIZE                  256
-#define MQTT_USERNAME_BUFFER_SIZE                   256
+#define MQTT_USERNAME_BUFFER_SIZE                   350
 #define DECODED_SAS_KEY_BUFFER_SIZE                 32
 #define PLAIN_SAS_SIGNATURE_BUFFER_SIZE             256
 #define SAS_HMAC256_ENCRIPTED_SIGNATURE_BUFFER_SIZE 32
 #define SAS_SIGNATURE_BUFFER_SIZE                   64
-#define MQTT_PASSWORD_BUFFER_SIZE                   256
+#define MQTT_PASSWORD_BUFFER_SIZE                   512
 
 #define DPS_REGISTER_CUSTOM_PAYLOAD_BEGIN           "{\"modelId\":\""
 #define DPS_REGISTER_CUSTOM_PAYLOAD_END             "\"}"
