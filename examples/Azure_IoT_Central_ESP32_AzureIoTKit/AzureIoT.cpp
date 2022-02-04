@@ -316,7 +316,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
         return;
       }
 
-      mqtt_message.topic = split_az_span(data_buffer, length, &data_buffer);
+      mqtt_message.topic = split_az_span(data_buffer, length + 1, &data_buffer);
 
       if (is_az_span_empty(mqtt_message.topic) || is_az_span_empty(data_buffer))
       {
@@ -395,7 +395,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
         return;
       }
 
-      mqtt_message.topic = az_span_slice(azure_iot->data_buffer, 0, length);
+      mqtt_message.topic = az_span_slice(azure_iot->data_buffer, 0, length + 1);
       mqtt_message.payload = AZ_SPAN_EMPTY;
       mqtt_message.qos = mqtt_qos_at_most_once;
 
@@ -547,7 +547,7 @@ int azure_iot_send_telemetry(azure_iot_t* azure_iot, az_span message)
       &azure_iot->iot_hub_client, NULL, (char*)az_span_ptr(azure_iot->data_buffer), az_span_size(azure_iot->data_buffer), &topic_length);
   EXIT_IF_AZ_FAILED(azr, RESULT_ERROR, "Failed to get the telemetry topic");
 
-  mqtt_message.topic = az_span_slice(azure_iot->data_buffer, 0, topic_length);
+  mqtt_message.topic = az_span_slice(azure_iot->data_buffer, 0, topic_length + 1);
   mqtt_message.payload = message;
   mqtt_message.qos = mqtt_qos_at_most_once;
 
@@ -887,7 +887,7 @@ int azure_iot_send_command_response(azure_iot_t* azure_iot, az_span request_id, 
       (char*)az_span_ptr(mqtt_message.topic), az_span_size(mqtt_message.topic), &topic_length);
   EXIT_IF_AZ_FAILED(azrc, RESULT_ERROR, "Failed to get the commands response topic.");
 
-  mqtt_message.topic = az_span_slice(mqtt_message.topic, 0, topic_length);
+  mqtt_message.topic = az_span_slice(mqtt_message.topic, 0, topic_length + 1);
   mqtt_message.payload = payload;
   mqtt_message.qos = mqtt_qos_at_most_once;
 
