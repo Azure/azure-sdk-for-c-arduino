@@ -102,7 +102,7 @@ static esp_mqtt_client_handle_t mqtt_client;
 
 static char mqtt_broker_uri[128];
 
-#define AZ_IOT_DATA_BUFFER_SIZE 1000 
+#define AZ_IOT_DATA_BUFFER_SIZE 1500
 static uint8_t az_iot_data_buffer[AZ_IOT_DATA_BUFFER_SIZE];
 
 #define MQTT_PROTOCOL_PREFIX "mqtts://"
