@@ -499,7 +499,7 @@ typedef struct azure_iot_config_t_struct
    *              Where:
    *              <MQTT-clientid>  = <device-id> + '\0'
    *              <MQTT-username>  = <iot-hub-fqdn> + '/' + lengthof(<device-id>) + '/' + '?' + <api-version> +
-   *                                 "&dct=" + urlenc(<user-agent>) + "&model-id=" + urlenc(<pnp-model-id>) + '\0'
+   *                                 "&DeviceClientType=" + urlenc(<user-agent>) + "&model-id=" + urlenc(<pnp-model-id>) + '\0'
    *              <api-version>    = "api-version=<YYYY-MM-DD>" 
    *              <MQTT-password>) = "SharedAccessSignature sr=" + <iot-hub-fqdn> + "%2Fdevices%2F" + <device-id> +
    *                                 "&sig=" + urlenc(<sha256-string>) + "&se=" + <expiration-time> + '\0'
