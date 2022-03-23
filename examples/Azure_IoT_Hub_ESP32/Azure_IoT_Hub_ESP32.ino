@@ -78,6 +78,7 @@ static unsigned long next_telemetry_send_time_ms = 0;
 static char telemetry_topic[128];
 static uint8_t telemetry_payload[100];
 static uint32_t telemetry_send_count = 0;
+static String myTelemetry = "{}";
 
 #define INCOMING_DATA_BUFFER_SIZE 128
 static char incoming_data[INCOMING_DATA_BUFFER_SIZE];
@@ -296,15 +297,10 @@ static void establishConnection()
 
 static void getTelemetryPayload(az_span payload, az_span* out_payload)
 {
-  az_span original_payload = payload;
+  // You can generate the json using any lib you want. Here it's hardcoded for simplicity.
+  myTelemetry = "{ \"msgCount\": "+ String(telemetry_send_count++) + " }";
 
-  payload = az_span_copy(
-      payload, AZ_SPAN_FROM_STR("{ \"msgCount\": "));
-  (void)az_span_u32toa(payload, telemetry_send_count++, &payload);
-  payload = az_span_copy(payload, AZ_SPAN_FROM_STR(" }"));
-  payload = az_span_copy_u8(payload, '\0');
-
-  *out_payload = az_span_slice(original_payload, 0, az_span_size(original_payload) - az_span_size(payload));
+  *out_payload = az_span_create((uint8_t*)myTelemetry.c_str(), myTelemetry.length());
 }
 
 static void sendTelemetry()
