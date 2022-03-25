@@ -957,7 +957,7 @@ static int get_mqtt_client_config_for_dps(azure_iot_t* azure_iot, mqtt_client_co
   password_span = split_az_span(data_buffer_span, MQTT_PASSWORD_BUFFER_SIZE, &data_buffer_span);
   EXIT_IF_TRUE(is_az_span_empty(password_span), RESULT_ERROR, "Failed reserving buffer for password_span.");
 
-  if(!az_span_is_content_equal(AZ_SPAN_EMPTY, azure_iot->config->device_key))
+  if(!is_az_span_empty( azure_iot->config->device_key))
   {
     password_length = generate_sas_token_for_dps(
       &azure_iot->dps_client,
@@ -989,7 +989,7 @@ static int get_mqtt_client_config_for_dps(azure_iot_t* azure_iot, mqtt_client_co
   mqtt_client_config->client_id = client_id_span;
   mqtt_client_config->username = username_span;
 
-  if(!az_span_is_content_equal(AZ_SPAN_EMPTY, azure_iot->config->device_key))
+  if(!is_az_span_empty( azure_iot->config->device_key))
   {
     mqtt_client_config->password = password_span;
   }
