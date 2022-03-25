@@ -455,6 +455,18 @@ typedef struct azure_iot_config_t_struct
   az_span device_key;
 
   /*
+   * @brief     X509 certificate to be used for authentication.
+   *
+   */
+  az_span device_certificate;
+
+  /*
+   * @brief     X509 certificate private key to be used for authentication.
+   *
+   */
+  az_span device_certificate_private_key;
+
+  /*
    * @brief     The "Registration ID" to authenticate with when connecting to
    *            Azure Device Provisioning service.
    * @remark    This information is only needed when performing device-provisioning (which is used,

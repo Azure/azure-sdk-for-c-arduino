@@ -83,12 +83,13 @@ static uint32_t telemetry_send_count = 0;
 static char incoming_data[INCOMING_DATA_BUFFER_SIZE];
 
 // Auxiliary functions
-
+#ifndef IOT_CONFIG_USE_X509_CERT
 static AzIoTSasToken sasToken(
     &client,
     AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_KEY),
     AZ_SPAN_FROM_BUFFER(sas_signature_buffer),
     AZ_SPAN_FROM_BUFFER(mqtt_password));
+#endif // IOT_CONFIG_USE_X509_CERT
 
 static void connectToWiFi()
 {
@@ -235,11 +236,13 @@ static void initializeIoTHubClient()
 
 static int initializeMqttClient()
 {
+  #ifndef IOT_CONFIG_USE_X509_CERT
   if (sasToken.Generate(SAS_TOKEN_DURATION_IN_MINUTES) != 0)
   {
     Logger.Error("Failed generating SAS token");
     return 1;
   }
+  #endif
 
   esp_mqtt_client_config_t mqtt_config;
   memset(&mqtt_config, 0, sizeof(mqtt_config));
@@ -247,7 +250,15 @@ static int initializeMqttClient()
   mqtt_config.port = mqtt_port;
   mqtt_config.client_id = mqtt_client_id;
   mqtt_config.username = mqtt_username;
-  mqtt_config.password = (const char*)az_span_ptr(sasToken.Get());
+
+  #ifdef IOT_CONFIG_USE_X509_CERT
+    Logger.Info("MQTT client using X509 Certificate authentication");
+    mqtt_config.client_cert_pem = IOT_CONFIG_DEVICE_CERT;
+    mqtt_config.client_key_pem = IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY;
+  #else // Using SAS key
+    mqtt_config.password = (const char*)az_span_ptr(sasToken.Get());
+  #endif
+
   mqtt_config.keepalive = 30;
   mqtt_config.disable_clean_session = 0;
   mqtt_config.disable_auto_reconnect = false;
@@ -355,12 +366,14 @@ void loop()
   {
     connectToWiFi();
   }
+  #ifndef IOT_CONFIG_USE_X509_CERT
   else if (sasToken.IsExpired())
   {
     Logger.Info("SAS token expired; reconnecting with a new one.");
     (void)esp_mqtt_client_destroy(mqtt_client);
     initializeMqttClient();
   }
+  #endif
   else if (millis() > next_telemetry_send_time_ms)
   {
     sendTelemetry();
