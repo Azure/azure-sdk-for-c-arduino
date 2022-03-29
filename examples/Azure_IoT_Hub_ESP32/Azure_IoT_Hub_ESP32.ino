@@ -297,7 +297,7 @@ static void establishConnection()
 
 static void getTelemetryPayload(az_span payload, az_span* out_payload)
 {
-  // You can generate the json using any lib you want. Here it's hardcoded for simplicity.
+  // You can generate the JSON using any lib you want. Here we're showing how to do it manually, for simplicity
   myTelemetry = "{ \"msgCount\": "+ String(telemetry_send_count++) + " }";
 
   *out_payload = az_span_create((uint8_t*)myTelemetry.c_str(), myTelemetry.length());
