@@ -135,7 +135,15 @@ static int mqtt_client_init_function(mqtt_client_config_t* mqtt_client_config, m
   mqtt_config.port = mqtt_client_config->port;
   mqtt_config.client_id = (const char*)az_span_ptr(mqtt_client_config->client_id);
   mqtt_config.username = (const char*)az_span_ptr(mqtt_client_config->username);
-  mqtt_config.password = (const char*)az_span_ptr(mqtt_client_config->password);
+
+  #ifdef IOT_CONFIG_USE_X509_CERT
+    LogInfo("MQTT client using X509 Certificate authentication");
+    mqtt_config.client_cert_pem = IOT_CONFIG_DEVICE_CERT;
+    mqtt_config.client_key_pem = IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY;
+  #else // Using SAS key
+    mqtt_config.password = (const char*)az_span_ptr(mqtt_client_config->password);
+  #endif
+
   mqtt_config.keepalive = 30;
   mqtt_config.disable_clean_session = 0;
   mqtt_config.disable_auto_reconnect = false;
@@ -336,7 +344,17 @@ void setup()
   azure_iot_config.use_device_provisioning = true; // Required for Azure IoT Central.
   azure_iot_config.iot_hub_fqdn = AZ_SPAN_EMPTY;
   azure_iot_config.device_id = AZ_SPAN_EMPTY;
-  azure_iot_config.device_key = AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_KEY);
+
+  #ifdef IOT_CONFIG_USE_X509_CERT
+    azure_iot_config.device_certificate = AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_CERT);
+    azure_iot_config.device_certificate_private_key = AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY);
+    azure_iot_config.device_key = AZ_SPAN_EMPTY;
+  #else
+    azure_iot_config.device_certificate = AZ_SPAN_EMPTY;
+    azure_iot_config.device_certificate_private_key = AZ_SPAN_EMPTY;
+    azure_iot_config.device_key = AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_KEY);
+  #endif // IOT_CONFIG_USE_X509_CERT
+
   azure_iot_config.dps_id_scope = AZ_SPAN_FROM_STR(DPS_ID_SCOPE);
   azure_iot_config.dps_registration_id = AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_ID); // Use Device ID for Azure IoT Central.
   azure_iot_config.data_buffer = AZ_SPAN_FROM_BUFFER(az_iot_data_buffer);
