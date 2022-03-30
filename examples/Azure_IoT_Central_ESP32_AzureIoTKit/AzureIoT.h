@@ -789,15 +789,6 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
  */
 
 /**
- * @brief Checks whether `span` is equal to AZ_SPAN_EMPTY.
- *
- * @param[in]    span           A span to be verified.
- *
- * @return       boolean        True if `span`'s pointer and size are equal to AZ_SPAN_EMPTY, or false otherwise.
- */
-#define is_az_span_empty(span) az_span_is_content_equal(span, AZ_SPAN_EMPTY)
-
-/**
  * @brief Slices `span` at position `size`, returns the first slice and assigns the second slice to `remainder`.
  *
  * @param[in]    span           A span to be sliced.
