@@ -100,7 +100,7 @@ void azure_iot_init(azure_iot_t* azure_iot, azure_iot_config_t* azure_iot_config
     (az_span_is_content_equal(azure_iot_config->device_certificate, AZ_SPAN_EMPTY) || az_span_is_content_equal(azure_iot_config->device_certificate_private_key, AZ_SPAN_EMPTY) ))
   {
     LogError("Please define either a device key or a device certificate and certificate private key. See iot_configs.h");
-    _az_PRECONDITION(false);
+    return;
   }
 
   _az_PRECONDITION_VALID_SPAN(azure_iot_config->data_buffer, 1, false);
@@ -968,6 +968,12 @@ static int get_mqtt_client_config_for_dps(azure_iot_t* azure_iot, mqtt_client_co
       password_span,
       &azure_iot->sas_token_expiration_time);
     EXIT_IF_TRUE(password_length == 0, RESULT_ERROR, "Failed creating mqtt password for DPS connection.");
+
+    mqtt_client_config->password = password_span;
+  }
+  else
+  {
+    mqtt_client_config->password = AZ_SPAN_EMPTY;
   }
 
   client_id_span = split_az_span(data_buffer_span, MQTT_CLIENT_ID_BUFFER_SIZE, &data_buffer_span);
@@ -988,16 +994,6 @@ static int get_mqtt_client_config_for_dps(azure_iot_t* azure_iot, mqtt_client_co
 
   mqtt_client_config->client_id = client_id_span;
   mqtt_client_config->username = username_span;
-
-  if(!az_span_is_content_equal(azure_iot->config->device_key, AZ_SPAN_EMPTY))
-  {
-    mqtt_client_config->password = password_span;
-  }
-  else
-  {
-    // Certs don't use a password
-    mqtt_client_config->password = AZ_SPAN_EMPTY;
-  }
 
   return RESULT_OK;
 }
