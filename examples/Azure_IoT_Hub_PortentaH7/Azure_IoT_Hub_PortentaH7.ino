@@ -10,8 +10,8 @@
 // Libraries for NTP, MQTT client, WiFi connection and SAS-token generation.
 #include <mbed.h>
 // #include <NTPClient.h>
-// #include <NTPClient_Generic.h>
-// #include <TimeLib.h>
+#include <NTPClient_Generic.h>
+#include <TimeLib.h>
 // #include <sntp/sntp.h>
 #include <SPI.h>
 #include <WiFi.h>
@@ -72,8 +72,8 @@ static const int mqtt_port = AZ_IOT_DEFAULT_MQTT_CONNECT_PORT;
 static int mqtt_retry_interval = 5000; // milliseconds
 
 // Memory allocated for the sample's variables and structures.
-// static WiFiUDP ntp_udp_client;
-// static NTPClient timeClient(ntp_udp_client, "pool.ntp.org", GMT_OFFSET_SECS_DST);
+static WiFiUDP ntp_udp_client;
+static NTPClient timeClient(ntp_udp_client, "pool.ntp.org", GMT_OFFSET_SECS_DST);
 static WiFiClient wifi_client;
 static BearSSLClient ssl_client(wifi_client);
 static MqttClient mqtt_client(ssl_client);
@@ -88,7 +88,8 @@ static char telemetry_topic[128];
 static uint8_t telemetry_payload[100];
 static uint32_t telemetry_send_count = 0;
 static unsigned char *ca_pem_nullterm;
-int status = WL_IDLE_STATUS;
+unsigned long sas_duration;
+
 // Auxiliary functions
 extern "C"
 {
@@ -106,14 +107,12 @@ static void generate_sas_key();
 static int connect_to_azure_iot_hub();
 static char * get_telemetry_payload();
 static void send_telemetry();
-void establishConnection();
 void connectToWiFi();
 void initializeClients();
 void onMessageReceived(int messageSize);
 void createCert();
-int64_t getTokenExpirationTime(uint32_t minutes);
-String getFormattedDateTime(long epochTimeInSeconds);
-String getCurrentFormattedDateTime();
+unsigned long getTokenExpirationTime(uint32_t minutes);
+String getLocaleDateTime(long epochTimeInSeconds);
 unsigned long getTime();
 String mqttErrorCodeName(int errorCode);
 
@@ -123,10 +122,11 @@ void setup()
 {
   while (!Serial);
   Serial.begin(MBED_CONF_PLATFORM_DEFAULT_SERIAL_BAUD_RATE);
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH);
   createCert();
-  establishConnection();
+  connectToWiFi();
+  initializeClients();
+  generate_sas_key();
+  connect_to_azure_iot_hub();
 }
 
 void loop()
@@ -141,7 +141,11 @@ void loop()
     // Check if connected, reconnect if needed.
     if (!mqtt_client.connected())
     {
-      establishConnection();
+      // Check if token is expired
+      if(sas_duration <= getTime()){
+        generate_sas_key();
+      }
+      connect_to_azure_iot_hub();
     }
     send_telemetry();
     next_telemetry_send_time_ms = millis() + TELEMETRY_FREQUENCY_MILLISECS;
@@ -149,20 +153,8 @@ void loop()
 
   // MQTT loop must be called to process Device-to-Cloud and Cloud-to-Device.
   mqtt_client.poll();
+  timeClient.update();
   delay(500);
-}
-
-void establishConnection()
-{
-  connectToWiFi();
-
-  initializeClients();
-
-  generate_sas_key();
-
-  connect_to_azure_iot_hub();
-
-  digitalWrite(LED_PIN, LOW);
 }
 
 void connectToWiFi()
@@ -182,7 +174,10 @@ void connectToWiFi()
   Serial.println(WiFi.RSSI());
 
   Serial.print("Syncing time");
-  while(getTime() == 0) {
+  timeClient.begin();
+  timeClient.forceUpdate();
+
+  while(!timeClient.updated()) {
     Serial.print(".");
   }
   Serial.println();
@@ -195,8 +190,6 @@ void initializeClients()
 
   az_iot_hub_client_options options = az_iot_hub_client_options_default();
   options.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT);
-
-  //   wifi_client.setRootCA(ca_pem_nullterm);
 
   if (az_result_failed(az_iot_hub_client_init(
           &hub_client,
@@ -290,11 +283,11 @@ static void generate_sas_key()
 {
   az_result rc;
   // Create the POSIX expiration time from input minutes.
-  uint64_t sas_duration = getTokenExpirationTime(SAS_TOKEN_EXPIRY_IN_MINUTES);
+  sas_duration = getTokenExpirationTime(SAS_TOKEN_EXPIRY_IN_MINUTES);
 
   // Get the signature that will later be signed with the decoded key.
   az_span sas_signature = AZ_SPAN_FROM_BUFFER(signature);
-  rc = az_iot_hub_client_sas_get_signature(&hub_client, sas_duration, sas_signature, &sas_signature);
+  rc = az_iot_hub_client_sas_get_signature(&hub_client, (uint64_t)sas_duration, sas_signature, &sas_signature);
   if (az_result_failed(rc))
   {
     LogError("Could not get the signature for SAS key: az_result return code = %d", rc);
@@ -424,34 +417,30 @@ void createCert()
   ssl_client.setEccSlot(0, ECCX08SelfSignedCert.bytes(), ECCX08SelfSignedCert.length());
 }
 
-int64_t getTokenExpirationTime(uint32_t minutes)
+unsigned long getTokenExpirationTime(uint32_t minutes)
 {
   long now = getTime();
   long expiryTime = now + (SECS_PER_MIN * minutes);
-  LogInfo("Current time: %s (epoch: %d secs)", getFormattedDateTime(now), now);
-  LogInfo("Expiry time: %s (epoch: %d secs)", getFormattedDateTime(expiryTime), expiryTime);
-  return (int64_t)expiryTime;
+  LogInfo("Current time: %s (epoch: %d secs)", getLocaleDateTime(now), now);
+  LogInfo("Expiry time: %s (epoch: %d secs)", getLocaleDateTime(expiryTime), expiryTime);
+  return expiryTime;
 }
 
-String getFormattedDateTime(long epochTimeInSeconds)
+String getLocaleDateTime(long epochTimeInSeconds)
 {
-  char buf[20];
-  time_t t = (time_t)epochTimeInSeconds;
-  struct tm *timeinfo = localtime(&t);
-
-  strftime(buf, 20, "%FT%T", timeinfo);
+  char buf[32];   
+  time_t t = timeClient.getEpochTime();
+  
+  memset(buf, 0, sizeof(buf));  
+  sprintf(buf, "%d-%2d-%2dT%2d:%2d:%2d", year(t), month(t), day(t), hour(t), minute(t), second(t));
+  
   return String(buf);
 }
 
-String getCurrentFormattedDateTime()
-{
-  return getFormattedDateTime(getTime());
-}
-
+/* Get UTC time in seconds since January 1, 1970 */
 unsigned long getTime()
 {
-  // get the current time from the WiFi module
-  return WiFi.getTime();
+  return timeClient.getUTCEpochTime();
 }
 
 String mqttErrorCodeName(int errorCode)
@@ -526,7 +515,7 @@ static void logging_function(log_level_t log_level, char const *const format, ..
 
     Serial.print(ptm->tm_sec);
    */
-  Serial.print(getCurrentFormattedDateTime());
+  Serial.print(getLocaleDateTime(getTime()));
 
   switch (log_level)
   {
