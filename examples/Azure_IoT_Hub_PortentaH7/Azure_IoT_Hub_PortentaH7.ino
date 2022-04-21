@@ -56,13 +56,8 @@ static void logging_function(log_level_t log_level, const char *format, ...);
 #define LogDebug(message, ...) Log(log_level_debug, message, ##__VA_ARGS__)
 
 /* --- Time and Time Zone --- */
-// #define SECS_PER_MIN 60
-// #define SECS_PER_HOUR 3600
-#define PST_TIME_ZONE -8
-#define PST_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF 1
-
-#define GMT_OFFSET_SECS (PST_TIME_ZONE * SECS_PER_HOUR)
-#define GMT_OFFSET_SECS_DST ((PST_TIME_ZONE + PST_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF) * SECS_PER_HOUR)
+#define GMT_OFFSET_SECS (IOT_CONFIG_TIME_ZONE * SECS_PER_HOUR)
+#define GMT_OFFSET_SECS_DST ((IOT_CONFIG_TIME_ZONE + IOT_CONFIG_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF) * SECS_PER_HOUR)
 
 // Translate arduino_secrets.h defines into variables used by the sample
 const char *ssid = IOT_CONFIG_WIFI_SSID;
@@ -165,21 +160,19 @@ void connectToWiFi()
 
     while (WiFi.begin(ssid, password) != WL_CONNECTED)
     {
-        Serial.println(".");
+        Serial.print(".");
         delay(wifi_connect_retry_interval);
     }
-
+    Serial.println();
     Serial.print("WiFi connected, IP address: ");
-
     Serial.print(WiFi.localIP());
     Serial.print(", Strength (dBm): ");
     Serial.println(WiFi.RSSI());
 
     Serial.print("Syncing time");
     timeClient.begin();
-    timeClient.forceUpdate();
 
-    while (!timeClient.updated())
+    while (!timeClient.forceUpdate())
     {
         Serial.print(".");
     }
@@ -200,11 +193,11 @@ void initializeClients()
             AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_ID),
             &options)))
     {
-        Serial.println("Failed initializing Azure IoT Hub client");
+        LogError("Failed initializing Azure IoT Hub client");
         return;
     }
 
-    Serial.println("MQTT client initialized");
+    LogError("MQTT client initialized");
 }
 
 static int connect_to_azure_iot_hub()
@@ -266,7 +259,7 @@ static char *get_telemetry_payload()
 static void send_telemetry()
 {
     digitalWrite(LED_PIN, HIGH);
-    LogInfo("Arduino Nano Connect RP2040 sending telemetry . . . ");
+    LogInfo("Arduino Portenta H7 sending telemetry . . . ");
     if (az_result_failed(az_iot_hub_client_telemetry_get_publish_topic(
             &hub_client, NULL, telemetry_topic, sizeof(telemetry_topic), NULL)))
     {
