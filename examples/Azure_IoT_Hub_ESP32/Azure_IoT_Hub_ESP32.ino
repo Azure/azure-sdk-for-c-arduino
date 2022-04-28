@@ -315,7 +315,7 @@ static void getTelemetryPayload(az_span payload, az_span* out_payload)
   payload = az_span_copy(payload, AZ_SPAN_FROM_STR(" }"));
   payload = az_span_copy_u8(payload, '\0');
 
-  *out_payload = az_span_slice(original_payload, 0, az_span_size(original_payload) - az_span_size(payload));
+  *out_payload = az_span_slice(original_payload, 0, az_span_size(original_payload) - az_span_size(payload) - 1);
 }
 
 static void sendTelemetry()
