@@ -211,7 +211,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
         If you perform this step right away after uploading the sketch, the serial monitor will show an output similar to the following upon success:
 
         ```text
-        13:41:04.735 -> 2106-02-06T23:28:18 [INFO] Attempting to connect to WIFI SSID: NSA_port48
+        13:41:04.735 -> 2106-02-06T23:28:18 [INFO] Attempting to connect to WIFI SSID: SSID_Name
         13:41:13.451 -> 
         13:41:13.451 -> WiFi connected, IP address: 192.168.1.11, Strength (dBm): -54
         13:41:13.451 -> Syncing time
@@ -222,7 +222,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
         13:41:13.960 -> 2022-04-25T13:41:13 [INFO] Expiry time: 2022-04-25T13:41:13 (epoch: 1650922873 secs)
         13:41:13.960 -> 2022-04-25T13:41:13 [INFO] connect_to_azure_iot_hub - Broker: my-resource-group.azure-devices.net
         13:41:13.960 -> 2022-04-25T13:41:13 [INFO] connect_to_azure_iot_hub - Client ID: DEVICEID
-        13:41:13.960 -> 2022-04-25T13:41:13 [INFO] connect_to_azure_iot_hub - Username: my-resource-group.azure-devices.net/portenta/?api-version=2020-09-30&c/1.3.0-beta.1(ard;portentaH7)
+        13:41:13.960 -> 2022-04-25T13:41:13 [INFO] connect_to_azure_iot_hub - Username: my-resource-group.azure-devices.net/deviceid/?api-version=2020-09-30&c/1.3.0-beta.1(ard;portentaH7)
         13:41:13.960 -> 2022-04-25T13:41:13 [INFO] connect_to_azure_iot_hub - SAS Token: SharedAccessSignature sr=my-resource-group.azure-devices.net%2Fdevices%2FDEVICEID&sig=YwqMeeTu245yGlQd3uApd7VkwZkkRtFGF%3DhtFKb3%5XMn%5S&se=1650922873
         13:41:17.494 -> 2022-04-25T13:41:17 [INFO] You're connected to the MQTT broker
         13:41:17.903 -> 2022-04-25T13:41:17 [INFO] Arduino Portenta H7 sending telemetry . . . 
