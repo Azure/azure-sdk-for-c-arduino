@@ -109,14 +109,20 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 
 1. Nagivate to **Tools > Board > Arduino Mbed OS Nano Boards** and select **'Arduino Nano RP2040 Connect'**.
 
-1. If this is your first time using the Nano RP2040 Connect, [follow these instructions to update the WiFi firmware on the Nano RP2040 Connect](https://docs.arduino.cc/tutorials/nano-rp2040-connect/rp2040-upgrading-nina-firmware).
-
 1. Install WiFiNINA library for the Nano RP2040 Embedded C SDK sample. 
 
     - Navigate to **Tools > Manage Libraries**.
     - Search for the **'WiFiNINA'** libray. Install the latest version.
 
     *Note: This process may take several minutes.*  
+    
+1. If this is your first time using the Nano RP2040 Connect, [follow these instructions to update the WiFi firmware on the Nano RP2040 Connect](https://docs.arduino.cc/tutorials/nano-rp2040-connect/rp2040-upgrading-nina-firmware).
+
+1. Install the ArduinoBearSSL and ArduinoMqttClient libraries.
+
+    - Navigate to **Tools > Manage Libraries**.
+    - Search for the **'ArduinoBearSSL'** library. Install the latest version.
+    - Search for the **'Arduino MQTT Client'** library. Install the latest version.
 
 1. You may need to restart the Arduino IDE for changes to show up.
 
