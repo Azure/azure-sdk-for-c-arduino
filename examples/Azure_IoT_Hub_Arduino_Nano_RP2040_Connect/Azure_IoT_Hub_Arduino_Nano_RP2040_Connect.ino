@@ -57,11 +57,9 @@ static void logging_function(log_level_t log_level, char const *const format, ..
 /* --- Time and Time Zone --- */
 #define SECS_PER_MIN 60
 #define SECS_PER_HOUR 3600
-#define PST_TIME_ZONE -8
-#define PST_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF 1
 
-#define GMT_OFFSET_SECS (PST_TIME_ZONE * SECS_PER_HOUR)
-#define GMT_OFFSET_SECS_DST ((PST_TIME_ZONE + PST_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF) * SECS_PER_HOUR)
+#define GMT_OFFSET_SECS (IOT_CONFIG_TIME_ZONE * SECS_PER_HOUR)
+#define GMT_OFFSET_SECS_DST ((IOT_CONFIG_TIME_ZONE + IOT_CONFIG_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF) * SECS_PER_HOUR)
 
 // Translate arduino_secrets.h defines into variables used by the sample
 const char *ssid = IOT_CONFIG_WIFI_SSID;
