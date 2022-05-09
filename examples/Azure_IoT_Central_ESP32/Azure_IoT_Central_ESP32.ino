@@ -331,7 +331,7 @@ void setup()
    * throughout the lifetime of the sample. This variable must also not lose context so other
    * components do not overwrite any information within this structure.
    */
-  azure_iot_config.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT_WORKAROUND);
+  azure_iot_config.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT);
   azure_iot_config.model_id = azure_pnp_get_model_id();
   azure_iot_config.use_device_provisioning = true; // Required for Azure IoT Central.
   azure_iot_config.iot_hub_fqdn = AZ_SPAN_EMPTY;
