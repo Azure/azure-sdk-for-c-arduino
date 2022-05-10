@@ -78,9 +78,6 @@
 static const char* wifi_ssid = IOT_CONFIG_WIFI_SSID;
 static const char* wifi_password = IOT_CONFIG_WIFI_PASSWORD;
 
-// TODO: remove this after updating library with Azure SDK for C version 1.3.0-beta.2 or later.
-#define AZURE_SDK_CLIENT_USER_AGENT_WORKAROUND "DeviceClientType=" AZURE_SDK_CLIENT_USER_AGENT
-
 /* --- Function Declarations --- */
 static void sync_device_clock_with_ntp_server();
 static void connect_to_wifi();
@@ -334,7 +331,7 @@ void setup()
    * throughout the lifetime of the sample. This variable must also not lose context so other
    * components do not overwrite any information within this structure.
    */
-  azure_iot_config.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT_WORKAROUND);
+  azure_iot_config.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT);
   azure_iot_config.model_id = azure_pnp_get_model_id();
   azure_iot_config.use_device_provisioning = true; // Required for Azure IoT Central.
   azure_iot_config.iot_hub_fqdn = AZ_SPAN_EMPTY;
