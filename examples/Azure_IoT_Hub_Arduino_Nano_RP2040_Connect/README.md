@@ -170,18 +170,18 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
     
     *Note: This will take several minutes.* 
 
-        <details><summary><i>Expected output of the upload:</i></summary>
-        <p>
+    <details><summary><i>Expected output of the upload:</i></summary>
+    <p>
 
-        ```text
-        Sketch uses 187636 bytes (1%) of program storage space. Maximum is 16777216 bytes.
-        Global variables use 63492 bytes (23%) of dynamic memory, leaving 206844 bytes for local variables. Maximum is 270336 bytes.
-        .
-        
-        ```
-        
-        </p>
-        </details>
+    ```text
+    Sketch uses 187636 bytes (1%) of program storage space. Maximum is 16777216 bytes.
+    Global variables use 63492 bytes (23%) of dynamic memory, leaving 206844 bytes for local variables. Maximum is 270336 bytes.
+    .
+    
+    ```
+    
+    </p>
+    </details>
 
 9. While the sketch is uploading, open the Serial Monitor to monitor the MCU (microcontroller) locally via the Serial Port.
 
