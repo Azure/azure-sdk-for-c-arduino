@@ -99,6 +99,11 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 
 1. Open the Arduino IDE.
 
+1. Install the Azure SDK for Embedded C library.
+
+    - On the Arduino IDE, go to menu Sketch, Include Library, Manage Libraries....
+    - Search for and install azure-sdk-for-c.
+
 1. Install Arduino Mbed OS Nano Boards support in the Arduino IDE. [Full instructions can be found here.](https://docs.arduino.cc/hardware/nano-rp2040-connect)
 
     - Navigate to **Tools > Board > Board Manager**
