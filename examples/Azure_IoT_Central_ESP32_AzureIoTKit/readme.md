@@ -113,7 +113,7 @@ To create a device:
     Enter your Azure IoT Hub and device information into the sample's `iot_configs.h`:
     - Add your Wi-Fi SSID to `IOT_CONFIG_WIFI_SSID`
     - Add your Wi-Fi password to `IOT_CONFIG_WIFI_PASSWORD`
-    - Add you IoTHub Name to `DPS_ID_SCOPE`
+    - Add you Device Provisioning Scope ID to `DPS_ID_SCOPE`
     - Add your Device ID to `IOT_CONFIG_DEVICE_ID`
     - If using **X.509 Cert**:
         - Uncomment the `#define IOT_CONFIG_USE_X509_CERT`
