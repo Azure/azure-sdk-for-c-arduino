@@ -76,11 +76,18 @@ To create a device:
 
     ![IoT Central create a device](media/iotcentraldevice-connection-info.png)
 
+    The information provided above will create a device with **Symmetric Key** authentication. If you prefer, you can also use **X.509 certificates**. In order to do that:
+     - In the `Authentication type` box, select `individual enrollment`.
+     - In the `Authentication method` box, select `Certificates (X.509)`.
+     - Click on the blue folder icon for both primary and secondary and select your device Certificate.
+
+        > If needed, instructions on how to create an X.509 cert for testing can be found [here](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#configure-and-run-the-samples) (Step 1). Please note that you might need to install some of the [prerequisites](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#prerequisites) like OpenSSL.
+
 1. Note the connection values for the following connection string parameters displayed in **Connect** dialog. You'll use these values during the following configuration step:
 
 > * `ID scope`
 > * `Device ID`
-> * `Primary key`
+> * `Primary key` (only if you choose Symmetric Key authentication)
 
 
 ## Setup and Run Instructions
@@ -99,7 +106,17 @@ To create a device:
 
 4. Configure the sample.
 
-    Enter your Azure IoT Central and device information into the sample's `iot_configs.h`.
+    Enter your Azure IoT Hub and device information into the sample's `iot_configs.h`:
+    - Add your Wi-Fi SSID to `IOT_CONFIG_WIFI_SSID`
+    - Add your Wi-Fi password to `IOT_CONFIG_WIFI_PASSWORD`
+    - Add you Device Provisioning Scope ID to `DPS_ID_SCOPE`
+    - Add your Device ID to `IOT_CONFIG_DEVICE_ID`
+    - If using **X.509 Cert**:
+        - Uncomment the `#define IOT_CONFIG_USE_X509_CERT`
+        - Add your cert to `IOT_CONFIG_USE_X509_CERT`
+        - Add your cert private key to `IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY`
+    - If using **Symmetric Key**:
+        - Add your device key to `IOT_CONFIG_DEVICE_KEY`
 
 5. Connect the ESP32 Azure IoT Kit microcontroller to your USB port.
 
