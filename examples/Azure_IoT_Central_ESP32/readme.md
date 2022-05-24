@@ -81,7 +81,7 @@ To create a device:
      - In the `Authentication method` box, select `Certificates (X.509)`.
      - Click on the blue folder icon for both primary and secondary and select your device Certificate.
 
-        > If needed, instructions on how to create an X.509 cert for tests can be found [here](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#configure-and-run-the-samples) (Step 1). Please note that you might need to install some of the [prerequisites](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#prerequisites) like OpenSSL.
+        > If needed, instructions on how to create an X.509 cert for testing can be found [here](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#configure-and-run-the-samples) (Step 1). Please note that you might need to install some of the [prerequisites](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#prerequisites) like OpenSSL.
 
 1. Note the connection values for the following connection string parameters displayed in **Connect** dialog. You'll use these values during the following configuration step:
 
