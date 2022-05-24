@@ -118,7 +118,7 @@ To create a device:
     - If using **X.509 Cert**:
         - Uncomment the `#define IOT_CONFIG_USE_X509_CERT`
         - Add your cert to `IOT_CONFIG_USE_X509_CERT`
-        - Add your cert PK to `IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY`
+        - Add your cert private key to `IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY`
     - If using **Symmetric Key**:
         - Add your device key to `IOT_CONFIG_DEVICE_KEY`
 
