@@ -77,8 +77,8 @@ To create a device:
     ![IoT Central create a device](media/iotcentraldevice-connection-info.png)
 
     The information provided above will create a device with **Symmetric Key** authentication. If you prefer, you can also use **X.509 certificates**. In order to do that:
-     - In the `Authentication type` box, select `individual enrollment`
-     - In the `Authentication method` box, select `Certificates (X.509)`
+     - In the `Authentication type` box, select `individual enrollment`.
+     - In the `Authentication method` box, select `Certificates (X.509)`.
      - Click on the blue folder icon for both primary and secondary and select your device Certificate.
 
         > If needed, instructions on how to create an X.509 cert for tests can be found [here](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#configure-and-run-the-samples) (Step 1). Please note that you might need to install some of the [prerequisites](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#prerequisites) like OpenSSL.
