@@ -2,120 +2,81 @@
 // SPDX-License-Identifier: MIT
 
 // C99 libraries
-#include <string.h>
-#include <stdbool.h>
+#include <cstdbool>
 #include <cstdlib>
-#include <time.h>
+#include <cstring>
+#include <ctime>
 
-// Libraries for NTP, MQTT client, WiFi connection and SAS-token generation.
-#include <mbed.h>
-// #include <NTPClient.h>
-// #include <NTPClient_Generic.h>
-// #include <TimeLib.h>
-// #include <sntp/sntp.h>
-#include <SPI.h>
-#include <WiFiNINA.h>
-#include <ArduinoBearSSL.h>
-#include <ArduinoECCX08.h>
-#include <utility/ECCX08SelfSignedCert.h>
+// Libraries for MQTT client, WiFi connection and SAS-token generation.
 #include <ArduinoMqttClient.h>
+#include <mbed.h>
 #include <mbedtls/base64.h>
 #include <mbedtls/sha256.h>
 #include <mbedtls/md.h>
+#include <WiFiNINA.h>
 
 // Azure IoT SDK for C includes
 #include <az_core.h>
 #include <az_iot.h>
-#include <azure_ca.h>
 
-// Additional sample headers
+// Sample header
 #include "iot_configs.h"
 
-// When developing for your own Arduino-based platform,
-// please follow the format '(ard;<platform>)'.
-#define AZURE_SDK_CLIENT_USER_AGENT "c/" AZ_SDK_VERSION_STRING "(ard;nanorp2040connect)"
+#define BUFFER_LENGTH 128
+#define BUFFER_LENGTH_SAS 256
+#define BUFFER_LENGTH_SIGNATURE 512
+#define BUFFER_LENGTH_CLIENT_ID 256
+#define BUFFER_LENGTH_USERNAME 512
 
-// Utility macros and defines
-// Status LED: will remain high on error and pulled high for a short time for each successful send.
-#define LED_PIN 2
-#define sizeofarray(a) (sizeof(a) / sizeof(a[0]))
-#define MQTT_PACKET_SIZE 1024
+#define LED_PIN 2 // High on error. Briefly high for each successful send.
+#define SIZE_OF_ARRAY(a) (sizeof(a) / sizeof(a[0]))
 
-/* --- Logging --- */
-typedef enum log_level_t_enum
+//#define SECS_PER_MIN 60
+//#define SECS_PER_HOUR 3600
+//#define GMT_OFFSET_SECS (IOT_CONFIG_TIME_ZONE * SECS_PER_HOUR)
+//#define GMT_OFFSET_SECS_DST ((IOT_CONFIG_TIME_ZONE + IOT_CONFIG_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF) * SECS_PER_HOUR)
+
+// Logging
+typedef enum LogLevel
 {
-  log_level_debug,
-  log_level_info,
-  log_level_error
-} log_level_t;
-static void logging_function(log_level_t log_level, char const *const format, ...);
-#define Log(level, message, ...) logging_function(level, message, ##__VA_ARGS__)
-#define LogInfo(message, ...) Log(log_level_info, message, ##__VA_ARGS__)
-#define LogError(message, ...) Log(log_level_error, message, ##__VA_ARGS__)
-#define LogDebug(message, ...) Log(log_level_debug, message, ##__VA_ARGS__)
+  LogLevelDebug,
+  LogLevelInfo,
+  LogLevelError
+};
 
-/* --- Time and Time Zone --- */
-#define SECS_PER_MIN 60
-#define SECS_PER_HOUR 3600
+static void log(LogLevel logLevel, String message);
+#define LogDebug(message) log(LogLevelDebug, message)
+#define LogInfo(message) log(LogLevelInfo, message)
+#define LogError(message) log(LogLevelError, message)
 
-#define GMT_OFFSET_SECS (IOT_CONFIG_TIME_ZONE * SECS_PER_HOUR)
-#define GMT_OFFSET_SECS_DST ((IOT_CONFIG_TIME_ZONE + IOT_CONFIG_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF) * SECS_PER_HOUR)
+static WiFiClient wifiClient;
+static BearSSLClient bearSSLClient(wifiClient);
+static az_iot_hub_client azIoTHubClient;
+static MqttClient mqttClient(bearSSLClient);
 
-// Translate arduino_secrets.h defines into variables used by the sample
-const char *ssid = IOT_CONFIG_WIFI_SSID;
-const char *password = IOT_CONFIG_WIFI_PASSWORD;
-static const char *host = IOT_CONFIG_IOTHUB_FQDN;
-static int wifi_connect_retry_interval = 10000; //milliseconds
-static const int mqtt_port = AZ_IOT_DEFAULT_MQTT_CONNECT_PORT;
-static int mqtt_retry_interval = 5000; // milliseconds
 
-// Memory allocated for the sample's variables and structures.
-// static WiFiUDP ntp_udp_client;
-// static NTPClient timeClient(ntp_udp_client, "pool.ntp.org", GMT_OFFSET_SECS_DST);
-static WiFiClient wifi_client;
-static BearSSLClient ssl_client(wifi_client);
-static MqttClient mqtt_client(ssl_client);
-static az_iot_hub_client hub_client;
+static char telemetryTopic[BUFFER_LENGTH];
+static unsigned long nextTelemetrySendTimeMs = 0;
+static uint32_t telemetrySendCount = 0;
 
-static char sas_token[200];
-static size_t sas_token_length;
-static uint8_t signature[512];
+// SAS Token generation
+static char SASToken[BUFFER_LENGTH_SAS];
+static size_t SASTokenLength;
+static uint8_t signature[BUFFER_LENGTH_SIGNATURE];
 
-static unsigned long next_telemetry_send_time_ms = 0;
-static char telemetry_topic[128];
-static uint8_t telemetry_payload[100];
-static uint32_t telemetry_send_count = 0;
-static unsigned char *ca_pem_nullterm;
-int status = WL_IDLE_STATUS;
-// Auxiliary functions
-extern "C"
-{
-  extern int mbedtls_base64_decode(unsigned char *dst, size_t dlen, size_t *olen, const unsigned char *src, size_t slen);
-  extern int mbedtls_base64_encode(unsigned char *dst, size_t dlen, size_t *olen, const unsigned char *src, size_t slen);
-}
-
-/* Function declarations */
-static void mbedtls_hmac_sha256(az_span key, az_span payload, az_span signed_payload);
-static void hmac_sha256_sign_signature(az_span decoded_key, az_span signature, az_span signed_signature, az_span *out_signed_signature);
-static void base64_encode_bytes(az_span decoded_bytes, az_span base64_encoded_bytes, az_span *out_base64_encoded_bytes);
-static void decode_base64_bytes(az_span base64_encoded_bytes, az_span decoded_bytes, az_span *out_decoded_bytes);
-static void generate_sas_base64_encoded_signed_signature(az_span sas_base64_encoded_key, az_span sas_signature, az_span sas_base64_encoded_signed_signature, az_span *out_sas_base64_encoded_signed_signature);
-static void generate_sas_key();
-static int connect_to_azure_iot_hub();
-static char * get_telemetry_payload();
-static void send_telemetry();
+// Functions
 void establishConnection();
 void connectToWiFi();
-void initializeClients();
+void generateSASToken();
+void initializeAzureIoTClient();
+void initializeMQTTClient();
+void connectToAzureIoTHub();
 void onMessageReceived(int messageSize);
-void createCert();
-int64_t getTokenExpirationTime(uint32_t minutes);
-String getFormattedDateTime(long epochTimeInSeconds);
-String getCurrentFormattedDateTime();
-unsigned long getTime();
-String mqttErrorCodeName(int errorCode);
 
-// Arduino setup and loop main functions.
+static char* getTelemetryPayload();
+static void sendTelemetry();
+static String getFormattedDateTime(unsigned long epochTimeInSeconds);
+static String mqttErrorCodeName(int errorCode);
 
 void setup()
 {
@@ -123,7 +84,7 @@ void setup()
   Serial.begin(MBED_CONF_PLATFORM_DEFAULT_SERIAL_BAUD_RATE);
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
-  createCert();
+
   establishConnection();
 }
 
@@ -134,19 +95,19 @@ void loop()
     connectToWiFi();
   }
 
-  if (millis() > next_telemetry_send_time_ms)
+  if (millis() > nextTelemetrySendTimeMs)
   {
     // Check if connected, reconnect if needed.
-    if (!mqtt_client.connected())
+    if (!mqttClient.connected())
     {
       establishConnection();
     }
-    send_telemetry();
-    next_telemetry_send_time_ms = millis() + TELEMETRY_FREQUENCY_MILLISECS;
+    sendTelemetry();
+    nextTelemetrySendTimeMs = millis() + IOT_CONFIG_TELEMETRY_FREQUENCY_MS;
   }
 
   // MQTT loop must be called to process Device-to-Cloud and Cloud-to-Device.
-  mqtt_client.poll();
+  mqttClient.poll();
   delay(500);
 }
 
@@ -154,139 +115,260 @@ void establishConnection()
 {
   connectToWiFi();
 
-  initializeClients();
+  generateSASToken();
 
-  generate_sas_key();
+  initializeAzureIoTHubClient();
 
-  connect_to_azure_iot_hub();
+  initializeMQTTClient();
+
+  connectToAzureIoTHub();
 
   digitalWrite(LED_PIN, LOW);
 }
 
 void connectToWiFi()
 {
-  LogInfo("Attempting to connect to WIFI SSID: %s", ssid);
+  LogInfo("Attempting to connect to WIFI SSID: %s", IOT_CONFIG_WIFI_SSID);
 
-  while (WiFi.begin(ssid, password) != WL_CONNECTED)
+  while (WiFi.begin(IOT_CONFIG_WIFI_SSID, IOT_CONFIG_WIFI_PASSWORD) != WL_CONNECTED)
   {
     Serial.println(".");
-    delay(wifi_connect_retry_interval);
+    delay(IOT_CONFIG_WIFI_CONNECT_RETRY_MS);
   }
 
-  Serial.print("WiFi connected, IP address: ");
+  LogInfo("WiFi connected, IP address: " + WiFi.localIP() + ", Strength (dBm): " + WiFi.RSSI());
   
-  Serial.print(WiFi.localIP());
-  Serial.print(", Strength (dBm): ");
-  Serial.println(WiFi.RSSI());
-
   Serial.print("Syncing time");
-  while(getTime() == 0) {
+  while(WiFi.getTime() == 0) {
     Serial.print(".");
   }
   Serial.println();
+
   LogInfo("Time synced!");
 }
 
-void initializeClients()
+void initializeAzureIoTHubClient()
 {
-  Serial.println("Initializing MQTT client");
+  LogInfo("Initializing Azure IoT Hub client.");
 
   az_iot_hub_client_options options = az_iot_hub_client_options_default();
-  options.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT);
+  options.user_agent = AZ_SPAN_FROM_STR(IOT_CONFIG_AZURE_SDK_CLIENT_USER_AGENT);
 
-  //   wifi_client.setRootCA(ca_pem_nullterm);
-
-  if (az_result_failed(az_iot_hub_client_init(
-          &hub_client,
-          az_span_create((uint8_t *)host, strlen(host)),
-          AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_ID),
-          &options)))
+  int rc = az_iot_hub_client_init(&azIoTHubClient,
+                                  az_span_create((uint8_t *)IOT_CONFIG_IOTHUB_FQDN, strlen(IOT_CONFIG_IOTHUB_FQDN)),
+                                  AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_ID),
+                                  &options);
+  if (az_result_failed(rc))
   {
-    Serial.println("Failed initializing Azure IoT Hub client");
-    return;
+    LogError("Failed to initialize Azure IoT Hub client: az_result return code: " + rc + ".");
+    exit(rc);
   }
 
-  Serial.println("MQTT client initialized");
+  LogInfo("Azure IoT Hub client initialized.");
 }
 
-static int connect_to_azure_iot_hub()
+void initializeMQTTClient()
 {
-  size_t client_id_length;
-  char mqtt_client_id[128];
-  if (az_result_failed(az_iot_hub_client_get_client_id(
-          &hub_client, mqtt_client_id, sizeof(mqtt_client_id) - 1, &client_id_length)))
+  LogInfo("Initializing MQTT client.");
+
+  size_t clientIdLength;
+  char mqttClientId[BUFFER_LENGTH_CLIENT_ID];
+  int rc = az_iot_hub_client_get_client_id(&azIoTHubClient, 
+                                          mqttClientId, 
+                                          sizeof(clientIdLength) - 1, 
+                                          &clientIdLength);
+  if (az_result_failed(rc))
   {
-    LogError("Failed to get MQTT client id, return code = %d", 1);
-    return 1;
+    LogError("Failed to get MQTT client ID: az_result return code: " + rc ".");
+    exit(rc);
   }
 
-  char mqtt_username[128];
-  // Get the MQTT user name used to connect to IoT Hub
-  if (az_result_failed(az_iot_hub_client_get_user_name(
-          &hub_client, mqtt_username, sizeofarray(mqtt_username), NULL)))
+  char mqttUsername[BUFFER_LENGTH_USERNAME];
+  rc = az_iot_hub_client_get_user_name(&azIoTHubClient, 
+                                       mqttUsername, 
+                                       SIZE_OF_ARRAY(mqttUsername), 
+                                       NULL);
+  if (az_result_failed(rc))
   {
-    LogError("Failed to get MQTT username, return code = %d", 1);
-    return 1;
+    LogError("Failed to get MQTT username: az_result return code: " + rc ".");
+    exit(rc);
   }
 
-  LogInfo("connect_to_azure_iot_hub - Broker: %s", host);
-  LogInfo("connect_to_azure_iot_hub - Client ID: %s", mqtt_client_id);
-  LogInfo("connect_to_azure_iot_hub - Username: %s", mqtt_username);
-  LogInfo("connect_to_azure_iot_hub - SAS Token: %s", sas_token);
+  mqttClient.setId(mqttClientId);
+  mqttClient.setUsernamePassword(mqttUsername, SASToken);
+  mqttClient.onMessage(onMessageReceived);
 
-  mqtt_client.setId(mqtt_client_id);
-  mqtt_client.setUsernamePassword(mqtt_username, sas_token);
-  mqtt_client.onMessage(onMessageReceived);
+  LogInfo("Azure IoT Hub hostname: " + IOT_CONFIG_IOTHUB_FQDN);
+  LogInfo("MQTT Client ID: " + mqttClientId);
+  LogInfo("MQTT Username: " + mqttUsername);
+  LogInfo("SAS Token: " + SASToken)
+  
+  LogInfo("MQTT client initialized.");
+}
 
-  while (!mqtt_client.connect(host, mqtt_port))
+static int connectToAzureIoTHub()
+{
+  LogInfo("Connecting to Azure IoT Hub.");
+
+  while (!mqttClient.connect(IOT_CONFIG_IOTHUB_FQDN, AZ_IOT_DEFAULT_MQTT_CONNECT_PORT))
   {
-    // failed, retry
-    int code = mqtt_client.connectError();
+    int code = mqttClient.connectError();
     String label = mqttErrorCodeName(code);
-    LogError("Cannot connect to broker. Reason: %s, code=%d", label, code);
+    LogError("Cannot connect to Azure IoT Hub. Reason: " + label + ", code: " + code);
     delay(5000);
   }
 
-  LogInfo("You're connected to the MQTT broker");
+  LogInfo("Connected to your Azure IoT Hub!");
 
-  mqtt_client.subscribe(AZ_IOT_HUB_CLIENT_C2D_SUBSCRIBE_TOPIC);
+  mqttClient.subscribe(AZ_IOT_HUB_CLIENT_C2D_SUBSCRIBE_TOPIC);
+
+  LogInfo("Subscribed to MQTT topic: " + AZ_IOT_HUB_CLIENT_C2D_SUBSCRIBE_TOPIC);
 
   return 0;
 }
 
-static char *get_telemetry_payload()
-{
-  az_span temp_span = az_span_create(telemetry_payload, sizeof(telemetry_payload));
-  temp_span = az_span_copy(temp_span, AZ_SPAN_FROM_STR("{ \"msgCount\": "));
-  (void)az_span_u32toa(temp_span, telemetry_send_count++, &temp_span);
-  temp_span = az_span_copy(temp_span, AZ_SPAN_FROM_STR(" }"));
-  temp_span = az_span_copy_u8(temp_span, '\0');
-
-  return (char *)telemetry_payload;
-}
-
-static void send_telemetry()
+static void sendTelemetry()
 {
   digitalWrite(LED_PIN, HIGH);
   Serial.print(millis());
-  LogInfo(" Arduino Nano Connect RP2040 sending telemetry . . . ");
-  if (az_result_failed(az_iot_hub_client_telemetry_get_publish_topic(
-          &hub_client, NULL, telemetry_topic, sizeof(telemetry_topic), NULL)))
+  LogInfo("Arduino Nano RP2040 Connect sending telemetry . . . ");
+
+  int rc = az_iot_hub_client_telemetry_get_publish_topic(&azIoTHubClient, NULL, telemetryTopic, SIZE_OF_ARRAY(telemetryTopic), NULL);
+
+  if (az_result_failed(rc))
   {
-    Serial.println("Failed az_iot_hub_client_telemetry_get_publish_topic");
+    LogError("Failed to get telemetry publish topic: az_result return code: " + rc ".");
     return;
   }
-  mqtt_client.beginMessage(telemetry_topic);
-  mqtt_client.print(get_telemetry_payload());
-  mqtt_client.endMessage();
-  Serial.println("OK");
+
+  mqttClient.beginMessage(telemetryTopic);
+  mqttClient.print(getTelemetryPayload());
+  mqttClient.endMessage();
+
+  LogInfo("Telemetry sent.");
   delay(100);
   digitalWrite(LED_PIN, LOW);
 }
 
-static void generate_sas_key()
+static char* getTelemetryPayload()
 {
-  az_result rc;
+  String telemetryPayload = "{ \"msgCount\": " + telemetrySendCount + " }";
+  telemetrySendCount++;
+
+  return telemetryPayload.c_str();
+}
+
+
+
+
+
+
+// Need to fix
+void onMessageReceived(int messageSize)
+{
+  LogInfo("Message received: topic=" + mqttClient.messageTopic() + ", length=" + messageSize);
+
+  while (mqttClient.available())
+  {
+    LogInfo("Message: " + mqttClient.read());
+  }
+}
+
+static String getFormattedDateTime(unsigned long epochTimeInSeconds)
+{
+  char buffer[BUFFER_LENGTH];
+
+  time_t time = (time_t)epochTimeInSeconds;
+  struct tm *timeInfo = localtime(&time);
+
+  strftime(buffer, 20, "%FT%T", timeInfo);
+
+  return String(buffer);
+}
+
+static String mqttErrorCodeName(int errorCode)
+{
+  String errorMessage;
+  switch (errorCode)
+  {
+  case MQTT_CONNECTION_REFUSED:
+    errorMessage = "MQTT_CONNECTION_REFUSED";
+    break;
+  case MQTT_CONNECTION_TIMEOUT:
+    errorMessage = "MQTT_CONNECTION_TIMEOUT";
+    break;
+  case MQTT_SUCCESS:
+    errorMessage = "MQTT_SUCCESS";
+    break;
+  case MQTT_UNACCEPTABLE_PROTOCOL_VERSION:
+    errorMessage = "MQTT_UNACCEPTABLE_PROTOCOL_VERSION";
+    break;
+  case MQTT_IDENTIFIER_REJECTED:
+    errorMessage = "MQTT_IDENTIFIER_REJECTED";
+    break;
+  case MQTT_SERVER_UNAVAILABLE:
+    errorMessage = "MQTT_SERVER_UNAVAILABLE";
+    break;
+  case MQTT_BAD_USER_NAME_OR_PASSWORD:
+    errorMessage = "MQTT_BAD_USER_NAME_OR_PASSWORD";
+    break;
+  case MQTT_NOT_AUTHORIZED:
+    errorMessage = "MQTT_NOT_AUTHORIZED";
+    break;
+  default:
+    errorMessage = "Unknown";
+    break;
+  }
+
+  return errorMessage;
+}
+
+static void log(log_level_t log_level, char const *const format, ...)
+{
+  Serial.print(getFormattedDateTime(WiFi.getTime()));
+
+  switch (log_level)
+  {
+  case log_level_debug:
+    Serial.print(" [DEBUG] ");
+    break;
+  case log_level_error:
+    Serial.print(" [ERROR] ");
+    break;
+  default:
+    Serial.print(" [INFO] ");
+    break;
+  }
+
+  char message[256];
+  va_list ap;
+  va_start(ap, format);
+  int message_length = vsnprintf(message, sizeof(message), format, ap);
+  va_end(ap);
+
+  if (message_length < 0)
+  {
+    Serial.println("Failed encoding log message (!)");
+  }
+  else
+  {
+    Serial.println(message);
+  }
+}
+
+int64_t getTokenExpirationTime(uint32_t minutes)
+{
+  long now = WiFi.getTime()();
+  long expiryTime = now + (SECS_PER_MIN * minutes);
+  LogInfo("Current time: %s (epoch: %d secs)", getFormattedDateTime(now), now);
+  LogInfo("Expiry time: %s (epoch: %d secs)", getFormattedDateTime(expiryTime), expiryTime);
+  return (int64_t)expiryTime;
+}
+
+static void generateSASToken()
+{
+  int rc;
+
   // Create the POSIX expiration time from input minutes.
   uint64_t sas_duration = getTokenExpirationTime(SAS_TOKEN_EXPIRY_IN_MINUTES);
 
@@ -387,173 +469,3 @@ static void generate_sas_base64_encoded_signed_signature(az_span sas_base64_enco
       sas_base64_encoded_signed_signature,
       out_sas_base64_encoded_signed_signature);
 }
-
-void onMessageReceived(int messageSize)
-{
-  // we received a message, print out the topic and contents
-  LogInfo("Message received: topic=%s, length=%d", mqtt_client.messageTopic(), messageSize);
-  // use the Stream interface to print the contents
-  while (mqtt_client.available())
-  {
-    LogInfo("Message: %s", (char)mqtt_client.read());
-  }
-}
-
-void createCert()
-{
-  if (!ECCX08.begin())
-  {
-    LogError("No ECCX08 present!");
-    while (1)
-      ;
-  }
-
-  // reconstruct the self signed cert
-  ECCX08SelfSignedCert.beginReconstruction(0, 8);
-  ECCX08SelfSignedCert.setCommonName(ECCX08.serialNumber());
-  ECCX08SelfSignedCert.endReconstruction();
-
-  // Set a callback to get the current time
-  // used to validate the servers certificate
-  ArduinoBearSSL.onGetTime(getTime);
-
-  // Set the ECCX08 slot to use for the private key
-  // and the accompanying public certificate for it
-  ssl_client.setEccSlot(0, ECCX08SelfSignedCert.bytes(), ECCX08SelfSignedCert.length());
-}
-
-int64_t getTokenExpirationTime(uint32_t minutes)
-{
-  long now = getTime();
-  long expiryTime = now + (SECS_PER_MIN * minutes);
-  LogInfo("Current time: %s (epoch: %d secs)", getFormattedDateTime(now), now);
-  LogInfo("Expiry time: %s (epoch: %d secs)", getFormattedDateTime(expiryTime), expiryTime);
-  return (int64_t)expiryTime;
-}
-
-String getFormattedDateTime(long epochTimeInSeconds)
-{
-  char buf[20];
-  time_t t = (time_t)epochTimeInSeconds;
-  struct tm *timeinfo = localtime(&t);
-
-  strftime(buf, 20, "%FT%T", timeinfo);
-  return String(buf);
-}
-
-String getCurrentFormattedDateTime()
-{
-  return getFormattedDateTime(getTime());
-}
-
-unsigned long getTime()
-{
-  // get the current time from the WiFi module
-  return WiFi.getTime();
-}
-
-String mqttErrorCodeName(int errorCode)
-{
-  String errMsg;
-  switch (errorCode)
-  {
-  case MQTT_CONNECTION_REFUSED:
-    errMsg = "MQTT_CONNECTION_REFUSED";
-    break;
-  case MQTT_CONNECTION_TIMEOUT:
-    errMsg = "MQTT_CONNECTION_TIMEOUT";
-    break;
-  case MQTT_SUCCESS:
-    errMsg = "MQTT_SUCCESS";
-    break;
-  case MQTT_UNACCEPTABLE_PROTOCOL_VERSION:
-    errMsg = "MQTT_UNACCEPTABLE_PROTOCOL_VERSION";
-    break;
-  case MQTT_IDENTIFIER_REJECTED:
-    errMsg = "MQTT_IDENTIFIER_REJECTED";
-    break;
-  case MQTT_SERVER_UNAVAILABLE:
-    errMsg = "MQTT_SERVER_UNAVAILABLE";
-    break;
-  case MQTT_BAD_USER_NAME_OR_PASSWORD:
-    errMsg = "MQTT_BAD_USER_NAME_OR_PASSWORD";
-    break;
-  case MQTT_NOT_AUTHORIZED:
-    errMsg = "MQTT_NOT_AUTHORIZED";
-    break;
-  default:
-    errMsg = "Unknown";
-    break;
-  }
-  return errMsg;
-}
-
-static void logging_function(log_level_t log_level, char const *const format, ...)
-{
-  /*struct tm *ptm;
-    time_t now_t = time(NULL);
-
-    ptm = gmtime(&now_t);
-    Serial.print(ptm->tm_year + UNIX_EPOCH_START_YEAR);
-    Serial.print("/");
-    Serial.print(ptm->tm_mon + 1);
-    Serial.print("/");
-    Serial.print(ptm->tm_mday);
-    Serial.print(" ");
-
-    if (ptm->tm_hour < 10)
-    {
-      Serial.print(0);
-    }
-
-    Serial.print(ptm->tm_hour);
-    Serial.print(":");
-
-    if (ptm->tm_min < 10)
-    {
-      Serial.print(0);
-    }
-
-    Serial.print(ptm->tm_min);
-    Serial.print(":");
-
-    if (ptm->tm_sec < 10)
-    {
-      Serial.print(0);
-    }
-
-    Serial.print(ptm->tm_sec);
-   */
-  Serial.print(getCurrentFormattedDateTime());
-
-  switch (log_level)
-  {
-  case log_level_debug:
-    Serial.print(" [DEBUG] ");
-    break;
-  case log_level_error:
-    Serial.print(" [ERROR] ");
-    break;
-  default:
-    Serial.print(" [INFO] ");
-    break;
-  }
-
-  Serial.print(log_level);
-
-  char message[256];
-  va_list ap;
-  va_start(ap, format);
-  int message_length = vsnprintf(message, sizeof(message), format, ap);
-  va_end(ap);
-
-  if (message_length < 0)
-  {
-    Serial.println("Failed encoding log message (!)");
-  }
-  else
-  {
-    Serial.println(message);
-  }
-}
-
