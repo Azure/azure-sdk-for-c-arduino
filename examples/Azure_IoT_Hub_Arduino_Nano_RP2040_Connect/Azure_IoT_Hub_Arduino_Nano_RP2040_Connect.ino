@@ -348,8 +348,8 @@ static void generateSASBase64EncodedSignedSignature(
   // Decode the SAS base64 encoded device key to use for HMAC signing.
   rc = mbedtls_base64_decode(sasDecodedKey, sizeof(sasDecodedKey),
                              &sasDecodedKeyLength,
-                             (const unsigned char *)IOT_CONFIG_DEVICE_KEY,
-                             sizeof(IOT_CONFIG_DEVICE_KEY));
+                             (const unsigned char*)IOT_CONFIG_DEVICE_KEY,
+                             sizeof(IOT_CONFIG_DEVICE_KEY) - 1);  // Do not include the ending '\0'
   if (rc != 0) 
   {
     logString = "mbedtls_base64_decode failed. Return code: ";
