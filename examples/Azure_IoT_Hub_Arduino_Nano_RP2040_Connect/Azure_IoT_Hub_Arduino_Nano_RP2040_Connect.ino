@@ -33,7 +33,6 @@
 #define BUFFER_LENGTH_MQTT_USERNAME 512
 
 #define LED_PIN 2 // High on error. Briefly high for each successful send.
-#define SIZE_OF_ARRAY(a) (sizeof(a) / sizeof(a[0]))
 #define SECS_PER_MIN 60
 
 // Logging
@@ -205,12 +204,12 @@ void initializeMQTTClient()
   mqttClient.setUsernamePassword(mqttUsername, mqttPassword);
   mqttClient.onMessage(onMessageReceived);
 
-  log1 = "MQTT Client ID: ";
-  LogInfo(log1 + mqttClientId);
-  log1 = "MQTT Username: ";
-  LogInfo(log1 + mqttUsername);
-  log1 = "MQTT Password (SAS Token): ";
-  LogInfo(log1 + mqttPassword);
+  logString = "MQTT Client ID: ";
+  LogInfo(logString + mqttClientId);
+  logString = "MQTT Username: ";
+  LogInfo(logString + mqttUsername);
+  logString = "MQTT Password (SAS Token): ";
+  LogInfo(logString + mqttPassword);
 
   LogInfo("MQTT client initialized.");
 }
@@ -233,8 +232,6 @@ void connectToAzureIoTHub()
 
   logString = "Subscribed to MQTT topic: ";
   LogInfo(logString + AZ_IOT_HUB_CLIENT_C2D_SUBSCRIBE_TOPIC);
-
-  return 0;
 }
 
 void onMessageReceived(int messageSize) 
@@ -259,7 +256,7 @@ static void sendTelemetry()
                                                      sizeof(telemetryTopic), NULL);
   if (az_result_failed(rc)) 
   {
-    logString = "Failed to get telemetry publish topic. Return code: "
+    logString = "Failed to get telemetry publish topic. Return code: ";
     LogError(logString + rc);
     exit(rc);
   }
