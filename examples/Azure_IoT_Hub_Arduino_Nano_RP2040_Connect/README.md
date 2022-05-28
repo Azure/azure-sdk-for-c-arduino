@@ -101,12 +101,12 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 
 1. Install the Azure SDK for Embedded C library.
 
-    - On the Arduino IDE, go to menu Sketch, Include Library, Manage Libraries....
-    - Search for and install azure-sdk-for-c.
+    - Navigate to **Tools > Manage Libraries**.
+    - Search for the **'azure-sdk-for-c'** library. Install the latest version.
 
 1. Install Arduino Mbed OS Nano Boards support in the Arduino IDE. [Full instructions can be found here.](https://docs.arduino.cc/hardware/nano-rp2040-connect)
 
-    - Navigate to **Tools > Board > Board Manager**
+    - Navigate to **Tools > Board > Board Manager**.
     - Search for 'RP2040' and install the **Arduino Mbed OS Nano Boards** core.
     - Always install the latest version.    
     
@@ -117,7 +117,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 1. Install WiFiNINA library for the Nano RP2040 Embedded C SDK sample. 
 
     - Navigate to **Tools > Manage Libraries**.
-    - Search for the **'WiFiNINA'** libray. Install the latest version.
+    - Search for the **'WiFiNINA'** library. Install the latest version.
 
     *Note: This process may take several minutes.*  
     
