@@ -7,8 +7,7 @@
 #include <cstring>
 #include <ctime>
 
-// Libraries for SSL client, MQTT client, WiFi connection, and SAS-token
-// generation.
+// Libraries for SSL client, MQTT client, WiFi connection, and SAS-token generation.
 #include <ArduinoBearSSL.h>
 #include <ArduinoMqttClient.h>
 #include <WiFiNINA.h>
@@ -52,33 +51,33 @@ static void log(LogLevel logLevel, String message);
 // Sample static variables
 static WiFiClient wiFiClient;
 static BearSSLClient bearSSLClient(wiFiClient);
-static az_iot_hub_client azIoTHubClient;
 static MqttClient mqttClient(bearSSLClient);
+static az_iot_hub_client azIoTHubClient;
 
 static char mqttClientId[BUFFER_LENGTH_MQTT_CLIENT_ID];
 static char mqttUsername[BUFFER_LENGTH_MQTT_USERNAME];
 static char mqttPassword[BUFFER_LENGTH_MQTT_PASSWORD];
 static char telemetryTopic[BUFFER_LENGTH_MQTT_TOPIC];
 static unsigned long telemetryNextSendTimeMs;
+static String telemetryPayload;
 static uint32_t telemetrySendCount;
 
 // Functions
-void establishConnection();
-void connectToWiFi();
 void initializeAzureIoTClient();
 void initializeMQTTClient();
-void connectToAzureIoTHub();
+void connectToWiFi();
+void connectTMQTTClientToAzureIoTHub();
 
 void onMessageReceived(int messageSize);
 static void sendTelemetry();
-static char *generateTelemetry();
+static char* generateTelemetry();
 
 static void generateMQTTPassword();
 static uint64_t getSASTokenExpirationTime(uint32_t minutes);
 static void generateSASBase64EncodedSignedSignature(
-    uint8_t const *sasSignature, size_t const sasSignatureSize,
-    uint8_t *encodedSignedSignature, size_t encodedSignedSignatureSize,
-    size_t *encodedSignedSignatureLength);
+    uint8_t const* sasSignature, size_t const sasSignatureSize,
+    uint8_t* encodedSignedSignature, size_t encodedSignedSignatureSize,
+    size_t* encodedSignedSignatureLength);
 static String getFormattedDateTime(unsigned long epochTimeInSeconds);
 static String mqttErrorCodeName(int errorCode);
 
@@ -86,10 +85,19 @@ void setup()
 {
   while (!Serial);
   Serial.begin(MBED_CONF_PLATFORM_DEFAULT_SERIAL_BAUD_RATE);
-
   pinMode(LED_PIN, OUTPUT);
+
   digitalWrite(LED_PIN, HIGH);
-  establishConnection();
+
+  // Initialize
+  initializeAzureIoTHubClient();
+  initializeMQTTClient();
+
+  // Connect
+  connectToWiFi();
+  connectTMQTTClientToAzureIoTHub();
+
+  digitalWrite(LED_PIN, LOW);
 }
 
 void loop() 
@@ -99,70 +107,35 @@ void loop()
     connectToWiFi();
   }
 
+  // Telemetry
   if (millis() > telemetryNextSendTimeMs) 
   {
-    // Check if connected, reconnect if needed.
+    // Check for MQTT Client connection to Azure IoT hub. Reconnect if needed.
     if (!mqttClient.connected()) 
     {
-      establishConnection();
+      connectTMQTTClientToAzureIoTHub();
     }
 
     sendTelemetry();
     telemetryNextSendTimeMs = millis() + IOT_CONFIG_TELEMETRY_FREQUENCY_MS;
   }
 
-  // MQTT loop must be called to process Device-to-Cloud and Cloud-to-Device.
+  // MQTT loop must be called to process Telemetry and Cloud-to-Device (C2D) messages.
   mqttClient.poll();
   delay(500);
-}
-
-void establishConnection() 
-{
-  connectToWiFi();
-  initializeAzureIoTHubClient();
-  initializeMQTTClient();
-  connectToAzureIoTHub();
-
-  digitalWrite(LED_PIN, LOW);
-}
-
-void connectToWiFi() 
-{
-  logString = "Attempting to connect to WIFI SSID: ";
-  LogInfo(logString + IOT_CONFIG_WIFI_SSID);
-
-  while (WiFi.begin(IOT_CONFIG_WIFI_SSID, IOT_CONFIG_WIFI_PASSWORD) != WL_CONNECTED) 
-  {
-    Serial.println(".");
-    delay(IOT_CONFIG_WIFI_CONNECT_RETRY_MS);
-  }
-  Serial.println();
-
-  logString = "WiFi connected, IP address: ";
-  LogInfo(logString + WiFi.localIP() + ", Strength (dBm): " + WiFi.RSSI());
-  LogInfo("Syncing time.");
-
-  while (WiFi.getTime() == 0) 
-  {
-    Serial.print(".");
-  }
-  Serial.println();
-
-  LogInfo("Time synced!");
 }
 
 void initializeAzureIoTHubClient() 
 {
   LogInfo("Initializing Azure IoT Hub client.");
 
-  int rc;
   az_span hostname = AZ_SPAN_FROM_STR(IOT_CONFIG_IOTHUB_FQDN);
   az_span deviceId = AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_ID);
 
   az_iot_hub_client_options options = az_iot_hub_client_options_default();
   options.user_agent = AZ_SPAN_FROM_STR(IOT_CONFIG_AZURE_SDK_CLIENT_USER_AGENT);
 
-  rc = az_iot_hub_client_init(&azIoTHubClient, hostname, deviceId, &options);
+  int rc = az_iot_hub_client_init(&azIoTHubClient, hostname, deviceId, &options);
   if (az_result_failed(rc)) 
   {
     logString = "Failed to initialize Azure IoT Hub client. Return code: ";
@@ -202,7 +175,7 @@ void initializeMQTTClient()
 
   mqttClient.setId(mqttClientId);
   mqttClient.setUsernamePassword(mqttUsername, mqttPassword);
-  mqttClient.onMessage(onMessageReceived);
+  mqttClient.onMessage(onMessageReceived); // Set callback for C2D messages
 
   logString = "MQTT Client ID: ";
   LogInfo(logString + mqttClientId);
@@ -214,7 +187,32 @@ void initializeMQTTClient()
   LogInfo("MQTT client initialized.");
 }
 
-void connectToAzureIoTHub() 
+void connectToWiFi() 
+{
+  logString = "Attempting to connect to WIFI SSID: ";
+  LogInfo(logString + IOT_CONFIG_WIFI_SSID);
+
+  while (WiFi.begin(IOT_CONFIG_WIFI_SSID, IOT_CONFIG_WIFI_PASSWORD) != WL_CONNECTED) 
+  {
+    Serial.println(".");
+    delay(IOT_CONFIG_WIFI_CONNECT_RETRY_MS);
+  }
+  Serial.println();
+
+  logString = "WiFi connected, IP address: ";
+  LogInfo(logString + WiFi.localIP() + ", Strength (dBm): " + WiFi.RSSI());
+  LogInfo("Syncing time.");
+
+  while (WiFi.getTime() == 0) 
+  {
+    Serial.print(".");
+  }
+  Serial.println();
+
+  LogInfo("Time synced!");
+}
+
+void connectTMQTTClientToAzureIoTHub() 
 {
   LogInfo("Connecting to Azure IoT Hub.");
 
@@ -241,7 +239,7 @@ void onMessageReceived(int messageSize)
 
   while (mqttClient.available()) 
   {
-    LogInfo("Message: " + mqttClient.read()); // Needs to be fixed?
+    LogInfo("Message: " + mqttClient.read());
   }
 }
 
@@ -250,9 +248,7 @@ static void sendTelemetry()
   digitalWrite(LED_PIN, HIGH);
   LogInfo("Arduino Nano RP2040 Connect sending telemetry . . . ");
 
-  int rc;
-  
-  rc = az_iot_hub_client_telemetry_get_publish_topic(&azIoTHubClient, NULL, telemetryTopic, 
+  int rc = az_iot_hub_client_telemetry_get_publish_topic(&azIoTHubClient, NULL, telemetryTopic, 
                                                      sizeof(telemetryTopic), NULL);
   if (az_result_failed(rc)) 
   {
@@ -270,13 +266,13 @@ static void sendTelemetry()
   digitalWrite(LED_PIN, LOW);
 }
 
-static char *generateTelemetry() 
+static char* generateTelemetry() 
 {
   String payloadStart = "{ \"msgCount\": ";
-  String telemetryPayload =  payloadStart + telemetrySendCount + " }";
+  telemetryPayload =  payloadStart + telemetrySendCount + " }";
   telemetrySendCount++;
 
-  return (char *)telemetryPayload.c_str();
+  return (char*)telemetryPayload.c_str();
 }
 
 static void generateMQTTPassword() 
@@ -290,6 +286,7 @@ static void generateMQTTPassword()
   size_t signedSignatureLength = 0;
 
   // Get the signature. It will be signed later with the decoded device key.
+  // To change the sas token duration, see IOT_CONFIG_SAS_TOKEN_EXPIRY_MINUTES in iot_configs.h
   sasTokenDuration = getSASTokenExpirationTime(IOT_CONFIG_SAS_TOKEN_EXPIRY_MINUTES);
   rc = az_iot_hub_client_sas_get_signature(&azIoTHubClient, sasTokenDuration, 
                                            signatureAzSpan, &signatureAzSpan);
@@ -306,8 +303,7 @@ static void generateMQTTPassword()
       az_span_ptr(signatureAzSpan), az_span_size(signatureAzSpan),
       signedSignature, sizeof(signedSignature), &signedSignatureLength);
 
-  // Get the resulting MQTT password (SAS Token) from the base64 encoded, HMAC
-  // signed bytes.
+  // Get the resulting MQTT password (SAS Token) from the base64 encoded, HMAC signed bytes.
   az_span signedSignatureAzSpan = az_span_create(signedSignature, signedSignatureLength);
   rc = az_iot_hub_client_sas_get_password(
       &azIoTHubClient, sasTokenDuration, signedSignatureAzSpan, AZ_SPAN_EMPTY,
@@ -323,7 +319,7 @@ static void generateMQTTPassword()
 static uint64_t getSASTokenExpirationTime(uint32_t minutes) 
 {
   unsigned long now = WiFi.getTime();
-  unsigned long expiryTime = now + (SECS_PER_MIN * minutes);
+  unsigned long expiryTime = now + (SECS_PER_MIN* minutes);
 
   logString = "Current time: ";
   LogInfo(logString + getFormattedDateTime(now) + " (epoch: " + now + " secs)");
@@ -334,9 +330,9 @@ static uint64_t getSASTokenExpirationTime(uint32_t minutes)
 }
 
 static void generateSASBase64EncodedSignedSignature(
-    uint8_t const *sasSignature, size_t const sasSignatureSize,
-    uint8_t *encodedSignedSignature, size_t encodedSignedSignatureSize,
-    size_t *encodedSignedSignatureLength) 
+    uint8_t const* sasSignature, size_t const sasSignatureSize,
+    uint8_t* encodedSignedSignature, size_t encodedSignedSignatureSize,
+    size_t* encodedSignedSignatureLength) 
 {
   int rc;
   unsigned char sasDecodedKey[32] = {0};
@@ -383,7 +379,7 @@ static String getFormattedDateTime(unsigned long epochTimeInSeconds)
   char buffer[BUFFER_LENGTH];
 
   time_t time = (time_t)epochTimeInSeconds;
-  struct tm *timeInfo = localtime(&time);
+  struct tm* timeInfo = localtime(&time);
 
   strftime(buffer, 20, "%FT%T", timeInfo);
 

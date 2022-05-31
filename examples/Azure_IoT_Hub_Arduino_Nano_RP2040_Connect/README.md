@@ -79,7 +79,7 @@ _The following was run on Windows 11 and WSL Ubuntu Desktop 20.04 environments, 
 
 1. On the left side menu, click on **'Overview'**. We will need the following information from this page:
 
-    - HostName
+    - Hostname
 
 1. On the left side menu under **Device management**, click on **'Devices'**.
 
