@@ -30,14 +30,14 @@ products:
 
 ## Introduction
 
-In this tutorial you use the Azure SDK for C to connect the Arduino Nano RP2040 Connect to Azure IoT Hub. The article is part of the series [IoT Device Development](https://go.microsoft.com/fwlink/p/?linkid=2129824). The series introduces device developers to the Azure SDK for C, and shows how to connect several device evaluation kits to Azure IoT.
+In this tutorial you will use the Azure SDK for C to connect the Arduino Nano RP2040 Connect to Azure IoT Hub. The article is part of the series [IoT Device Development](https://go.microsoft.com/fwlink/p/?linkid=2129824). The series introduces device developers to the Azure SDK for C, and shows how to connect several device evaluation kits to Azure IoT.
 
 ### What is Covered
 You will complete the following tasks:
 
 * Install the Azure SDK for C library on Arduino
 * Build the image and flash it onto the Nano RP2040 Connect
-* Use Azure IoT Hub to create view device telemetry
+* Use Azure IoT Hub to create and view device telemetry
 
 _The following was run on Windows 11 and WSL Ubuntu Desktop 20.04 environments, with Arduino IDE 1.8.15 and Arduino Arduino Nano RP2040 Connect with headers._
 
@@ -74,8 +74,12 @@ _The following was run on Windows 11 and WSL Ubuntu Desktop 20.04 environments, 
 
   NOTE: This guide demonstrates use of the Azure CLI and does NOT demonstrate use of Azure IoT Explorer.
 
-## IoT Hub Setup
+## IoT Hub Device Setup
 1. In the Azure portal, navigate to your IoT Hub resource.
+
+1. On the left side menu, click on **'Overview'**. We will need the following information from this page:
+
+    - HostName
 
 1. On the left side menu under **Device management**, click on **'Devices'**.
 
@@ -83,15 +87,14 @@ _The following was run on Windows 11 and WSL Ubuntu Desktop 20.04 environments, 
 
 1. Give your device a unique name.
 
-1. Select 'Symmetric key', 'Auto-Generate keys', and 'Enable' for Connecting the device to an IoT Hub, then click 'Save'.
+1. Select **'Symmetric key'**, **'Auto-generate keys'**, and **'Enable'** for Connecting the device to an IoT Hub, then click **'Save'**.
 
 1. When the device has been created, select its name under 'Device ID'.
 
-1. We'll need the following information from the device page:
+1. We will need the following information from the device page:
 
     - Device ID
     - Primary Key
-    - HostName (under Primary Connection String)
 
 _NOTE: Device keys are used to automatically generate a SAS token for authentication, which is only valid for one hour._
 
@@ -107,7 +110,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 1. Install Arduino Mbed OS Nano Boards support in the Arduino IDE. [Full instructions can be found here.](https://docs.arduino.cc/hardware/nano-rp2040-connect)
 
     - Navigate to **Tools > Board > Board Manager**.
-    - Search for 'RP2040' and install the **Arduino Mbed OS Nano Boards** core.
+    - Search for **'RP2040'** and install the **Arduino Mbed OS Nano Boards** core.
     - Always install the latest version.    
     
     *Note: This process may take several minutes.*  
@@ -137,24 +140,24 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 1. Open the Arduino Nano RP2040 Connect sample.
 
     - In the Arduino IDE, navigate to **File > Examples > Azure SDK For C**
-    - Select **Azure_IoT_Hub_Arduino_Nano_RP2040_Connect** to open the sample. 
+    - Select **'Azure_IoT_Hub_Arduino_Nano_RP2040_Connect'** to open the sample.
 
 1. Navigate to the '*iot_configs.h*' file
 
 1. In the *iot_configs.h* file, fill in your credentials. 
 
     - Add in your WiFi SSID and password.
-    - Paste your IoT Hub device HostName for the *'IOT_CONFIG_IOTHUB_FQDN'* variable. It should look something like:
+    - Paste your IoT Hub device HostName for the `IOT_CONFIG_IOTHUB_FQDN` variable. It should look something like:
 
         ```#define IOT_CONFIG_IOTHUB_FQDN "my-resource-group.azure-devices.net"```
 
-    - Paste your IoT Hub device ID for the *'IOT_CONFIG_DEVICE_ID'* variable.
+    - Paste your IoT Hub device ID for the `IOT_CONFIG_DEVICE_ID` variable.
 
-    - Finally, paste your IoT Hub Primary Key for the *'IOT_CONFIG_DEVICE_KEY'* variable.
+    - Finally, paste your IoT Hub Primary Key for the `IOT_CONFIG_DEVICE_KEY` variable.
 
-1. This sample was configured for a PST timezone (GMT -8hrs) with a Daylight Savings offset. If you live in a different timezone, update the values in '*Time Zone Offset*' at the bottom of the *iot_configs.h* file.
+1. This sample was configured for a PST timezone (GMT -8hrs) with a Daylight Savings offset. If you live in a different timezone, update the values in '*Time Zone Offset*' at the bottom of the *'iot_configs.h'* file.
 
-    - Change the '*IOT_CONFIG_TIME_ZONE*' value to reflect the number of hours to add or subtract from the GMT timezone for your timezone.
+    - Change the `IOT_CONFIG_TIME_ZONE` value to reflect the number of hours to add or subtract from the GMT timezone for your timezone.
     - Why is this necessary? 
         - Our sample generates a temporary SAS token that is valid for 1 hour. If your device clock is off from your local timezone, the SAS token may appear to be expired and IoT Hub will refuse the device connection (it will timeout).
 
@@ -162,11 +165,12 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 
 1. On the Arduino IDE, select the port.
 
-    - Go to menu `Tools`, `Port` and select the port to which the Nano RP2040 Connect is connected.
+    - Navigate to **Tools > Port**.
+    - Select the port to which the Nano RP2040 Connect is connected.
 
-8. Upload the sketch. Note that this may take a few minutes.
+1. Upload the sketch. Note that this may take a few minutes.
 
-    - Go to menu `Sketch` and click on `Upload`.
+    - Navigate to **Sketch > Upload**.
     
     *Note: This will take several minutes.* 
 
@@ -183,9 +187,9 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
     </p>
     </details>
 
-9. While the sketch is uploading, open the Serial Monitor to monitor the MCU (microcontroller) locally via the Serial Port.
+1. While the sketch is uploading, open the Serial Monitor to monitor the MCU (microcontroller) locally via the Serial Port.
 
-    - Go to menu `Tools`, `Serial Monitor`.
+    - Navigate to **Tools > Serial Monitor**.
 
         If you perform this step right away after uploading the sketch, the serial monitor will show an output similar to the following upon success:
 
@@ -210,7 +214,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 
         ```
 
-10. Monitor the telemetry messages sent to the Azure IoT Hub using the connection string for the policy name `iothubowner` found under "Shared access policies" on your IoT Hub in the Azure portal.
+1. Monitor the telemetry messages sent to the Azure IoT Hub using the connection string for the policy name `iothubowner` found under "Shared access policies" on your IoT Hub in the Azure portal.
 
     ```bash
     $ az iot hub monitor-events --login <your Azure IoT Hub owner connection string in quotes> --device-id <your device id>
@@ -280,7 +284,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 
 The Azure IoT service certificates presented during TLS negotiation shall be always validated, on the device, using the appropriate trusted root CA certificate(s).
 
-For the Node MCU ESP8266 sample, our script `generate_arduino_zip_library.sh` automatically downloads the root certificate used in the United States regions (Baltimore CA certificate) and adds it to the Arduino sketch project.
+The Azure SDK for C Arduino library automatically installs the root certificate used in the United States regions, and adds it to the Arduino sketch project when the library is included.
 
 For other regions (and private cloud environments), please use the appropriate root CA certificate.
 
