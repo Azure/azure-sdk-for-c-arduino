@@ -147,7 +147,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 1. In the *iot_configs.h* file, fill in your credentials. 
 
     - Add in your WiFi SSID and password.
-    - Paste your IoT Hub device HostName for the `IOT_CONFIG_IOTHUB_FQDN` variable. It should look something like:
+    - Paste your IoT Hub device Hostname for the `IOT_CONFIG_IOTHUB_FQDN` variable. It should look something like:
 
         ```#define IOT_CONFIG_IOTHUB_FQDN "my-resource-group.azure-devices.net"```
 
@@ -160,6 +160,8 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
     - Change the `IOT_CONFIG_TIME_ZONE` value to reflect the number of hours to add or subtract from the GMT timezone for your timezone.
     - Why is this necessary? 
         - Our sample generates a temporary SAS token that is valid for 1 hour. If your device clock is off from your local timezone, the SAS token may appear to be expired and IoT Hub will refuse the device connection (it will timeout).
+
+        > NOTE: You can change the expiration time in *'iot_configs.h'* by updating the `IOT_CONFIG_SAS_TOKEN_EXPIRY_MINUTES` variable.
 
 1. Connect the Arduino Nano RP 2040 to your USB port.
 
