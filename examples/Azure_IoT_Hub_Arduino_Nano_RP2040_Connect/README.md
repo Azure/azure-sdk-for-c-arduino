@@ -18,7 +18,7 @@ products:
   - [Introduction](#introduction)
     - [What is Covered](#what-is-covered)
   - [Prerequisites](#prerequisites)
-  - [IoT Hub Setup](#iot-hub-setup)
+  - [IoT Hub Device Setup](#iot-hub-device-setup)
   - [Arduino IDE Setup](#arduino-ide-setup)
   - [Run the Sample](#run-the-sample)
   - [Troubleshooting](#troubleshooting)
@@ -170,7 +170,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
     - Navigate to **Tools > Port**.
     - Select the port to which the Nano RP2040 Connect is connected.
 
-1. Upload the sketch. Note that this may take a few minutes.
+1. Upload the sketch.
 
     - Navigate to **Sketch > Upload**.
     
