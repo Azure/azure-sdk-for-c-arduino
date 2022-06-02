@@ -45,11 +45,7 @@ _The following was run on Windows 11 and WSL Ubuntu Desktop 20.04 environments, 
 
 - Have an [Azure account](https://azure.microsoft.com/) created.
 - Have an [Azure IoT Hub](https://docs.microsoft.com/azure/iot-hub/iot-hub-create-through-portal) created.
-
 - Have the latest [Arduino IDE](https://www.arduino.cc/en/Main/Software) installed.
-
-- Have the [Arduino CLI installed](https://arduino.github.io/arduino-cli/0.21/installation/). 
-
 - Have one of the following interfaces to your Azure IoT Hub set up:
   - [Azure Command Line Interface](https://docs.microsoft.com/cli/azure/install-azure-cli?view=azure-cli-latest) (Azure CLI) utility installed, along with the [Azure IoT CLI extension](https://github.com/Azure/azure-iot-cli-extension).
 
@@ -72,7 +68,7 @@ _The following was run on Windows 11 and WSL Ubuntu Desktop 20.04 environments, 
 
   - **Optional**: The most recent version of [Azure IoT Explorer](https://github.com/Azure/azure-iot-explorer/releases) installed. More instruction on its usage can be found [here](https://docs.microsoft.com/azure/iot-pnp/howto-use-iot-explorer).
 
-  NOTE: This guide demonstrates use of the Azure CLI and does NOT demonstrate use of Azure IoT Explorer.
+  *NOTE: This guide demonstrates use of the Azure CLI and does NOT demonstrate use of Azure IoT Explorer.*
 
 ## IoT Hub Device Setup
 1. In the Azure portal, navigate to your IoT Hub resource.
@@ -105,24 +101,26 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 1. Install the Azure SDK for Embedded C library.
 
     - Navigate to **Tools > Manage Libraries**.
-    - Search for the **'azure-sdk-for-c'** library. Install the latest version.
+    - Search for the **'azure-sdk-for-c'** library. 
+    - Install the latest version.
 
 1. Install Arduino Mbed OS Nano Boards support in the Arduino IDE. [Full instructions can be found here.](https://docs.arduino.cc/hardware/nano-rp2040-connect)
 
     - Navigate to **Tools > Board > Board Manager**.
     - Search for **'RP2040'** and install the **Arduino Mbed OS Nano Boards** core.
-    - Always install the latest version.    
+    - Install the latest version.    
     
-    *Note: This process may take several minutes.*  
+      *Note: This process may take several minutes.*  
 
 1. Nagivate to **Tools > Board > Arduino Mbed OS Nano Boards** and select **'Arduino Nano RP2040 Connect'**.
 
 1. Install WiFiNINA library for the Nano RP2040 Embedded C SDK sample. 
 
     - Navigate to **Tools > Manage Libraries**.
-    - Search for the **'WiFiNINA'** library. Install the latest version.
+    - Search for the **'WiFiNINA'** library. 
+    - Install the latest version.
 
-    *Note: This process may take several minutes.*  
+      *Note: This process may take several minutes.*  
     
 1. If this is your first time using the Nano RP2040 Connect, [follow these instructions to update the WiFi firmware on the Nano RP2040 Connect](https://docs.arduino.cc/tutorials/nano-rp2040-connect/rp2040-upgrading-nina-firmware).
 
@@ -155,14 +153,6 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 
     - Finally, paste your IoT Hub Primary Key for the `IOT_CONFIG_DEVICE_KEY` variable.
 
-1. This sample was configured for a PST timezone (GMT -8hrs) with a Daylight Savings offset. If you live in a different timezone, update the values in '*Time Zone Offset*' at the bottom of the *'iot_configs.h'* file.
-
-    - Change the `IOT_CONFIG_TIME_ZONE` value to reflect the number of hours to add or subtract from the GMT timezone for your timezone.
-    - Why is this necessary? 
-        - Our sample generates a temporary SAS token that is valid for 1 hour. If your device clock is off from your local timezone, the SAS token may appear to be expired and IoT Hub will refuse the device connection (it will timeout).
-
-        > NOTE: You can change the expiration time in *'iot_configs.h'* by updating the `IOT_CONFIG_SAS_TOKEN_EXPIRY_MINUTES` variable.
-
 1. Connect the Arduino Nano RP 2040 to your USB port.
 
 1. On the Arduino IDE, select the port.
@@ -174,20 +164,20 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 
     - Navigate to **Sketch > Upload**.
     
-    *Note: This will take several minutes.* 
+      *Note: This process may take several minutes.* 
 
-    <details><summary><i>Expected output of the upload:</i></summary>
-    <p>
+      <details><summary><i>Expected output of the upload:</i></summary>
+      <p>
 
-    ```text
-    Sketch uses 187636 bytes (1%) of program storage space. Maximum is 16777216 bytes.
-    Global variables use 63492 bytes (23%) of dynamic memory, leaving 206844 bytes for local variables. Maximum is 270336 bytes.
-    .
-    
-    ```
-    
-    </p>
-    </details>
+      ```text
+      Sketch uses 187636 bytes (1%) of program storage space. Maximum is 16777216 bytes.
+      Global variables use 63492 bytes (23%) of dynamic memory, leaving 206844 bytes for local variables. Maximum is 270336 bytes.
+      .
+      
+      ```
+      
+      </p>
+      </details>
 
 1. While the sketch is uploading, open the Serial Monitor to monitor the MCU (microcontroller) locally via the Serial Port.
 
@@ -216,58 +206,63 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 
         ```
 
-1. Monitor the telemetry messages sent to the Azure IoT Hub using the connection string for the policy name `iothubowner` found under "Shared access policies" on your IoT Hub in the Azure portal.
+1. Monitor the telemetry messages sent to the Azure IoT Hub.
 
-    ```bash
-    $ az iot hub monitor-events --login <your Azure IoT Hub owner connection string in quotes> --device-id <your device id>
-    ```
+    - On the left side menu under **Security settings**, click on **'Shared access policies'**.
+    - Select **'iothubowner'**
+    - Copy the **'Primary connection string'**.  
+    - Using the Azure CLI, type and run the following command, inserting your Primary connection string and Device ID.
 
-    <details><summary><i>Expected telemetry output:</i></summary>
-    <p>
+      ```
+      az iot hub monitor-events --login <"Primary connection string in quotes"> --device-id <Device Id>
+      ```
 
-    ```bash
-    Starting event monitor, filtering on device: mydeviceid, use ctrl-c to stop...
-    {
-        "event": {
-            "origin": "mydeviceid",
-            "payload": "payload"
-        }
-    }
-    {
-        "event": {
-            "origin": "mydeviceid",
-            "payload": "payload"
-        }
-    }
-    {
-        "event": {
-            "origin": "mydeviceid",
-            "payload": "payload"
-        }
-    }
-    {
-        "event": {
-            "origin": "mydeviceid",
-            "payload": "payload"
-        }
-    }
-    {
-        "event": {
-            "origin": "mydeviceid",
-            "payload": "payload"
-        }
-    }
-    {
-        "event": {
-            "origin": "mydeviceid",
-            "payload": "payload"
-        }
-    }
-    ^CStopping event monitor...
-    ```
+      <details><summary><i>Expected telemetry output:</i></summary>
+      <p>
 
-    </p>
-    </details>
+      ```text
+      Starting event monitor, filtering on device: mydeviceid, use ctrl-c to stop...
+      {
+          "event": {
+              "origin": "mydeviceid",
+              "payload": "payload"
+          }
+      }
+      {
+          "event": {
+              "origin": "mydeviceid",
+              "payload": "payload"
+          }
+      }
+      {
+          "event": {
+              "origin": "mydeviceid",
+              "payload": "payload"
+          }
+      }
+      {
+          "event": {
+              "origin": "mydeviceid",
+              "payload": "payload"
+          }
+      }
+      {
+          "event": {
+              "origin": "mydeviceid",
+              "payload": "payload"
+          }
+      }
+      {
+          "event": {
+              "origin": "mydeviceid",
+              "payload": "payload"
+          }
+      }
+      ^CStopping event monitor...
+      ```
+
+      </p>
+      </details>
 
 ## Troubleshooting
 1. Both the WiFi SSID and password are case sensitive.
