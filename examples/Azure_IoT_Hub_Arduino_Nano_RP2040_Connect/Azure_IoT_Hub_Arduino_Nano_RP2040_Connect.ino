@@ -325,9 +325,9 @@ static void generateSASBase64EncodedSignedSignature(
     size_t* encodedSignedSignatureLength) 
 {
   int rc;
-  unsigned char sasDecodedKey[32] = {0};
+  unsigned char sasDecodedKey[BUFFER_LENGTH_SAS] = {0};
   size_t sasDecodedKeyLength = 0;
-  unsigned char sasHMAC256SignedSignature[32] = {0};
+  unsigned char sasHMAC256SignedSignature[BUFFER_LENGTH_SAS] = {0};
   mbedtls_md_context_t ctx;
   mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
 
