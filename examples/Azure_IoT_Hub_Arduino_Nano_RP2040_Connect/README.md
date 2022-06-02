@@ -209,53 +209,44 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 1. Monitor the telemetry messages sent to the Azure IoT Hub.
 
     - On the left side menu under **Security settings**, click on **'Shared access policies'**.
-    - Select **'iothubowner'**
+    - Under **Manage shared acess policies** and **Policy Name**, Select **'iothubowner'**
     - Copy the **'Primary connection string'**.  
     - Using the Azure CLI, type and run the following command, inserting your Primary connection string and Device ID.
 
       ```
-      az iot hub monitor-events --login <"Primary connection string in quotes"> --device-id <Device Id>
+      az iot hub monitor-events --login "<Primary connection string in quotes>" --device-id <device id>
       ```
 
       <details><summary><i>Expected telemetry output:</i></summary>
       <p>
 
       ```text
-      Starting event monitor, filtering on device: mydeviceid, use ctrl-c to stop...
+      Starting event monitor, filtering on device: <device id>, use ctrl-c to stop...
       {
           "event": {
-              "origin": "mydeviceid",
-              "payload": "payload"
+              "origin": "<device id>",
+              "module": "",
+              "interface": "",
+              "component": "",
+              "payload": "<payload>"
           }
       }
       {
           "event": {
-              "origin": "mydeviceid",
-              "payload": "payload"
+              "origin": "<device id>",
+              "module": "",
+              "interface": "",
+              "component": "",
+              "payload": "<payload>"
           }
       }
       {
           "event": {
-              "origin": "mydeviceid",
-              "payload": "payload"
-          }
-      }
-      {
-          "event": {
-              "origin": "mydeviceid",
-              "payload": "payload"
-          }
-      }
-      {
-          "event": {
-              "origin": "mydeviceid",
-              "payload": "payload"
-          }
-      }
-      {
-          "event": {
-              "origin": "mydeviceid",
-              "payload": "payload"
+              "origin": "<device id>",
+              "module": "",
+              "interface": "",
+              "component": "",
+              "payload": "<payload>"
           }
       }
       ^CStopping event monitor...
