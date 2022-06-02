@@ -73,12 +73,13 @@ static void sendTelemetry();
 static char* generateTelemetry();
 
 static void generateMQTTPassword();
-static uint64_t getSASTokenExpirationTime(uint32_t minutes);
 static void generateSASBase64EncodedSignedSignature(
     uint8_t const* sasSignature, size_t const sasSignatureSize,
     uint8_t* encodedSignedSignature, size_t encodedSignedSignatureSize,
     size_t* encodedSignedSignatureLength);
+static uint64_t getSASTokenExpirationTime(uint32_t minutes);
 static String getFormattedDateTime(unsigned long epochTimeInSeconds);
+static unsigned long getTime();
 static String mqttErrorCodeName(int errorCode);
 
 void setup() 
@@ -89,12 +90,9 @@ void setup()
 
   digitalWrite(LED_PIN, HIGH);
 
-  // Initialize
+  connectToWiFi();
   initializeAzureIoTHubClient();
   initializeMQTTClient();
-
-  // Connect
-  connectToWiFi();
   connectTMQTTClientToAzureIoTHub();
 
   digitalWrite(LED_PIN, LOW);
@@ -123,6 +121,31 @@ void loop()
   // MQTT loop must be called to process Telemetry and Cloud-to-Device (C2D) messages.
   mqttClient.poll();
   delay(500);
+}
+
+void connectToWiFi() 
+{
+  logString = "Attempting to connect to WIFI SSID: ";
+  LogInfo(logString + IOT_CONFIG_WIFI_SSID);
+
+  while (WiFi.begin(IOT_CONFIG_WIFI_SSID, IOT_CONFIG_WIFI_PASSWORD) != WL_CONNECTED) 
+  {
+    Serial.println(".");
+    delay(IOT_CONFIG_WIFI_CONNECT_RETRY_MS);
+  }
+  Serial.println();
+
+  logString = "WiFi connected, IP address: ";
+  LogInfo(logString + WiFi.localIP() + ", Strength (dBm): " + WiFi.RSSI());
+  LogInfo("Syncing time.");
+
+  while (getTime() == 0) 
+  {
+    Serial.print(".");
+  }
+  Serial.println();
+
+  LogInfo("Time synced!");
 }
 
 void initializeAzureIoTHubClient() 
@@ -182,39 +205,17 @@ void initializeMQTTClient()
   logString = "MQTT Username: ";
   LogInfo(logString + mqttUsername);
   logString = "MQTT Password (SAS Token): ";
-  LogInfo(logString + mqttPassword);
+  LogInfo("***");
 
   LogInfo("MQTT client initialized.");
-}
-
-void connectToWiFi() 
-{
-  logString = "Attempting to connect to WIFI SSID: ";
-  LogInfo(logString + IOT_CONFIG_WIFI_SSID);
-
-  while (WiFi.begin(IOT_CONFIG_WIFI_SSID, IOT_CONFIG_WIFI_PASSWORD) != WL_CONNECTED) 
-  {
-    Serial.println(".");
-    delay(IOT_CONFIG_WIFI_CONNECT_RETRY_MS);
-  }
-  Serial.println();
-
-  logString = "WiFi connected, IP address: ";
-  LogInfo(logString + WiFi.localIP() + ", Strength (dBm): " + WiFi.RSSI());
-  LogInfo("Syncing time.");
-
-  while (WiFi.getTime() == 0) 
-  {
-    Serial.print(".");
-  }
-  Serial.println();
-
-  LogInfo("Time synced!");
 }
 
 void connectTMQTTClientToAzureIoTHub() 
 {
   LogInfo("Connecting to Azure IoT Hub.");
+
+  // Set a callback to get the current time used to validate the servers certificate.
+  ArduinoBearSSL.onGetTime(getTime);
 
   while (!mqttClient.connect(IOT_CONFIG_IOTHUB_FQDN, AZ_IOT_DEFAULT_MQTT_CONNECT_PORT)) 
   {
@@ -316,19 +317,6 @@ static void generateMQTTPassword()
   }
 }
 
-static uint64_t getSASTokenExpirationTime(uint32_t minutes) 
-{
-  unsigned long now = WiFi.getTime();
-  unsigned long expiryTime = now + (SECS_PER_MIN* minutes);
-
-  logString = "Current time: ";
-  LogInfo(logString + getFormattedDateTime(now) + " (epoch: " + now + " secs)");
-  logString = "Expiry time: ";
-  LogInfo(logString + getFormattedDateTime(expiryTime) + " (epoch: " + expiryTime + " secs)");
-
-  return (uint64_t)expiryTime;
-}
-
 static void generateSASBase64EncodedSignedSignature(
     uint8_t const* sasSignature, size_t const sasSignatureSize,
     uint8_t* encodedSignedSignature, size_t encodedSignedSignatureSize,
@@ -374,6 +362,19 @@ static void generateSASBase64EncodedSignedSignature(
   }
 }
 
+static uint64_t getSASTokenExpirationTime(uint32_t minutes) 
+{
+  unsigned long now = getTime();
+  unsigned long expiryTime = now + (SECS_PER_MIN* minutes);
+
+  logString = "Current time: ";
+  LogInfo(logString + getFormattedDateTime(now) + " (epoch: " + now + " secs)");
+  logString = "Expiry time: ";
+  LogInfo(logString + getFormattedDateTime(expiryTime) + " (epoch: " + expiryTime + " secs)");
+
+  return (uint64_t)expiryTime;
+}
+
 static String getFormattedDateTime(unsigned long epochTimeInSeconds) 
 {
   char buffer[BUFFER_LENGTH];
@@ -384,6 +385,11 @@ static String getFormattedDateTime(unsigned long epochTimeInSeconds)
   strftime(buffer, 20, "%FT%T", timeInfo);
 
   return String(buffer);
+}
+
+static unsigned long getTime()
+{
+    return WiFi.getTime();
 }
 
 static String mqttErrorCodeName(int errorCode) 
@@ -425,7 +431,7 @@ static String mqttErrorCodeName(int errorCode)
 
 static void log(LogLevel logLevel, String message) 
 {
-  Serial.print(getFormattedDateTime(WiFi.getTime()));
+  Serial.print(getFormattedDateTime(getTime()));
 
   switch (logLevel) {
   case LogLevelDebug:
