@@ -142,7 +142,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 
 1. Navigate to the '*iot_configs.h*' file
 
-1. In the *iot_configs.h* file, fill in your credentials. 
+1. In the '*iot_configs.h*' file, fill in your credentials. 
 
     - Add in your WiFi SSID and password.
     - Paste your IoT Hub device Hostname for the `IOT_CONFIG_IOTHUB_FQDN` variable. It should look something like:

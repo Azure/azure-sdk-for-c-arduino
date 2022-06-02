@@ -206,7 +206,7 @@ void initializeMQTTClient()
   logString = "MQTT Username: ";
   LogInfo(logString + mqttUsername);
   logString = "MQTT Password (SAS Token): ";
-  LogInfo("***");
+  LogInfo(logString + "***");
 
   LogInfo("MQTT client initialized.");
 }
@@ -238,11 +238,13 @@ void onMessageReceived(int messageSize)
 {
   logString = "Message received: Topic: ";
   LogInfo(logString + mqttClient.messageTopic() + ", Length: " + messageSize);
+  LogInfo("Message: ");
 
   while (mqttClient.available()) 
   {
-    LogInfo("Message: " + mqttClient.read());
+    Serial.print((char)mqttClient.read());
   }
+  Serial.println();
 }
 
 static void sendTelemetry() 
