@@ -186,24 +186,31 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
         If you perform this step right away after uploading the sketch, the serial monitor will show an output similar to the following upon success:
 
         ```text
-        11:55:09.392 -> 1970-01-01T00:00:00 [INFO] 1Attempting to connect to WIFI SSID: SSID_Name
-        11:55:12.814 -> WiFi connected, IP address: 192.168.1.12, Strength (dBm): -55
-        11:55:12.814 -> Syncing time......
-        2022-04-29T18:55:24 [INFO] 1Time synced!
-        Initializing MQTT client
-        MQTT client initialized
-        2022-04-29T18:55:24 [INFO] 1Current time: p (epoch: 1651258524 secs)
-        2022-04-29T18:55:24 [INFO] 1Expiry time: p (epoch: 1651262124 secs)
-        2022-04-29T18:55:24 [INFO] 1connect_to_azure_iot_hub - Broker: my-resource-group.azure-devices.net
-        2022-04-29T18:55:24 [INFO] 1connect_to_azure_iot_hub - Client ID: DeviceID
-        2022-04-29T18:55:24 [INFO] 1connect_to_azure_iot_hub - Username: my-resource-group.azure-devices.net/deviceid/?api-version=2020-09-30&c/1.3.0-beta.1(ard;nanorp2040connect)
-        2022-04-29T18:55:24 [INFO] 1connect_to_azure_iot_hub - SAS Token: SharedAccessSignature sr=my-resource-group.azure-devices.net%2Fdevices%2FDeviceID&sig=W2f43PukGv4KsAhF7deWF77llCC44%2Fx5%2JFIEYD6Gr3p%3D&se=1651262124
-        2022-04-29T18:55:26 [INFO] 1You're connected to the MQTT broker
-        187002022-04-29T18:55:26 [INFO] 1 Arduino Nano Connect RP2040 sending telemetry . . . 
-        OK
-        208122022-04-29T18:55:28 [INFO] 1 Arduino Nano Connect RP2040 sending telemetry . . . 
-        OK
+        1970-01-01T00:00:00 [INFO] Attempting to connect to WIFI SSID: Moyeeaee
 
+        1970-01-01T00:00:00 [INFO] WiFi connected, IP address: 3494947008, Strength (dBm): -36
+        1970-01-01T00:00:00 [INFO] Syncing time.
+        ..................................................................................................
+        2022-06-02T22:57:37 [INFO] Time synced!
+        2022-06-02T22:57:37 [INFO] Initializing Azure IoT Hub client.
+        2022-06-02T22:57:37 [INFO] Azure IoT Hub hostname: <hostname>
+        2022-06-02T22:57:37 [INFO] Azure IoT Hub client initialized.
+        2022-06-02T22:57:37 [INFO] Initializing MQTT client.
+        2022-06-02T22:57:37 [INFO] Current time: 2022-06-02T22:57:37 (epoch: 1654210657 secs)
+        2022-06-02T22:57:37 [INFO] Expiry time: 2022-06-02T23:57:37 (epoch: 1654214257 secs)
+        2022-06-02T22:57:37 [INFO] MQTT Client ID: mytestsas
+        2022-06-02T22:57:37 [INFO] MQTT Username: <hostname>/<device id>/?api-version=2020-09-30&DeviceClientType=c/1.3.1(ard;nanorp2040connect)
+        2022-06-02T22:57:37 [INFO] MQTT Password (SAS Token): ***
+        2022-06-02T22:57:37 [INFO] MQTT client initialized.
+        2022-06-02T22:57:37 [INFO] Connecting to Azure IoT Hub.
+        2022-06-02T22:57:40 [INFO] Connected to your Azure IoT Hub!
+        2022-06-02T22:57:40 [INFO] Subscribed to MQTT topic: devices/+/messages/devicebound/#
+        2022-06-02T22:57:40 [INFO] Arduino Nano RP2040 Connect sending telemetry . . . 
+        2022-06-02T22:57:40 [INFO] Telemetry sent.
+        2022-06-02T22:57:42 [INFO] Arduino Nano RP2040 Connect sending telemetry . . . 
+        2022-06-02T22:57:42 [INFO] Telemetry sent.
+        2022-06-02T22:57:44 [INFO] Arduino Nano RP2040 Connect sending telemetry . . . 
+        2022-06-02T22:57:44 [INFO] Telemetry sent.
         ```
 
 1. Monitor the telemetry messages sent to the Azure IoT Hub.
