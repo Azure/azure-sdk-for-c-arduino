@@ -186,11 +186,19 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
         If you perform this step right away after uploading the sketch, the serial monitor will show an output similar to the following upon success:
 
         ```text
-        1970-01-01T00:00:00 [INFO] Attempting to connect to WIFI SSID: Moyeeaee
+        1970-01-01T00:00:00 [INFO] Attempting to connect to WIFI SSID: <ssid>
 
         1970-01-01T00:00:00 [INFO] WiFi connected, IP address: 3494947008, Strength (dBm): -36
         1970-01-01T00:00:00 [INFO] Syncing time.
-        ..................................................................................................
+        .
+        .
+        .
+        .
+        .
+        .
+        .
+        .
+
         2022-06-02T22:57:37 [INFO] Time synced!
         2022-06-02T22:57:37 [INFO] Initializing Azure IoT Hub client.
         2022-06-02T22:57:37 [INFO] Azure IoT Hub hostname: <hostname>
@@ -198,7 +206,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
         2022-06-02T22:57:37 [INFO] Initializing MQTT client.
         2022-06-02T22:57:37 [INFO] Current time: 2022-06-02T22:57:37 (epoch: 1654210657 secs)
         2022-06-02T22:57:37 [INFO] Expiry time: 2022-06-02T23:57:37 (epoch: 1654214257 secs)
-        2022-06-02T22:57:37 [INFO] MQTT Client ID: mytestsas
+        2022-06-02T22:57:37 [INFO] MQTT Client ID: <device id>
         2022-06-02T22:57:37 [INFO] MQTT Username: <hostname>/<device id>/?api-version=2020-09-30&DeviceClientType=c/1.3.1(ard;nanorp2040connect)
         2022-06-02T22:57:37 [INFO] MQTT Password (SAS Token): ***
         2022-06-02T22:57:37 [INFO] MQTT client initialized.
