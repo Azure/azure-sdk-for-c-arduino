@@ -227,32 +227,34 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
         If you perform this step right away after uploading the sketch, the serial monitor will show an output similar to the following upon success:
 
         ```text
-        1970-01-01T00:00:35 [INFO] Attempting to connect to WIFI SSID: <ssid>
+        2106-02-06 23:29:28 [INFO] Attempting to connect to WIFI SSID: <ssid>
         .
 
-        1970-01-01T00:01:16 [INFO] WiFi connected, IP address: 2001774784, Strength (dBm): -27
-        1970-01-01T00:01:16 [INFO] Syncing time.
+        2106-02-06 23:29:48 [INFO] WiFi connected, IP address: 84546732, Strength (dBm): -42
+        2106-02-06 23:29:48 [INFO] Syncing time.
 
-        2022-06-02T20:38:06 [INFO] Time synced!
-        2022-06-02T20:38:06 [INFO] Initializing Azure IoT Hub client.
-        2022-06-02T20:38:06 [INFO] Azure IoT Hub hostname: <hostname>
-        2022-06-02T20:38:06 [INFO] Azure IoT Hub client initialized.
-        2022-06-02T20:38:06 [INFO] Initializing MQTT client.
-        2022-06-02T20:38:06 [INFO] Current time: 2022-06-02T20:38:06 (epoch: 1654202286 secs)
-        2022-06-02T20:38:06 [INFO] Expiry time: 2022-06-02T21:38:06 (epoch: 1654205886 secs)
-        2022-06-02T20:38:06 [INFO] MQTT Client ID: <device id>
-        2022-06-02T20:38:06 [INFO] MQTT Username: <hostname>/<device id>/?api-version=2020-09-30&DeviceClientType=c/1.3.1(ard;portentaH7)
-        2022-06-02T20:38:06 [INFO] MQTT Password (SAS Token): ***
-        2022-06-02T20:38:06 [INFO] MQTT client initialized.
-        2022-06-02T20:38:06 [INFO] Connecting to Azure IoT Hub.
-        2022-06-02T20:38:09 [INFO] Connected to your Azure IoT Hub!
-        2022-06-02T20:38:09 [INFO] Subscribed to MQTT topic: devices/+/messages/devicebound/#
-        2022-06-02T20:38:09 [INFO] Arduino Portenta H7 sending telemetry . . . 
-        2022-06-02T20:38:09 [INFO] Telemetry sent.
-        2022-06-02T20:38:11 [INFO] Arduino Portenta H7 sending telemetry . . . 
-        2022-06-02T20:38:11 [INFO] Telemetry sent.
-        2022-06-02T20:38:14 [INFO] Arduino Portenta H7 sending telemetry . . . 
-        2022-06-02T20:38:14 [INFO] Telemetry sent.
+        2022-06-07 16:38:17 [INFO] Time synced!
+        2022-06-07 16:38:17 [INFO] Initializing Azure IoT Hub client.
+        2022-06-07 16:38:17 [INFO] Azure IoT Hub hostname: <hostname>
+        2022-06-07 16:38:17 [INFO] Azure IoT Hub client initialized.
+        2022-06-07 16:38:17 [INFO] Initializing MQTT client.
+        2022-06-07 16:38:17 [INFO] UTC Current time: 2022-06-07 23:38:17 (epoch: 1654645097 secs)
+        2022-06-07 16:38:17 [INFO] UTC Expiry time: 2022-06-08 00:38:17 (epoch: 1654648697 secs)
+        2022-06-07 16:38:17 [INFO] Local Current time: 2022-06-07 16:38:17
+        2022-06-07 16:38:17 [INFO] Local Expiry time: 2022-06-07 17:38:17
+        2022-06-07 16:38:17 [INFO] MQTT Client ID: <device id>
+        2022-06-07 16:38:17 [INFO] MQTT Username: <hostname>/<device id>/?api-version=2020-09-30&DeviceClientType=c/1.3.1(ard;portentaH7)
+        2022-06-07 16:38:17 [INFO] MQTT Password (SAS Token): ***
+        2022-06-07 16:38:17 [INFO] MQTT client initialized.
+        2022-06-07 16:38:17 [INFO] Connecting to Azure IoT Hub.
+        2022-06-07 16:38:19 [INFO] Connected to your Azure IoT Hub!
+        2022-06-07 16:38:20 [INFO] Subscribed to MQTT topic: devices/+/messages/devicebound/#
+        2022-06-07 16:38:20 [INFO] Arduino Portenta H7 sending telemetry . . .
+        2022-06-07 16:38:20 [INFO] Telemetry sent.
+        2022-06-07 16:38:22 [INFO] Arduino Portenta H7 sending telemetry . . .
+        2022-06-07 16:38:22 [INFO] Telemetry sent.
+        2022-06-07 16:38:25 [INFO] Arduino Portenta H7 sending telemetry . . .
+        2022-06-07 16:38:25 [INFO] Telemetry sent.
         ```
 
 1. Monitor the telemetry messages sent to the Azure IoT Hub.
