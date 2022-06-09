@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "AzureIoT.h"
+#include <WiFiNINA.h>
 #include <stdarg.h>
 
 #include <az_precondition_internal.h>
@@ -17,7 +18,7 @@ log_function_t default_logging_function = NULL;
 
 /* --- Azure Definitions --- */
 #define IOT_HUB_MQTT_PORT                           AZ_IOT_DEFAULT_MQTT_CONNECT_PORT
-#define MQTT_PROTOCOL_PREFIX                        "mqtts://"
+#define MQTT_PROTOCOL_PREFIX                        "ssl://"
 #define DPS_GLOBAL_ENDPOINT_MQTT_URI                MQTT_PROTOCOL_PREFIX DPS_GLOBAL_ENDPOINT_FQDN
 #define DPS_GLOBAL_ENDPOINT_MQTT_URI_WITH_PORT      DPS_GLOBAL_ENDPOINT_MQTT_URI ":" STR(DPS_GLOBAL_ENDPOINT_PORT)
 
@@ -254,9 +255,11 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
     case azure_iot_state_initialized:
       break;
     case azure_iot_state_started:
+      LogInfo("azure_iot_state_started.");
       if (azure_iot->config->use_device_provisioning &&
           !is_device_provisioned(azure_iot))
       {
+        LogInfo("configing for dps");
         // This seems harmless, but...
         // azure_iot->config->data_buffer always points to the original buffer provided by the user.
         // azure_iot->data_buffer is an intermediate pointer. It starts by pointing to azure_iot->config->data_buffer.
@@ -277,6 +280,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       }
       else
       {
+        LogInfo("configing for hub");
         result = get_mqtt_client_config_for_iot_hub(azure_iot, &mqtt_client_config);
         azure_iot->state = azure_iot_state_connecting_to_hub;
       }
@@ -288,20 +292,20 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
         LogError("Failed initializing MQTT client.");
         return;
       }
-
+      LogInfo("done configing");
       break;
     case azure_iot_state_connecting_to_dps:
       break;
     case azure_iot_state_connected_to_dps:
       // Subscribe to DPS topic.
       azure_iot->state = azure_iot_state_subscribing_to_dps;
-
+      LogInfo("subscribing to dps topic");
       mqttResult = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
           azure_iot->mqtt_client_handle, 
           AZ_SPAN_FROM_STR(AZ_IOT_PROVISIONING_CLIENT_REGISTER_SUBSCRIBE_TOPIC),
           mqtt_qos_at_most_once);
           
-      if (mqttResult == 0)
+      if (mqttResult != RESULT_OK)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed subscribing to Azure Device Provisioning respose topic.");
@@ -365,7 +369,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
         
       mqttResult = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
       
-      if (mqttResult == 0)
+      if (mqttResult != RESULT_OK)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed publishing to DPS registration topic");
@@ -412,7 +416,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
          
       mqttResult = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
       
-      if (mqttResult == 0)
+      if (mqttResult != RESULT_OK)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed publishing to DPS status query topic");
@@ -465,7 +469,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
           AZ_SPAN_FROM_STR(AZ_IOT_HUB_CLIENT_COMMANDS_SUBSCRIBE_TOPIC),
           mqtt_qos_at_least_once);
 
-      if (mqttResult == 0)
+      if (mqttResult != RESULT_OK)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed subscribing to IoT Plug and Play commands topic.");
@@ -483,7 +487,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
           AZ_SPAN_FROM_STR(AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_SUBSCRIBE_TOPIC), 
           mqtt_qos_at_least_once);
 
-      if (mqttResult == 0)
+      if (mqttResult != RESULT_OK)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed subscribing to IoT Plug and Play properties topic.");
@@ -501,7 +505,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
           AZ_SPAN_FROM_STR(AZ_IOT_HUB_CLIENT_PROPERTIES_WRITABLE_UPDATES_SUBSCRIBE_TOPIC),
           mqtt_qos_at_least_once);
 
-      if (mqttResult == 0)
+      if (mqttResult != RESULT_OK)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed subscribing to IoT Plug and Play writable properties topic.");
@@ -560,7 +564,7 @@ int azure_iot_send_telemetry(azure_iot_t* azure_iot, az_span message)
   mqtt_message.qos = mqtt_qos_at_most_once;
 
   int mqttResult = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
-  EXIT_IF_TRUE(mqttResult == 0, RESULT_ERROR, "Failed publishing to telemetry topic");
+  EXIT_IF_TRUE(mqttResult != RESULT_OK, RESULT_ERROR, "Failed publishing to telemetry topic");
 
   return RESULT_OK;
 }
@@ -589,7 +593,7 @@ int azure_iot_send_properties_update(azure_iot_t* azure_iot, uint32_t request_id
   mqtt_message.qos = mqtt_qos_at_most_once;
 
   int mqttResult = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
-  EXIT_IF_TRUE(mqttResult == 0, RESULT_ERROR, "Failed publishing to reported properties topic.");
+  EXIT_IF_TRUE(mqttResult != RESULT_OK, RESULT_ERROR, "Failed publishing to reported properties topic.");
 
   return RESULT_OK;
 }
@@ -708,7 +712,7 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
 
   int result;
   az_result azrc;
-
+Serial.println("In azure_iot_mqtt_client_message_received");
   if (azure_iot->state == azure_iot_state_ready)
   {
     // This message should either be:
@@ -798,6 +802,7 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
   {
     az_iot_provisioning_client_register_response register_response;
 
+    Serial.println("about to parse topic and payload");
     azrc = az_iot_provisioning_client_parse_received_topic_and_payload(
         &azure_iot->dps_client, mqtt_message->topic, mqtt_message->payload, &register_response);
     
@@ -901,7 +906,7 @@ int azure_iot_send_command_response(azure_iot_t* azure_iot, az_span request_id, 
 
   mqttResult = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
   
-  if (mqttResult == 0)
+  if (mqttResult != RESULT_OK)
   {
     azure_iot->state = azure_iot_state_error;
     LogError("Failed publishing command response (%.*s).", az_span_size(request_id), az_span_ptr(request_id));
@@ -921,8 +926,9 @@ int azure_iot_send_command_response(azure_iot_t* azure_iot, az_span request_id, 
  */
 static uint32_t get_current_unix_time()
 {
-  time_t now = time(NULL);
-  return (now == INDEFINITE_TIME ? 0 : (uint32_t)(now));
+  Serial.print("In get_current_unix_time(). Time is: ");
+  Serial.println(WiFi.getTime());
+  return WiFi.getTime();
 }
 
 /*
@@ -1126,6 +1132,10 @@ static int generate_sas_token_for_dps(
     az_span_ptr(device_key), az_span_size(device_key), az_span_ptr(decoded_sas_key), az_span_size(decoded_sas_key), &decoded_sas_key_length);
   EXIT_IF_TRUE(result != 0, 0, "Failed decoding SAS key.");
 
+  LogInfo("device key: %.*s", az_span_size(device_key), az_span_ptr(device_key));
+  LogInfo("device key size: %u", az_span_size(device_key));
+  LogInfo("decoded key length: %u", decoded_sas_key_length);
+
   // Step 2.c.
   sas_hmac256_signed_signature = split_az_span(data_buffer_span, SAS_HMAC256_ENCRYPTED_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
   EXIT_IF_TRUE(az_span_is_content_equal(sas_hmac256_signed_signature, AZ_SPAN_EMPTY), 0, "Failed reserving buffer for sas_hmac256_signed_signature.");
@@ -1135,6 +1145,8 @@ static int generate_sas_token_for_dps(
     az_span_ptr(plain_sas_signature), az_span_size(plain_sas_signature), 
     az_span_ptr(sas_hmac256_signed_signature), az_span_size(sas_hmac256_signed_signature));
   EXIT_IF_TRUE(result != 0, 0, "Failed encrypting SAS signature.");
+
+LogInfo("size of sas_hmac256_signed_signature: %u", az_span_size(sas_hmac256_signed_signature));
 
   // Step 2.d.
   result = data_manipulation_functions.base64_encode(
