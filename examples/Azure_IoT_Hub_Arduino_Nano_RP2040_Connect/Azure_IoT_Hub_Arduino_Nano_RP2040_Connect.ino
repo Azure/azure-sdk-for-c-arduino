@@ -79,7 +79,7 @@ static uint32_t telemetrySendCount;
 /*--- Functions ---*/
 // Initialization and connection functions.
 void connectToWiFi();
-void initializeAzureIoTClient();
+void initializeAzureIoTHubClient();
 void initializeMQTTClient();
 void connectMQTTClientToAzureIoTHub();
 
