@@ -48,15 +48,15 @@ log_function_t default_logging_function = NULL;
   EXIT_IF_TRUE(az_result_failed(azresult), retcode, message, ##__VA_ARGS__ )
 
 /* --- Internal function prototypes --- */
-static uint32_t get_current_unix_time();
-
 static int generate_sas_token_for_dps(
   az_iot_provisioning_client* provisioning_client,
   az_span device_key,
   unsigned int duration_in_minutes,
   az_span data_buffer_span,
   data_manipulation_functions_t data_manipulation_functions,
-  az_span sas_token, uint32_t* expiration_time);
+  az_span sas_token, 
+  uint32_t* expiration_time,
+  get_time_t get_time);
 
 static int generate_sas_token_for_iot_hub(
   az_iot_hub_client* iot_hub_client,
@@ -64,7 +64,9 @@ static int generate_sas_token_for_iot_hub(
   unsigned int duration_in_minutes,
   az_span data_buffer_span,
   data_manipulation_functions_t data_manipulation_functions,
-  az_span sas_token, uint32_t* expiration_time);
+  az_span sas_token, 
+  uint32_t* expiration_time,
+  get_time_t get_time);
 
 static int get_mqtt_client_config_for_dps(azure_iot_t* azure_iot, mqtt_client_config_t* mqtt_client_config);
 
@@ -114,6 +116,7 @@ void azure_iot_init(azure_iot_t* azure_iot, azure_iot_config_t* azure_iot_config
   _az_PRECONDITION_NOT_NULL(azure_iot_config->on_properties_update_completed);
   _az_PRECONDITION_NOT_NULL(azure_iot_config->on_properties_received);
   _az_PRECONDITION_NOT_NULL(azure_iot_config->on_command_request_received);
+  _az_PRECONDITION_NOT_NULL(azure_iot_config->get_time);
 
   (void)memset(azure_iot, 0, sizeof(azure_iot_t));
   azure_iot->config = azure_iot_config;
@@ -240,7 +243,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
 
   int result;
   int64_t now;
-  int mqttResult;
+  int mqtt_result;
   az_result azrc;
   size_t length;
   mqtt_client_config_t mqtt_client_config;
@@ -254,9 +257,11 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
     case azure_iot_state_initialized:
       break;
     case azure_iot_state_started:
+      LogInfo("azure_iot_state_started.");
       if (azure_iot->config->use_device_provisioning &&
           !is_device_provisioned(azure_iot))
       {
+        LogInfo("configing for dps");
         // This seems harmless, but...
         // azure_iot->config->data_buffer always points to the original buffer provided by the user.
         // azure_iot->data_buffer is an intermediate pointer. It starts by pointing to azure_iot->config->data_buffer.
@@ -277,31 +282,32 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       }
       else
       {
+        LogInfo("configing for hub");
         result = get_mqtt_client_config_for_iot_hub(azure_iot, &mqtt_client_config);
         azure_iot->state = azure_iot_state_connecting_to_hub;
       }
 
-      if (result != 0 || 
-          azure_iot->config->mqtt_client_interface.mqtt_client_init(&mqtt_client_config, &azure_iot->mqtt_client_handle) != 0)
+      if (result != RESULT_OK || 
+          azure_iot->config->mqtt_client_interface.mqtt_client_init(&mqtt_client_config, &azure_iot->mqtt_client_handle) != RESULT_OK)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed initializing MQTT client.");
         return;
       }
-
+      LogInfo("done configing");
       break;
     case azure_iot_state_connecting_to_dps:
       break;
     case azure_iot_state_connected_to_dps:
       // Subscribe to DPS topic.
       azure_iot->state = azure_iot_state_subscribing_to_dps;
-
-      mqttResult = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
+      LogInfo("subscribing to dps topic");
+      mqtt_result = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
           azure_iot->mqtt_client_handle, 
           AZ_SPAN_FROM_STR(AZ_IOT_PROVISIONING_CLIENT_REGISTER_SUBSCRIBE_TOPIC),
           mqtt_qos_at_most_once);
           
-      if (mqttResult == 0)
+      if (mqtt_result != RESULT_OK)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed subscribing to Azure Device Provisioning respose topic.");
@@ -363,9 +369,9 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
 
       azure_iot->state = azure_iot_state_provisioning_waiting;
         
-      mqttResult = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
+      mqtt_result = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
       
-      if (mqttResult == 0)
+      if (mqtt_result != RESULT_OK)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed publishing to DPS registration topic");
@@ -374,7 +380,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
 
       break;
     case azure_iot_state_provisioning_querying:
-      now = get_current_unix_time();
+      now = azure_iot->config->get_time();
 
       if (now == 0)
       {
@@ -410,9 +416,9 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       azure_iot->state = azure_iot_state_provisioning_waiting;
       azure_iot->dps_last_query_time = now;
          
-      mqttResult = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
+      mqtt_result = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
       
-      if (mqttResult == 0)
+      if (mqtt_result != RESULT_OK)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed publishing to DPS status query topic");
@@ -447,7 +453,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
 
       azure_iot->state = azure_iot_state_connecting_to_hub;
 
-      if (azure_iot->config->mqtt_client_interface.mqtt_client_init(&mqtt_client_config, &azure_iot->mqtt_client_handle) != 0)
+      if (azure_iot->config->mqtt_client_interface.mqtt_client_init(&mqtt_client_config, &azure_iot->mqtt_client_handle) != RESULT_OK)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed initializing MQTT client for IoT Hub connection.");
@@ -460,12 +466,12 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
     case azure_iot_state_connected_to_hub:
       azure_iot->state = azure_iot_state_subscribing_to_pnp_cmds;
       
-      mqttResult = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
+      mqtt_result = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
           azure_iot->mqtt_client_handle,
           AZ_SPAN_FROM_STR(AZ_IOT_HUB_CLIENT_COMMANDS_SUBSCRIBE_TOPIC),
           mqtt_qos_at_least_once);
 
-      if (mqttResult == 0)
+      if (mqtt_result != RESULT_OK)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed subscribing to IoT Plug and Play commands topic.");
@@ -478,12 +484,12 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
     case azure_iot_state_subscribed_to_pnp_cmds:
       azure_iot->state = azure_iot_state_subscribing_to_pnp_props;
 
-      mqttResult = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
+      mqtt_result = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
           azure_iot->mqtt_client_handle,
           AZ_SPAN_FROM_STR(AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_SUBSCRIBE_TOPIC), 
           mqtt_qos_at_least_once);
 
-      if (mqttResult == 0)
+      if (mqtt_result != RESULT_OK)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed subscribing to IoT Plug and Play properties topic.");
@@ -496,12 +502,12 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
     case azure_iot_state_subscribed_to_pnp_props:
       azure_iot->state = azure_iot_state_subscribing_to_pnp_writable_props;
     
-      mqttResult = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
+      mqtt_result = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
           azure_iot->mqtt_client_handle,
           AZ_SPAN_FROM_STR(AZ_IOT_HUB_CLIENT_PROPERTIES_WRITABLE_UPDATES_SUBSCRIBE_TOPIC),
           mqtt_qos_at_least_once);
 
-      if (mqttResult == 0)
+      if (mqtt_result != RESULT_OK)
       {
         azure_iot->state = azure_iot_state_error;
         LogError("Failed subscribing to IoT Plug and Play writable properties topic.");
@@ -513,7 +519,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       break;
     case azure_iot_state_ready:
       // Checking for SAS token expiration.
-      now = get_current_unix_time();
+      now = azure_iot->config->get_time();
 
       if (now == 0)
       {
@@ -559,8 +565,8 @@ int azure_iot_send_telemetry(azure_iot_t* azure_iot, az_span message)
   mqtt_message.payload = message;
   mqtt_message.qos = mqtt_qos_at_most_once;
 
-  int mqttResult = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
-  EXIT_IF_TRUE(mqttResult == 0, RESULT_ERROR, "Failed publishing to telemetry topic");
+  int mqtt_result = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
+  EXIT_IF_TRUE(mqtt_result != RESULT_OK, RESULT_ERROR, "Failed publishing to telemetry topic");
 
   return RESULT_OK;
 }
@@ -588,8 +594,8 @@ int azure_iot_send_properties_update(azure_iot_t* azure_iot, uint32_t request_id
   mqtt_message.payload = message;
   mqtt_message.qos = mqtt_qos_at_most_once;
 
-  int mqttResult = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
-  EXIT_IF_TRUE(mqttResult == 0, RESULT_ERROR, "Failed publishing to reported properties topic.");
+  int mqtt_result = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
+  EXIT_IF_TRUE(mqtt_result != RESULT_OK, RESULT_ERROR, "Failed publishing to reported properties topic.");
 
   return RESULT_OK;
 }
@@ -797,7 +803,7 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
   else if (azure_iot->state == azure_iot_state_provisioning_waiting)
   {
     az_iot_provisioning_client_register_response register_response;
-
+    
     azrc = az_iot_provisioning_client_parse_received_topic_and_payload(
         &azure_iot->dps_client, mqtt_message->topic, mqtt_message->payload, &register_response);
     
@@ -886,7 +892,7 @@ int azure_iot_send_command_response(azure_iot_t* azure_iot, az_span request_id, 
   az_result azrc;
   mqtt_message_t mqtt_message;
   size_t topic_length;
-  int mqttResult;
+  int mqtt_result;
 
   mqtt_message.topic = azure_iot->data_buffer;
 
@@ -899,9 +905,9 @@ int azure_iot_send_command_response(azure_iot_t* azure_iot, az_span request_id, 
   mqtt_message.payload = payload;
   mqtt_message.qos = mqtt_qos_at_most_once;
 
-  mqttResult = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
+  mqtt_result = azure_iot->config->mqtt_client_interface.mqtt_client_publish(azure_iot->mqtt_client_handle, &mqtt_message);
   
-  if (mqttResult == 0)
+  if (mqtt_result != RESULT_OK)
   {
     azure_iot->state = azure_iot_state_error;
     LogError("Failed publishing command response (%.*s).", az_span_size(request_id), az_span_ptr(request_id));
@@ -914,16 +920,6 @@ int azure_iot_send_command_response(azure_iot_t* azure_iot, az_span request_id, 
 }
 
 /* --- Implementation of internal functions --- */
-
-/*
- * @brief           Gets the number of seconds since UNIX epoch until now.
- * @return uint32_t Number of seconds.
- */
-static uint32_t get_current_unix_time()
-{
-  time_t now = time(NULL);
-  return (now == INDEFINITE_TIME ? 0 : (uint32_t)(now));
-}
 
 /*
  * @brief           Initializes the Device Provisioning client and generates the config for an MQTT client.
@@ -966,7 +962,8 @@ static int get_mqtt_client_config_for_dps(azure_iot_t* azure_iot, mqtt_client_co
       data_buffer_span,
       azure_iot->config->data_manipulation_functions,
       password_span,
-      &azure_iot->sas_token_expiration_time);
+      &azure_iot->sas_token_expiration_time,
+      azure_iot->config->get_time);
     EXIT_IF_TRUE(password_length == 0, RESULT_ERROR, "Failed creating mqtt password for DPS connection.");
 
     mqtt_client_config->password = password_span;
@@ -1040,7 +1037,8 @@ static int get_mqtt_client_config_for_iot_hub(azure_iot_t* azure_iot, mqtt_clien
     data_buffer_span,
     azure_iot->config->data_manipulation_functions,
     password_span,
-    &azure_iot->sas_token_expiration_time);
+    &azure_iot->sas_token_expiration_time,
+    azure_iot->config->get_time);
   EXIT_IF_TRUE(password_length == 0, RESULT_ERROR, "Failed creating mqtt password for IoT Hub connection.");    
 
   client_id_span = split_az_span(data_buffer_span, MQTT_CLIENT_ID_BUFFER_SIZE, &data_buffer_span);
@@ -1093,7 +1091,9 @@ static int generate_sas_token_for_dps(
   unsigned int duration_in_minutes,
   az_span data_buffer_span,
   data_manipulation_functions_t data_manipulation_functions,
-  az_span sas_token, uint32_t* expiration_time)
+  az_span sas_token,
+  uint32_t* expiration_time,
+  get_time_t get_time)
 {
   int result;
   az_result rc;
@@ -1102,7 +1102,7 @@ static int generate_sas_token_for_dps(
   az_span plain_sas_signature, sas_signature, decoded_sas_key, sas_hmac256_signed_signature;
 
   // Step 1.
-  current_unix_time = get_current_unix_time();
+  current_unix_time = get_time();
   EXIT_IF_TRUE(current_unix_time == 0, 0, "Failed getting current unix time.");
 
   *expiration_time = current_unix_time + duration_in_minutes * NUMBER_OF_SECONDS_IN_A_MINUTE;
@@ -1126,6 +1126,10 @@ static int generate_sas_token_for_dps(
     az_span_ptr(device_key), az_span_size(device_key), az_span_ptr(decoded_sas_key), az_span_size(decoded_sas_key), &decoded_sas_key_length);
   EXIT_IF_TRUE(result != 0, 0, "Failed decoding SAS key.");
 
+  LogInfo("device key: %.*s", az_span_size(device_key), az_span_ptr(device_key));
+  LogInfo("device key size: %u", az_span_size(device_key));
+  LogInfo("decoded key length: %u", decoded_sas_key_length);
+
   // Step 2.c.
   sas_hmac256_signed_signature = split_az_span(data_buffer_span, SAS_HMAC256_ENCRYPTED_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
   EXIT_IF_TRUE(az_span_is_content_equal(sas_hmac256_signed_signature, AZ_SPAN_EMPTY), 0, "Failed reserving buffer for sas_hmac256_signed_signature.");
@@ -1135,6 +1139,8 @@ static int generate_sas_token_for_dps(
     az_span_ptr(plain_sas_signature), az_span_size(plain_sas_signature), 
     az_span_ptr(sas_hmac256_signed_signature), az_span_size(sas_hmac256_signed_signature));
   EXIT_IF_TRUE(result != 0, 0, "Failed encrypting SAS signature.");
+
+LogInfo("size of sas_hmac256_signed_signature: %u", az_span_size(sas_hmac256_signed_signature));
 
   // Step 2.d.
   result = data_manipulation_functions.base64_encode(
@@ -1184,7 +1190,9 @@ static int generate_sas_token_for_iot_hub(
   unsigned int duration_in_minutes,
   az_span data_buffer_span,
   data_manipulation_functions_t data_manipulation_functions,
-  az_span sas_token, uint32_t* expiration_time)
+  az_span sas_token, 
+  uint32_t* expiration_time,
+  get_time_t get_time)
 {
   int result;
   az_result rc;
@@ -1193,7 +1201,7 @@ static int generate_sas_token_for_iot_hub(
   az_span plain_sas_signature, sas_signature, decoded_sas_key, sas_hmac256_signed_signature;
 
   // Step 1.
-  current_unix_time = get_current_unix_time();
+  current_unix_time = get_time();
   EXIT_IF_TRUE(current_unix_time == 0, 0, "Failed getting current unix time.");
 
   *expiration_time = current_unix_time + duration_in_minutes * NUMBER_OF_SECONDS_IN_A_MINUTE;

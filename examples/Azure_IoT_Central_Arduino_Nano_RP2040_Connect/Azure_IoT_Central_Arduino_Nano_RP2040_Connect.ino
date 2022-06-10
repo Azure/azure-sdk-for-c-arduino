@@ -40,7 +40,7 @@
 #include <mbedtls/md.h>
 #include <mbedtls/sha256.h>
 
-// Libraries for MQTT client and WiFi connection
+// Libraries for SSL client, MQTT client, and WiFi connection
 #include <ArduinoBearSSL.h>
 #include <ArduinoMqttClient.h>
 #include <WiFiNINA.h>
@@ -48,7 +48,6 @@
 // Azure IoT SDK for C includes
 #include <az_core.h>
 #include <az_iot.h>
-#include <azure_ca.h>
 
 // Additional sample headers 
 #include "AzureIoT.h"
@@ -56,33 +55,22 @@
 #include "iot_configs.h"
 
 /* --- Sample-specific Settings --- */
-#define SERIAL_LOGGER_BAUD_RATE 115200
 #define MQTT_DO_NOT_RETAIN_MSG  0
 
 /* --- Time and NTP Settings --- */
-#define NTP_SERVERS "pool.ntp.org", "time.nist.gov"
-
-#define PST_TIME_ZONE -8
-#define PST_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF   1
-
-#define GMT_OFFSET_SECS (PST_TIME_ZONE * 3600)
-#define GMT_OFFSET_SECS_DST ((PST_TIME_ZONE + PST_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF) * 3600)
-
-#define UNIX_TIME_NOV_13_2017 1510592825
-#define UNIX_EPOCH_START_YEAR 1900
+#define GMT_OFFSET_SECS (IOT_CONFIG_DAYLIGHT_SAVINGS ? \
+                        ((IOT_CONFIG_TIME_ZONE + IOT_CONFIG_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF) * SECS_PER_HOUR) : \
+                        (IOT_CONFIG_TIME_ZONE * SECS_PER_HOUR))
 
 /* --- Function Returns --- */
 #define RESULT_OK       0
 #define RESULT_ERROR    __LINE__
 
-/* --- Handling iot_config.h Settings --- */
-static const char* wifi_ssid = IOT_CONFIG_WIFI_SSID;
-static const char* wifi_password = IOT_CONFIG_WIFI_PASSWORD;
-
 /* --- Function Declarations --- */
 static void sync_device_clock_with_ntp_server();
 static void connect_to_wifi();
-static esp_err_t esp_mqtt_event_handler(esp_mqtt_event_handle_t event);
+static void on_message_received(int message_size);
+static String get_formatted_date_time(uint32_t epoch_time_in_seconds); 
 
 // This is a logging function used by Azure IoT client.
 static void logging_function(log_level_t log_level, char const* const format, ...);
@@ -90,17 +78,12 @@ static void logging_function(log_level_t log_level, char const* const format, ..
 /* --- Sample variables --- */
 static azure_iot_config_t azure_iot_config;
 static azure_iot_t azure_iot;
-//static esp_mqtt_client_handle_t mqtt_client;
-static WiFiClient wiFiClient;
-static BearSSLClient bearSSLClient(wiFiClient);
-static MqttClient mqttClient(bearSSLClient);
-
-static char mqtt_broker_uri[128];
+static WiFiClient wifi_client;
+static BearSSLClient bear_ssl_client(wifi_client);
+static MqttClient arduino_mqtt_client(bear_ssl_client);
 
 #define AZ_IOT_DATA_BUFFER_SIZE 1500
 static uint8_t az_iot_data_buffer[AZ_IOT_DATA_BUFFER_SIZE];
-
-#define MQTT_PROTOCOL_PREFIX "mqtts://"
 
 static uint32_t properties_request_id = 0;
 static bool send_device_info = true;
@@ -117,35 +100,45 @@ static bool send_device_info = true;
  */
 static int mqtt_client_init_function(mqtt_client_config_t* mqtt_client_config, mqtt_client_handle_t *mqtt_client_handle)
 {
-  int result = 0; //success
+  int result;
 
-  const char* clientId = (const char*)az_span_ptr(mqtt_client_config->client_id);
+  const char* client_id = (const char*)az_span_ptr(mqtt_client_config->client_id);
   const char* username = (const char*)az_span_ptr(mqtt_client_config->username);
   const char* password = (const char*)az_span_ptr(mqtt_client_config->password);
+  const char* address = (const char*)az_span_ptr(mqtt_client_config->address);
+  int port = mqtt_client_config->port;
 
-  mqttClient.setId(clientId);
-  mqttClient.setUsernamePassword(username, password);
-  mqttClient.setKeepAliveInterval(30);
-  mqttClient.setCleanSession(true);
+  arduino_mqtt_client.setId(client_id);
+  arduino_mqtt_client.setUsernamePassword(username, password);
+  arduino_mqtt_client.setCleanSession(true);
+  arduino_mqtt_client.onMessage(on_message_received);
 
-  ArduinoBearSSL.onGetTime(getTime);
+  LogInfo("MQTT Client ID: %s", client_id);
+  LogInfo("MQTT Username: %s", username);
+  LogInfo("MQTT Password: %s", password);
+  LogInfo("MQTT client address: %s", address);
+  LogInfo("MQTT client port: %d", port);
 
-  az_span mqtt_broker_uri_span = AZ_SPAN_FROM_BUFFER(mqtt_broker_uri);
-  mqtt_broker_uri_span = az_span_copy(mqtt_broker_uri_span, AZ_SPAN_FROM_STR(MQTT_PROTOCOL_PREFIX));
-  mqtt_broker_uri_span = az_span_copy(mqtt_broker_uri_span, mqtt_client_config->address);
-  az_span_copy_u8(mqtt_broker_uri_span, null_terminator);
+  ArduinoBearSSL.onGetTime(get_time); // Required for server trusted root validation.
 
-  LogInfo("MQTT client target uri set to '%s'", mqtt_broker_uri);
-
-  while (!mqttClient.connect(mqtt_broker_uri, mqtt_client_config->port)) 
+  while (!arduino_mqtt_client.connect(address, port)) 
   {
-    int code = mqttClient.connectError();
-    logString = "Cannot connect to Azure IoT Hub. Reason: ";
-    LogError(logString + mqttErrorCodeName(code) + ", Code: " + code);
+    int code = arduino_mqtt_client.connectError();
+    LogError("Cannot connect. Error Code: %d", code);
     delay(5000);
   }
 
-  *mqtt_client_handle = mqttClient;
+  LogInfo("MQTT client connected.");
+
+  result = azure_iot_mqtt_client_connected(&azure_iot);
+  if (result != RESULT_OK)
+  {
+    LogError("Failed updating azure iot client of MQTT connection.");
+  }
+  else
+  {
+    *mqtt_client_handle = &arduino_mqtt_client;
+  }
 
   return result;
 }
@@ -155,32 +148,53 @@ static int mqtt_client_init_function(mqtt_client_config_t* mqtt_client_config, m
  */
 static int mqtt_client_deinit_function(mqtt_client_handle_t mqtt_client_handle)
 {
-  int result = 0; // success
-  MqttClient mqttClient = (MqttClient)mqtt_client_handle;
+  int result;
+  MqttClient* arduino_mqtt_client_handle = (MqttClient*)mqtt_client_handle;
 
   LogInfo("MQTT client being disconnected.");
 
-  mqttClient.disconnect();
+  arduino_mqtt_client_handle->stop();
 
-  if (azure_iot_mqtt_client_disconnected(&azure_iot) != 0)
+  result = azure_iot_mqtt_client_disconnected(&azure_iot);
+  if (result != RESULT_OK)
   {
     LogError("Failed updating azure iot client of MQTT disconnection.");      
   }
 
-  return 0;
+  return result;
 }
 
 /*
- * See the documentation of `DPS_ID_SCOPE_t` in AzureIoT.h for details.
+ * See the documentation of `mqtt_client_subscribe_function_t` in AzureIoT.h for details.
  */
 static int mqtt_client_subscribe_function(mqtt_client_handle_t mqtt_client_handle, az_span topic, mqtt_qos_t qos)
 {
   LogInfo("MQTT client subscribing to '%.*s'", az_span_size(topic), az_span_ptr(topic));
-       
+   
+  int result;
+  MqttClient* arduino_mqtt_client_handle = (MqttClient*)mqtt_client_handle;
+
   // As per documentation, `topic` always ends with a null-terminator.
-  // mqttClient.subscribe returns 1 on success and 0 on failure.  Does not return the packet id.
-  MqttClient mqttClient = (MqttClient)mqtt_client_handle;
-  return mqttClient.subscribe((const char*)az_span_ptr(topic), (uint8_t)qos); // 1 on success, 0 on failure
+  int mqtt_result = arduino_mqtt_client_handle->subscribe((const char*)az_span_ptr(topic), (uint8_t)qos);
+  
+  if (mqtt_result == 1) // ArduinoMqttClient: 1 on success, 0 on failure
+  {
+      LogInfo("MQTT topic subscribed");
+
+      int packet_id = 0; // packet id is private in ArduinoMqttClient library.
+      result = azure_iot_mqtt_client_subscribe_completed(&azure_iot, packet_id);
+      if (result != RESULT_OK)
+      {
+        LogError("Failed updating azure iot client of MQTT subscribe.");
+      }
+  }
+  else
+  {
+    LogError("ArduinoMqttClient subscribe failed.");
+    result = RESULT_ERROR;
+  }
+  
+  return result;
 }
 
 /*
@@ -190,16 +204,39 @@ static int mqtt_client_publish_function(mqtt_client_handle_t mqtt_client_handle,
 {
   LogInfo("MQTT client publishing to '%s'", az_span_ptr(mqtt_message->topic));
 
-  // topic is always null-terminated.
   int result;
-  result = mqtt_client_handle.beginMessage((const char*)az_span_ptr(mqtt_message->topic), 
-                                            MQTT_DO_NOT_RETAIN_MSG, 
-                                            (uint8_t)mqtt_message->qos);
-  if (result == 1) // 1 on success, 0 on failure
+  MqttClient* arduino_mqtt_client_handle = (MqttClient*)mqtt_client_handle;
+
+  int mqtt_result = arduino_mqtt_client_handle->beginMessage(
+                        (const char*)az_span_ptr(mqtt_message->topic), 
+                        MQTT_DO_NOT_RETAIN_MSG, 
+                        (uint8_t)mqtt_message->qos);
+
+  if (mqtt_result == 1) // ArduinoMqttClient: 1 on success, 0 on failure 
   {
-    mqtt_client_handle.print((const char*)az_span_ptr(mqtt_message->payload));
-    result = mqtt_client_handle.endMessage(); // 1 on success, 0 on failure
-  } 
+    mqttClientHandle->print((const char*)az_span_ptr(mqtt_message->payload));
+
+    mqtt_result = mqttClientHandle->endMessage();
+    if (mqtt_result == 1)
+    {
+      int packet_id = 0; // packet id is private in ArduinoMqttClient library.
+      result = azure_iot_mqtt_client_publish_completed(&azure_iot, packet_id);
+      if (result != RESULT_OK)
+      {
+        LogError("Failed updating azure iot client of MQTT publish.");
+      }
+    }
+    else
+    {
+      LogError("ArduinoMqttClient endMessage failed.");
+      result = RESULT_ERROR;
+    }
+  }
+  else
+  {
+    LogError("ArduinoMqttClient beginMessage failed.");
+    result = RESULT_ERROR;
+  }
  
   return result;
 }
@@ -282,6 +319,14 @@ static void on_command_request_received(command_request_t command)
   (void)azure_pnp_handle_command_request(&azure_iot, command);
 }
 
+/*
+ * See the documentation of `get_time_t` in AzureIoT.h for details.
+ */
+static uint32_t get_time()
+{
+    return (uint32_t)WiFi.getTime();
+}
+
 /* --- Arduino setup and loop Functions --- */
 void setup()
 {
@@ -289,6 +334,7 @@ void setup()
   set_logging_function(logging_function);
 
   connect_to_wifi();
+  sync_device_clock_with_ntp_server();
 
   azure_pnp_init();
 
@@ -319,6 +365,7 @@ void setup()
   azure_iot_config.on_properties_update_completed = on_properties_update_completed;
   azure_iot_config.on_properties_received = on_properties_received;
   azure_iot_config.on_command_request_received = on_command_request_received;
+  azure_iot_config.get_time = get_time;
 
   azure_iot_init(&azure_iot, &azure_iot_config);
   azure_iot_start(&azure_iot);
@@ -338,6 +385,7 @@ void loop()
     switch(azure_iot_get_status(&azure_iot))
     {
       case azure_iot_connected:
+        LogInfo("Sending device info or telemetry");
         if (send_device_info)
         {
           (void)azure_pnp_send_device_info(&azure_iot, properties_request_id++);
@@ -358,6 +406,10 @@ void loop()
         break;
     }
 
+    // MQTT loop must be called to process Telemetry and Cloud-to-Device (C2D) messages.
+    mqttClient.poll();
+    delay(500);
+
     azure_iot_do_work(&azure_iot);
   }
 }
@@ -372,16 +424,23 @@ void loop()
  */
 
 /* --- System and Platform Functions --- */
-static unsigned long getTime()
+static void sync_device_clock_with_ntp_server()
 {
-    return WiFi.getTime();
+  LogInfo("Setting time using SNTP");
+
+  while (getTime() == 0) 
+  {
+    Serial.print(".");
+  }
+  Serial.println("");
+  LogInfo("Time initialized!");
 }
 
 static void connect_to_wifi()
 {
-  LogInfo("Connecting to WIFI wifi_ssid %s", wifi_ssid);
+  LogInfo("Connecting to WIFI wifi_ssid %s", IOT_CONFIG_WIFI_SSID);
 
-  while (WiFi.begin(wifi_ssid, wifi_password) != WL_CONNECTED)
+  while (WiFi.begin(IOT_CONFIG_WIFI_SSID, IOT_CONFIG_WIFI_PASSWORD) != WL_CONNECTED)
   {
     delay(500);
     Serial.print(".");
@@ -389,56 +448,45 @@ static void connect_to_wifi()
 
   Serial.println("");
 
-  LogInfo("WiFi connected, IP address: %s", WiFi.localIP().toString().c_str());
-  LogInfo("Syncing time.");
-
-  while (getTime() == 0) 
-  {
-    Serial.print(".");
-  }
-  Serial.println();
-
-  LogInfo("Time synced!");
+  LogInfo("WiFi connected, IP address: %u", WiFi.localIP());
 }
 
+void on_message_received(int message_size) 
+{
+  LogInfo("MQTT message received.");
 
+  mqtt_message_t mqtt_message;
+  mqtt_message.topic = az_span_create((uint8_t*)mqtt_client.messageTopic().c_str(), mqtt_client.messageTopic().length());
+
+  // Logging. Not required.
+  mqtt_client.read(message_buffer, (size_t)message_size);
+  Serial.print("message: ");
+  Serial.println((char*)message_buffer);
+  
+  mqtt_message.payload = az_span_create(message_buffer, message_size);
+  mqtt_message.qos = mqtt_qos_at_most_once; // QoS is unused by azure_iot_mqtt_client_message_received. 
+
+  if (azure_iot_mqtt_client_message_received(&azure_iot, &mqtt_message) != 0)
+  {
+    LogError("azure_iot_mqtt_client_message_received failed (topic=%s).", mqtt_client.messageTopic().c_str());
+  }
+}
+
+static String get_formatted_date_time(uint32_t epoch_time_in_seconds) 
+{
+  char buffer[256];
+
+  time_t time = (time_t)epoch_time_in_seconds;
+  struct tm* timeInfo = localtime(&time);
+
+  strftime(buffer, 20, "%F %T", timeInfo);
+
+  return String(buffer);
+}
 
 static void logging_function(log_level_t log_level, char const* const format, ...)
 {
-  struct tm* ptm;
-  time_t now = time(NULL);
-
-  ptm = gmtime(&now);
-
-  Serial.print(ptm->tm_year + UNIX_EPOCH_START_YEAR);
-  Serial.print("/");
-  Serial.print(ptm->tm_mon + 1);
-  Serial.print("/");
-  Serial.print(ptm->tm_mday);
-  Serial.print(" ");
-
-  if (ptm->tm_hour < 10)
-  {
-    Serial.print(0);
-  }
-
-  Serial.print(ptm->tm_hour);
-  Serial.print(":");
-
-  if (ptm->tm_min < 10)
-  {
-    Serial.print(0);
-  }
-
-  Serial.print(ptm->tm_min);
-  Serial.print(":");
-
-  if (ptm->tm_sec < 10)
-  {
-    Serial.print(0);
-  }
-
-  Serial.print(ptm->tm_sec);
+  Serial.print(get_formatted_date_time(get_time() + GMT_OFFSET_SECS));
 
   Serial.print(log_level == log_level_info ? " [INFO] " : " [ERROR] ");
 

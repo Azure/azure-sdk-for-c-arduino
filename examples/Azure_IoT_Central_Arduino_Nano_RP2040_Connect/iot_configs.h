@@ -18,3 +18,8 @@
 // For how long the MQTT password (SAS token) is valid, in minutes.
 // After that, the sample automatically generates a new password and re-connects.
 #define IOT_CONFIG_MQTT_PASSWORD_LIFETIME_IN_MINUTES 60
+
+// Time Zone Offset
+#define IOT_CONFIG_TIME_ZONE -8
+#define IOT_CONFIG_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF 1
+#define IOT_CONFIG_DAYLIGHT_SAVINGS true
