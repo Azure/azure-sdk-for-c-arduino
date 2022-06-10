@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 #include "AzureIoT.h"
-#include <WiFiNINA.h>
 #include <stdarg.h>
 
 #include <az_precondition_internal.h>
@@ -49,9 +48,8 @@ log_function_t default_logging_function = NULL;
   EXIT_IF_TRUE(az_result_failed(azresult), retcode, message, ##__VA_ARGS__ )
 
 /* --- Internal function prototypes --- */
-static uint32_t get_current_unix_time();
-
 static int generate_sas_token_for_dps(
+  get_time_t get_time,
   az_iot_provisioning_client* provisioning_client,
   az_span device_key,
   unsigned int duration_in_minutes,
@@ -60,6 +58,7 @@ static int generate_sas_token_for_dps(
   az_span sas_token, uint32_t* expiration_time);
 
 static int generate_sas_token_for_iot_hub(
+  get_time_t get_time,
   az_iot_hub_client* iot_hub_client,
   az_span device_key,
   unsigned int duration_in_minutes,
@@ -115,6 +114,7 @@ void azure_iot_init(azure_iot_t* azure_iot, azure_iot_config_t* azure_iot_config
   _az_PRECONDITION_NOT_NULL(azure_iot_config->on_properties_update_completed);
   _az_PRECONDITION_NOT_NULL(azure_iot_config->on_properties_received);
   _az_PRECONDITION_NOT_NULL(azure_iot_config->on_command_request_received);
+  _az_PRECONDITION_NOT_NULL(azure_iot_config->get_time);
 
   (void)memset(azure_iot, 0, sizeof(azure_iot_t));
   azure_iot->config = azure_iot_config;
@@ -378,7 +378,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
 
       break;
     case azure_iot_state_provisioning_querying:
-      now = get_current_unix_time();
+      now = azure_iot->config->get_time();
 
       if (now == 0)
       {
@@ -517,7 +517,7 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       break;
     case azure_iot_state_ready:
       // Checking for SAS token expiration.
-      now = get_current_unix_time();
+      now = azure_iot->config->get_time();
 
       if (now == 0)
       {
@@ -712,7 +712,7 @@ int azure_iot_mqtt_client_message_received(azure_iot_t* azure_iot, mqtt_message_
 
   int result;
   az_result azrc;
-Serial.println("In azure_iot_mqtt_client_message_received");
+
   if (azure_iot->state == azure_iot_state_ready)
   {
     // This message should either be:
@@ -801,8 +801,7 @@ Serial.println("In azure_iot_mqtt_client_message_received");
   else if (azure_iot->state == azure_iot_state_provisioning_waiting)
   {
     az_iot_provisioning_client_register_response register_response;
-
-    Serial.println("about to parse topic and payload");
+    
     azrc = az_iot_provisioning_client_parse_received_topic_and_payload(
         &azure_iot->dps_client, mqtt_message->topic, mqtt_message->payload, &register_response);
     
@@ -921,17 +920,6 @@ int azure_iot_send_command_response(azure_iot_t* azure_iot, az_span request_id, 
 /* --- Implementation of internal functions --- */
 
 /*
- * @brief           Gets the number of seconds since UNIX epoch until now.
- * @return uint32_t Number of seconds.
- */
-static uint32_t get_current_unix_time()
-{
-  Serial.print("In get_current_unix_time(). Time is: ");
-  Serial.println(WiFi.getTime());
-  return WiFi.getTime();
-}
-
-/*
  * @brief           Initializes the Device Provisioning client and generates the config for an MQTT client.
  * @param[in]       azure_iot          A pointer to an initialized instance of azure_iot_t.
  * @param[in]       mqtt_client_config A pointer to a generic structure to contain the configuration for
@@ -966,6 +954,7 @@ static int get_mqtt_client_config_for_dps(azure_iot_t* azure_iot, mqtt_client_co
   if(!az_span_is_content_equal(azure_iot->config->device_key, AZ_SPAN_EMPTY))
   {
     password_length = generate_sas_token_for_dps(
+      azure_iot->config->get_time,
       &azure_iot->dps_client,
       azure_iot->config->device_key,
       azure_iot->config->sas_token_lifetime_in_minutes,
@@ -1040,6 +1029,7 @@ static int get_mqtt_client_config_for_iot_hub(azure_iot_t* azure_iot, mqtt_clien
   EXIT_IF_TRUE(az_span_is_content_equal(password_span, AZ_SPAN_EMPTY), RESULT_ERROR, "Failed reserving buffer for password_span.");
 
   password_length = generate_sas_token_for_iot_hub(
+    azure_iot->config->get_time,
     &azure_iot->iot_hub_client,
     azure_iot->config->device_key,
     azure_iot->config->sas_token_lifetime_in_minutes,
@@ -1094,6 +1084,7 @@ static int get_mqtt_client_config_for_iot_hub(azure_iot_t* azure_iot, mqtt_clien
  * @return int      Length of the resulting SAS token, or zero if any failure occurs.
  */
 static int generate_sas_token_for_dps(
+  get_time_t get_time,
   az_iot_provisioning_client* provisioning_client,
   az_span device_key,
   unsigned int duration_in_minutes,
@@ -1108,7 +1099,7 @@ static int generate_sas_token_for_dps(
   az_span plain_sas_signature, sas_signature, decoded_sas_key, sas_hmac256_signed_signature;
 
   // Step 1.
-  current_unix_time = get_current_unix_time();
+  current_unix_time = get_time();
   EXIT_IF_TRUE(current_unix_time == 0, 0, "Failed getting current unix time.");
 
   *expiration_time = current_unix_time + duration_in_minutes * NUMBER_OF_SECONDS_IN_A_MINUTE;
@@ -1191,6 +1182,7 @@ LogInfo("size of sas_hmac256_signed_signature: %u", az_span_size(sas_hmac256_sig
  * @return int      Length of the resulting SAS token, or zero if any failure occurs.
  */
 static int generate_sas_token_for_iot_hub(
+  get_time_t get_time,
   az_iot_hub_client* iot_hub_client,
   az_span device_key,
   unsigned int duration_in_minutes,
@@ -1205,7 +1197,7 @@ static int generate_sas_token_for_iot_hub(
   az_span plain_sas_signature, sas_signature, decoded_sas_key, sas_hmac256_signed_signature;
 
   // Step 1.
-  current_unix_time = get_current_unix_time();
+  current_unix_time = get_time();
   EXIT_IF_TRUE(current_unix_time == 0, 0, "Failed getting current unix time.");
 
   *expiration_time = current_unix_time + duration_in_minutes * NUMBER_OF_SECONDS_IN_A_MINUTE;

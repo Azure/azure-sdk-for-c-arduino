@@ -40,10 +40,12 @@
 #include <mbedtls/md.h>
 #include <mbedtls/sha256.h>
 
-// Libraries for MQTT client and WiFi connection
+// Libraries for SSL client, MQTT client, NTP, and WiFi connection
 #include <ArduinoBearSSL.h>
 #include <ArduinoMqttClient.h>
-#include <WiFiNINA.h>
+#include <NTPClient_Generic.h>
+#include <TimeLib.h>
+#include <WiFi.h>
 
 // Azure IoT SDK for C includes
 #include <az_core.h>
@@ -63,8 +65,6 @@
 #define RESULT_ERROR    __LINE__
 
 // Time and Time Zone.
-#define SECS_PER_MIN 60
-#define SECS_PER_HOUR (SECS_PER_MIN * 60)
 #define GMT_OFFSET_SECS (IOT_CONFIG_DAYLIGHT_SAVINGS ? \
                         ((IOT_CONFIG_TIME_ZONE + IOT_CONFIG_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF) * SECS_PER_HOUR) : \
                         (IOT_CONFIG_TIME_ZONE * SECS_PER_HOUR))
@@ -72,7 +72,6 @@
                         
 /* --- Function Declarations --- */
 static void connect_to_wifi();
-static unsigned long getTime();
 static String mqttErrorCodeName(int errorCode); 
 void onMessageReceived(int messageSize);
 
@@ -82,6 +81,8 @@ static void logging_function(log_level_t log_level, char const* const format, ..
 /* --- Sample variables --- */
 static azure_iot_config_t azure_iot_config;
 static azure_iot_t azure_iot;
+static WiFiUDP wiFiUDPClient;
+static NTPClient ntpClient(wiFiUDPClient);
 static WiFiClient wiFiClient;
 static BearSSLClient bearSSLClient(wiFiClient);
 static MqttClient mqttClient(bearSSLClient);
@@ -118,7 +119,6 @@ static int mqtt_client_init_function(mqtt_client_config_t* mqtt_client_config, m
 
   mqttClient.setId(clientId);
   mqttClient.setUsernamePassword(username, password);
-  mqttClient.setKeepAliveInterval(30);
   mqttClient.setCleanSession(true);
   mqttClient.onMessage(onMessageReceived);
 
@@ -344,7 +344,7 @@ void setup()
   set_logging_function(logging_function);
 
   connect_to_wifi();
-  ArduinoBearSSL.onGetTime(getTime);
+  ArduinoBearSSL.onGetTime(get_time);
 
   /* 
    * The configuration structure used by Azure IoT must remain unchanged (including data buffer) 
@@ -373,6 +373,7 @@ void setup()
   azure_iot_config.on_properties_update_completed = on_properties_update_completed;
   azure_iot_config.on_properties_received = on_properties_received;
   azure_iot_config.on_command_request_received = on_command_request_received;
+  azure_iot_config.get_time = get_time;
 
   azure_iot_init(&azure_iot, &azure_iot_config);
   azure_iot_start(&azure_iot);
@@ -417,6 +418,7 @@ void loop()
     LogInfo("is mqtt client connected? %u", mqttClient.connected());
     LogInfo("polling");
     mqttClient.poll();
+    ntpClient.update();
     delay(500);
     azure_iot_do_work(&azure_iot);
   }
@@ -447,7 +449,8 @@ static void connect_to_wifi()
   LogInfo("WiFi connected, IP address: %u", WiFi.localIP());
   LogInfo("Syncing time.");
 
-  while (getTime() == 0) 
+  ntpClient.begin();
+  while (!ntpClient.forceUpdate()) 
   {
     Serial.print(".");
   }
@@ -519,12 +522,12 @@ static String mqttErrorCodeName(int errorCode)
   return errorMessage;
 }
 
-static unsigned long getTime()
+static uint32_t get_time()
 {
-    return WiFi.getTime();
+    return (uint32_t)ntpClient.getUTCEpochTime();
 }
 
-static String getFormattedDateTime(unsigned long epochTimeInSeconds) 
+static String getFormattedDateTime(uint32_t epochTimeInSeconds) 
 {
   char buffer[256];
 
@@ -538,7 +541,7 @@ static String getFormattedDateTime(unsigned long epochTimeInSeconds)
 
 static void logging_function(log_level_t log_level, char const* const format, ...)
 {
-  Serial.print(getFormattedDateTime(getTime() + GMT_OFFSET_SECS));
+  Serial.print(getFormattedDateTime(get_time() + GMT_OFFSET_SECS));
 
   Serial.print(log_level == log_level_info ? " [INFO] " : " [ERROR] ");
 
