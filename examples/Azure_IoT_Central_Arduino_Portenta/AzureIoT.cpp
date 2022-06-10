@@ -59,7 +59,6 @@ static int generate_sas_token_for_dps(
   get_time_t get_time);
 
 static int generate_sas_token_for_iot_hub(
-  
   az_iot_hub_client* iot_hub_client,
   az_span device_key,
   unsigned int duration_in_minutes,
