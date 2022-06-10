@@ -58,6 +58,8 @@
 #define MQTT_DO_NOT_RETAIN_MSG  0
 
 /* --- Time and NTP Settings --- */
+#define SECS_PER_MIN 60
+#define SECS_PER_HOUR (SECS_PER_MIN * 60)
 #define GMT_OFFSET_SECS (IOT_CONFIG_DAYLIGHT_SAVINGS ? \
                         ((IOT_CONFIG_TIME_ZONE + IOT_CONFIG_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF) * SECS_PER_HOUR) : \
                         (IOT_CONFIG_TIME_ZONE * SECS_PER_HOUR))
@@ -84,6 +86,7 @@ static MqttClient arduino_mqtt_client(bear_ssl_client);
 
 #define AZ_IOT_DATA_BUFFER_SIZE 1500
 static uint8_t az_iot_data_buffer[AZ_IOT_DATA_BUFFER_SIZE];
+static uint8_t message_buffer[AZ_IOT_DATA_BUFFER_SIZE];
 
 static uint32_t properties_request_id = 0;
 static bool send_device_info = true;
@@ -214,9 +217,9 @@ static int mqtt_client_publish_function(mqtt_client_handle_t mqtt_client_handle,
 
   if (mqtt_result == 1) // ArduinoMqttClient: 1 on success, 0 on failure 
   {
-    mqttClientHandle->print((const char*)az_span_ptr(mqtt_message->payload));
+    arduino_mqtt_client_handle->print((const char*)az_span_ptr(mqtt_message->payload));
 
-    mqtt_result = mqttClientHandle->endMessage();
+    mqtt_result = arduino_mqtt_client_handle->endMessage();
     if (mqtt_result == 1)
     {
       int packet_id = 0; // packet id is private in ArduinoMqttClient library.
@@ -330,7 +333,7 @@ static uint32_t get_time()
 /* --- Arduino setup and loop Functions --- */
 void setup()
 {
-  Serial.begin(SERIAL_LOGGER_BAUD_RATE);
+  Serial.begin(MBED_CONF_PLATFORM_DEFAULT_SERIAL_BAUD_RATE);
   set_logging_function(logging_function);
 
   connect_to_wifi();
@@ -407,7 +410,7 @@ void loop()
     }
 
     // MQTT loop must be called to process Telemetry and Cloud-to-Device (C2D) messages.
-    mqttClient.poll();
+    arduino_mqtt_client.poll();
     delay(500);
 
     azure_iot_do_work(&azure_iot);
@@ -428,7 +431,7 @@ static void sync_device_clock_with_ntp_server()
 {
   LogInfo("Setting time using SNTP");
 
-  while (getTime() == 0) 
+  while (get_time() == 0) 
   {
     Serial.print(".");
   }
@@ -456,10 +459,10 @@ void on_message_received(int message_size)
   LogInfo("MQTT message received.");
 
   mqtt_message_t mqtt_message;
-  mqtt_message.topic = az_span_create((uint8_t*)mqtt_client.messageTopic().c_str(), mqtt_client.messageTopic().length());
+  mqtt_message.topic = az_span_create((uint8_t*)arduino_mqtt_client.messageTopic().c_str(), arduino_mqtt_client.messageTopic().length());
 
   // Logging. Not required.
-  mqtt_client.read(message_buffer, (size_t)message_size);
+  arduino_mqtt_client.read(message_buffer, (size_t)message_size);
   Serial.print("message: ");
   Serial.println((char*)message_buffer);
   
@@ -468,7 +471,7 @@ void on_message_received(int message_size)
 
   if (azure_iot_mqtt_client_message_received(&azure_iot, &mqtt_message) != 0)
   {
-    LogError("azure_iot_mqtt_client_message_received failed (topic=%s).", mqtt_client.messageTopic().c_str());
+    LogError("azure_iot_mqtt_client_message_received failed (topic=%s).", arduino_mqtt_client.messageTopic().c_str());
   }
 }
 
