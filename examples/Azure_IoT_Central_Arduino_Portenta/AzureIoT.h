@@ -338,6 +338,11 @@ command_request_t;
  */
 typedef void (*command_request_received_t)(command_request_t command);
 
+/*
+ * @brief             Defines the callback for getting NTP-sync'd seconds since epcoh until now.
+ *
+ * @return uint32_t   Number of seconds.
+ */
 typedef uint32_t (*get_time_t)();
 
 /*
@@ -582,6 +587,9 @@ typedef struct azure_iot_config_t_struct
    */
   command_request_received_t on_command_request_received;
 
+  /*
+   * @brief     Callback handler used by Azure IoT client to retrive current epoch seconds.
+   */
   get_time_t get_time;
 }
 azure_iot_config_t;
