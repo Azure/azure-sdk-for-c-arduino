@@ -563,6 +563,13 @@ static void establishConnection()
   (void)initializeMqttClient();
 }
 
+static void subscribeToTopics(void)
+{
+  int packet_id = esp_mqtt_client_subscribe(mqtt_client, AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_SUBSCRIBE_TOPIC, MQTT_QOS1);
+
+  packet_id = esp_mqtt_client_subscribe(mqtt_client, AZ_IOT_HUB_CLIENT_PROPERTIES_WRITABLE_UPDATES_SUBSCRIBE_TOPIC, MQTT_QOS1);
+}
+
 static void getTelemetryPayload(az_span payload, az_span* out_payload)
 {
   az_result rc;
@@ -632,6 +639,7 @@ void loop()
     Logger.Info("SAS token expired; reconnecting with a new one.");
     (void)esp_mqtt_client_destroy(mqtt_client);
     initializeMqttClient();
+    subscribeToTopics();
   }
   #endif
   else if (millis() > next_telemetry_send_time_ms)
