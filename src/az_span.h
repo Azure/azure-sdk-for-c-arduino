@@ -476,6 +476,12 @@ AZ_NODISCARD az_result az_span_u64toa(az_span destination, uint64_t source, az_s
 AZ_NODISCARD az_result
 az_span_dtoa(az_span destination, double source, int32_t fractional_digits, az_span* out_span);
 
+AZ_NODISCARD az_result az_span_dtoa_strict(
+    az_span destination,
+    double source,
+    int32_t fractional_digits,
+    az_span* out_span);
+
 /******************************  NON-CONTIGUOUS SPAN  */
 
 /**

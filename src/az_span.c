@@ -685,6 +685,108 @@ AZ_NODISCARD az_result az_span_i32toa(az_span destination, int32_t source, az_sp
   return _az_span_builder_append_u32toa(*out_span, (uint32_t)source, out_span);
 }
 
+AZ_NODISCARD az_result az_span_dtoa_strict(
+    az_span destination,
+    double source,
+    int32_t fractional_digits,
+    az_span* out_span)
+{
+  _az_PRECONDITION_VALID_SPAN(destination, 0, false);
+  // Inputs that are either positive or negative infinity, or not a number, are not supported.
+  _az_PRECONDITION(_az_isfinite(source));
+  _az_PRECONDITION_RANGE(0, fractional_digits, _az_MAX_SUPPORTED_FRACTIONAL_DIGITS);
+  _az_PRECONDITION_NOT_NULL(out_span);
+
+  *out_span = destination;
+
+  // The input is either positive or negative infinity, or not a number.
+  if (!_az_isfinite(source))
+  {
+    return AZ_ERROR_NOT_SUPPORTED;
+  }
+
+  if (source < 0)
+  {
+    _az_RETURN_IF_NOT_ENOUGH_SIZE(*out_span, 1);
+    *out_span = az_span_copy_u8(*out_span, '-');
+    source = -source;
+  }
+
+  double integer_part = 0;
+  double after_decimal_part = modf(source, &integer_part);
+
+  if (integer_part > _az_MAX_SAFE_INTEGER)
+  {
+    return AZ_ERROR_NOT_SUPPORTED;
+  }
+
+  // The double to uint64_t cast should be safe without loss of precision.
+  // Append the integer part.
+  _az_RETURN_IF_FAILED(_az_span_builder_append_uint64(out_span, (uint64_t)integer_part));
+
+  // Only print decimal digits if the user asked for at least one to be printed.
+  // Or if the decimal part is non-zero.
+  if (fractional_digits <= 0)
+  {
+    return AZ_OK;
+  }
+
+  // Clamp the fractional digits to the supported maximum value of 15.
+  if (fractional_digits > _az_MAX_SUPPORTED_FRACTIONAL_DIGITS)
+  {
+    fractional_digits = _az_MAX_SUPPORTED_FRACTIONAL_DIGITS;
+  }
+
+  _az_RETURN_IF_NOT_ENOUGH_SIZE(*out_span, 1 + fractional_digits);
+  *out_span = az_span_copy_u8(*out_span, '.');
+
+  int32_t leading_zeros = 0;
+  double shifted_fractional = after_decimal_part;
+  for (int32_t d = 0; d < fractional_digits; d++)
+  {
+    shifted_fractional *= _az_NUMBER_OF_DECIMAL_VALUES;
+
+    // Any decimal component that is less than 0.1, when multiplied by 10, will be less than 1,
+    // which indicate a leading zero is present after the decimal point. For example, the decimal
+    // part could be 0.00, 0.09, 0.00010, etc.
+    if (shifted_fractional < 1)
+    {
+      leading_zeros++;
+      continue;
+    }
+  }
+
+  double shifted_fractional_integer_part = 0;
+  double unused = modf(shifted_fractional, &shifted_fractional_integer_part);
+  (void)unused;
+
+  // Since the maximum allowed fractional_digits is 15, this is guaranteed to be true.
+  _az_PRECONDITION(shifted_fractional_integer_part <= _az_MAX_SAFE_INTEGER);
+
+  // The double to uint64_t cast should be safe without loss of precision.
+  uint64_t fractional_part = (uint64_t)shifted_fractional_integer_part;
+
+  if (fractional_part == 0)
+  {
+    for (int32_t z = 0; z < fractional_digits; z++)
+    {
+      *out_span = az_span_copy_u8(*out_span, '0');
+    }
+
+    return AZ_OK;
+  }
+  else
+  {
+    for (int32_t z = 0; z < leading_zeros; z++)
+    {
+      *out_span = az_span_copy_u8(*out_span, '0');
+    }
+
+    // Append the fractional part.
+    return _az_span_builder_append_uint64(out_span, fractional_part);
+  }
+}
+
 AZ_NODISCARD az_result
 az_span_dtoa(az_span destination, double source, int32_t fractional_digits, az_span* out_span)
 {

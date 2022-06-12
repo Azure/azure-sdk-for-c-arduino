@@ -28,9 +28,11 @@
  * The payload will be of the form:
  *
  * @code
- * "<component_name>": {
- *     "__t": "c",
- *     "temperature": 23
+ * "reported": {
+ *     "<component_name>": {
+ *         "__t": "c",
+ *         "temperature": 23
+ *     }
  * }
  * @endcode
  *
@@ -44,7 +46,6 @@
  * Plug and Play component.
  * @param[in] component_name The component name associated with the reported properties.
  *
- * @pre \p client must not be `NULL`.
  * @pre \p ref_json_writer must not be `NULL`.
  * @pre \p component_name must be a valid, non-empty #az_span.
  *
@@ -67,7 +68,6 @@ AZ_NODISCARD az_result az_iot_hub_client_properties_writer_begin_component(
  * @param[in,out] ref_json_writer The #az_json_writer to append the necessary characters for an IoT
  * Plug and Play component.
  *
- * @pre \p client must not be `NULL`.
  * @pre \p ref_json_writer must not be `NULL`.
  *
  * @return An #az_result value indicating the result of the operation.
@@ -83,7 +83,7 @@ AZ_NODISCARD az_result az_iot_hub_client_properties_writer_end_component(
  * This API should be used in response to an incoming writable properties. More details can be
  * found here:
  *
- * https://docs.microsoft.com/azure/iot-pnp/concepts-convention#writable-properties
+ * https://docs.microsoft.com/en-us/azure/iot-pnp/concepts-convention#writable-properties
  *
  * The payload will be of the form:
  *
@@ -143,7 +143,6 @@ AZ_NODISCARD az_result az_iot_hub_client_properties_writer_end_component(
  * @param[in] description An optional description detailing the context or any details about
  * the acknowledgement. This can be #AZ_SPAN_EMPTY.
  *
- * @pre \p client must not be `NULL`.
  * @pre \p ref_json_writer must not be `NULL`.
  * @pre \p property_name must be a valid, non-empty #az_span.
  *
@@ -167,7 +166,6 @@ AZ_NODISCARD az_result az_iot_hub_client_properties_writer_begin_response_status
  * @param[in] client The #az_iot_hub_client to use for this call.
  * @param[in,out] ref_json_writer The initialized #az_json_writer to append data to.
  *
- * @pre \p client must not be `NULL`.
  * @pre \p ref_json_writer must not be `NULL`.
  *
  * @return An #az_result value indicating the result of the operation.
