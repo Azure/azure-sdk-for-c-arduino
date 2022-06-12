@@ -1,7 +1,3 @@
-#include <az_core.h>
-#include <az_iot.h>
-#include <azure_ca.h>
-
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // SPDX-License-Identifier: MIT
 
@@ -49,6 +45,9 @@
 // please follow the format '(ard;<platform>)'. 
 #define AZURE_SDK_CLIENT_USER_AGENT "c/" AZ_SDK_VERSION_STRING "(ard;esp32)"
 
+#define SAMPLE_MQTT_TOPIC_LENGTH 128
+#define SAMPLE_MQTT_PAYLOAD_LENGTH 1024
+
 // ADU Values
 #define ADU_DEVICE_MANUFACTURER "Contoso"
 #define ADU_DEVICE_MODEL "azure-sdk-for-c"
@@ -69,8 +68,8 @@ az_iot_adu_device_information adu_device_information = {
   .adu_version = AZ_SPAN_LITERAL_FROM_STR(AZ_IOT_ADU_AGENT_VERSION),
   .do_version = AZ_SPAN_EMPTY,
   .update_id = {
-    .name = AZ_SPAN_LITERAL_FROM_STR(ADU_DEVICE_MODEL),
     .provider = AZ_SPAN_LITERAL_FROM_STR(ADU_DEVICE_MANUFACTURER),
+    .name = AZ_SPAN_LITERAL_FROM_STR(ADU_DEVICE_MODEL),
     .version = AZ_SPAN_LITERAL_FROM_STR(ADU_DEVICE_VERSION)
   }
 };
@@ -101,6 +100,9 @@ static const int mqtt_port = AZ_IOT_DEFAULT_MQTT_CONNECT_PORT;
 static esp_mqtt_client_handle_t mqtt_client;
 static az_iot_hub_client hub_client;
 
+// MQTT Connection Values
+static uint16_t connection_request_id = 0;
+static char connection_request_id_buffer[16];
 static char mqtt_client_id[128];
 static char mqtt_username[128];
 static char mqtt_password[200];
@@ -121,30 +123,6 @@ static AzIoTSasToken sasToken(
     AZ_SPAN_FROM_BUFFER(sas_signature_buffer),
     AZ_SPAN_FROM_BUFFER(mqtt_password));
 #endif // IOT_CONFIG_USE_X509_CERT
-
-#define IOT_SAMPLE_EXIT_IF_AZ_FAILED(azfn, ...)                                            \
-  do                                                                                       \
-  {                                                                                        \
-    az_result const result = (azfn);                                                       \
-                                                                                           \
-    if (az_result_failed(result))                                                          \
-    {                                                                                      \
-      char full_message[256];                                                              \
-      build_error_message(full_message, sizeof(full_message), __VA_ARGS__);                \
-                                                                                           \
-      az_span span;                                                                        \
-      bool has_az_span = get_az_span(&span, __VA_ARGS__, AZ_SPAN_EMPTY);                   \
-      if (has_az_span)                                                                     \
-      {                                                                                    \
-        Logger.Info(full_message, az_span_size(span), az_span_ptr(span), result); \
-      }                                                                                    \
-      else                                                                                 \
-      {                                                                                    \
-        IOT_SAMPLE_LOG_ERROR(full_message, result);                                        \
-      }                                                                                    \
-      exit(1);                                                                             \
-    }                                                                                      \
-  } while (0)
 
 static void connectToWiFi()
 {
@@ -179,6 +157,78 @@ static void initializeTime()
   Logger.Info("Time initialized!");
 }
 
+// get_request_id sets a request Id into connection_request_id_buffer and monotonically
+// increases the counter for the next MQTT operation.
+static az_span get_request_id(void)
+{
+  az_span remainder;
+  az_span out_span = az_span_create(
+      (uint8_t*)connection_request_id_buffer, sizeof(connection_request_id_buffer));
+
+  connection_request_id++;
+  if (connection_request_id == UINT16_MAX)
+  {
+    // Connection id has looped.  Reset.
+    connection_request_id = 1;
+  }
+
+  az_result rc = az_span_u32toa(out_span, connection_request_id, &remainder);
+  if(az_result_failed(rc))
+  {
+    Logger.Info("Failed to get request id");
+  }
+
+  return az_span_slice(out_span, 0, az_span_size(out_span) - az_span_size(remainder));
+}
+
+static void send_adu_accept_manifest_property(int32_t version_number)
+{
+  az_result rc;
+
+  // Get the topic to publish the property document request.
+  char property_document_topic_buffer[SAMPLE_MQTT_TOPIC_LENGTH];
+  rc = az_iot_hub_client_properties_get_reported_publish_topic(
+      &hub_client,
+      get_request_id(),
+      property_document_topic_buffer,
+      sizeof(property_document_topic_buffer),
+      NULL);
+  if(az_result_failed(rc))
+  {
+    Logger.Error("Could not get properties topic");
+    return;
+  }
+
+  char property_payload_buffer[SAMPLE_MQTT_PAYLOAD_LENGTH];
+  az_span property_buffer = AZ_SPAN_FROM_BUFFER(property_payload_buffer);
+  rc = az_iot_adu_get_service_properties_response(
+    version_number,
+    200,
+    property_buffer,
+    &property_buffer );
+  if(az_result_failed(rc))
+  {
+    Logger.Error("Could not get service properties response");
+    return;
+  }
+
+  if (esp_mqtt_client_publish(
+        mqtt_client,
+        property_document_topic_buffer,
+        (const char*)az_span_ptr(property_buffer),
+        az_span_size(property_buffer),
+        MQTT_QOS1,
+        DO_NOT_RETAIN_MSG)
+    == 0)
+  {
+    Logger.Error("Failed publishing");
+  }
+  else
+  {
+    Logger.Info("Message published successfully");
+  }
+}
+
 // process_device_property_message handles incoming properties from Azure IoT Hub.
 static void process_device_property_message(
     az_span message_span,
@@ -188,22 +238,29 @@ static void process_device_property_message(
   az_result rc = az_json_reader_init(&jr, message_span, NULL);
   if(az_result_failed(rc))
   {
-    Logger.Info("Could not initialize json reader");
+    Logger.Error("Could not initialize json reader");
     return;
   }
-  IOT_SAMPLE_EXIT_IF_AZ_FAILED(rc, );
 
   int32_t version_number;
   rc = az_iot_hub_client_properties_get_properties_version(
       &hub_client, &jr, message_type, &version_number);
-  IOT_SAMPLE_EXIT_IF_AZ_FAILED(rc, "Could not get property version");
+  if(az_result_failed(rc))
+  {
+    Logger.Error("Could not get property version");
+    return;
+  }
 
   rc = az_json_reader_init(&jr, message_span, NULL);
-  IOT_SAMPLE_EXIT_IF_AZ_FAILED(rc, "Could not initialize json reader");
+  if(az_result_failed(rc))
+  {
+    Logger.Error("Could not initialize json reader");
+    return;
+  }
 
   az_span component_name;
 
-  az_span xScratchBufferSpan = az_span_create( adu_scratch_buffer, ( int32_t ) sizeof(adu_scratch_buffer) );
+  az_span xScratchBufferSpan = az_span_create( (uint8_t*)adu_scratch_buffer, ( int32_t ) sizeof(adu_scratch_buffer) );
 
   // Applications call az_iot_hub_client_properties_get_next_component_property to enumerate
   // properties received.
@@ -221,7 +278,7 @@ static void process_device_property_message(
 
       if( az_result_failed( rc ) )
       {
-          Logger.Error( "az_iot_adu_parse_service_properties failed" + rc.toString());
+          Logger.Error( "az_iot_adu_parse_service_properties failed" + String(rc));
           /* TODO: return individualized/specific errors. */
           return;
       }
@@ -233,8 +290,7 @@ static void process_device_property_message(
 
           if( az_result_failed( rc ) )
           {
-              Logger.Error( "az_iot_adu_parse_update_manifest failed");
-              Logger.Error(rc);
+              Logger.Error( "az_iot_adu_parse_update_manifest failed" + String(rc));
               /* TODO: return individualized/specific errors. */
               return;
           }
@@ -278,7 +334,7 @@ static void process_device_property_message(
 // handle_device_property_message handles incoming properties from Azure IoT Hub.
 static void handle_device_property_message(
     byte* payload,
-    unsigned int length
+    unsigned int length,
     az_iot_hub_client_properties_message const* property_message)
 {
   az_span const message_span = az_span_create((uint8_t*)payload, length);
@@ -315,14 +371,18 @@ void receivedCallback(char* topic, byte* payload, unsigned int length)
 {
   az_result rc;
 
+  az_iot_hub_client_properties_message property_message;
+
+  az_span topic_span = az_span_create(payload, length);
+
   rc = az_iot_hub_client_properties_parse_received_topic(
     &hub_client, topic_span, &property_message);
   if (az_result_succeeded(rc))
   {
     Logger.Info("Client received a properties topic.");
-    Logger.Info("Status: %d", property_message.status);
+    Logger.Info("Status: %d" + String(property_message.status));
 
-    handle_device_property_message(message, &property_message);
+    handle_device_property_message(payload, length, &property_message);
   }
   Logger.Info("Received [");
   Logger.Info(topic);
@@ -505,11 +565,13 @@ static void establishConnection()
 
 static void getTelemetryPayload(az_span payload, az_span* out_payload)
 {
+  az_result rc;
   az_span original_payload = payload;
 
   payload = az_span_copy(
       payload, AZ_SPAN_FROM_STR("{ \"msgCount\": "));
-  (void)az_span_u32toa(payload, telemetry_send_count++, &payload);
+  rc = az_span_u32toa(payload, telemetry_send_count++, &payload);
+  (void)rc;
   payload = az_span_copy(payload, AZ_SPAN_FROM_STR(" }"));
   payload = az_span_copy_u8(payload, '\0');
 
