@@ -1,3 +1,7 @@
+#include <az_core.h>
+#include <az_iot.h>
+#include <azure_ca.h>
+
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // SPDX-License-Identifier: MIT
 
@@ -33,6 +37,7 @@
 // Azure IoT SDK for C includes
 #include <az_core.h>
 #include <az_iot.h>
+#include <az_iot_adu.h>
 #include <azure_ca.h>
 
 // Additional sample headers 
@@ -94,7 +99,7 @@ static const int mqtt_port = AZ_IOT_DEFAULT_MQTT_CONNECT_PORT;
 
 // Memory allocated for the sample's variables and structures.
 static esp_mqtt_client_handle_t mqtt_client;
-static az_iot_hub_client client;
+static az_iot_hub_client hub_client;
 
 static char mqtt_client_id[128];
 static char mqtt_username[128];
@@ -111,11 +116,35 @@ static char incoming_data[INCOMING_DATA_BUFFER_SIZE];
 // Auxiliary functions
 #ifndef IOT_CONFIG_USE_X509_CERT
 static AzIoTSasToken sasToken(
-    &client,
+    &hub_client,
     AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_KEY),
     AZ_SPAN_FROM_BUFFER(sas_signature_buffer),
     AZ_SPAN_FROM_BUFFER(mqtt_password));
 #endif // IOT_CONFIG_USE_X509_CERT
+
+#define IOT_SAMPLE_EXIT_IF_AZ_FAILED(azfn, ...)                                            \
+  do                                                                                       \
+  {                                                                                        \
+    az_result const result = (azfn);                                                       \
+                                                                                           \
+    if (az_result_failed(result))                                                          \
+    {                                                                                      \
+      char full_message[256];                                                              \
+      build_error_message(full_message, sizeof(full_message), __VA_ARGS__);                \
+                                                                                           \
+      az_span span;                                                                        \
+      bool has_az_span = get_az_span(&span, __VA_ARGS__, AZ_SPAN_EMPTY);                   \
+      if (has_az_span)                                                                     \
+      {                                                                                    \
+        Logger.Info(full_message, az_span_size(span), az_span_ptr(span), result); \
+      }                                                                                    \
+      else                                                                                 \
+      {                                                                                    \
+        IOT_SAMPLE_LOG_ERROR(full_message, result);                                        \
+      }                                                                                    \
+      exit(1);                                                                             \
+    }                                                                                      \
+  } while (0)
 
 static void connectToWiFi()
 {
@@ -150,12 +179,109 @@ static void initializeTime()
   Logger.Info("Time initialized!");
 }
 
+// process_device_property_message handles incoming properties from Azure IoT Hub.
+static void process_device_property_message(
+    az_span message_span,
+    az_iot_hub_client_properties_message_type message_type)
+{
+  az_json_reader jr;
+  az_result rc = az_json_reader_init(&jr, message_span, NULL);
+  if(az_result_failed(rc))
+  {
+    Logger.Info("Could not initialize json reader");
+    return;
+  }
+  IOT_SAMPLE_EXIT_IF_AZ_FAILED(rc, );
+
+  int32_t version_number;
+  rc = az_iot_hub_client_properties_get_properties_version(
+      &hub_client, &jr, message_type, &version_number);
+  IOT_SAMPLE_EXIT_IF_AZ_FAILED(rc, "Could not get property version");
+
+  rc = az_json_reader_init(&jr, message_span, NULL);
+  IOT_SAMPLE_EXIT_IF_AZ_FAILED(rc, "Could not initialize json reader");
+
+  az_span component_name;
+
+  az_span xScratchBufferSpan = az_span_create( adu_scratch_buffer, ( int32_t ) sizeof(adu_scratch_buffer) );
+
+  // Applications call az_iot_hub_client_properties_get_next_component_property to enumerate
+  // properties received.
+  while (az_result_succeeded(az_iot_hub_client_properties_get_next_component_property(
+      &hub_client, &jr, message_type, AZ_IOT_HUB_CLIENT_PROPERTY_WRITABLE, &component_name)))
+  {
+    if( az_iot_adu_is_component_device_update(component_name))
+    {
+      // ADU Component
+      rc = az_iot_adu_parse_service_properties(
+        &jr,
+        xScratchBufferSpan,
+        &xBaseUpdateRequest,
+        &xScratchBufferSpan );
+
+      if( az_result_failed( rc ) )
+      {
+          Logger.Error( "az_iot_adu_parse_service_properties failed" + rc.toString());
+          /* TODO: return individualized/specific errors. */
+          return;
+      }
+      else
+      {
+          rc = az_iot_adu_parse_update_manifest(
+              xBaseUpdateRequest.update_manifest,
+              &xBaseUpdateManifest );
+
+          if( az_result_failed( rc ) )
+          {
+              Logger.Error( "az_iot_adu_parse_update_manifest failed");
+              Logger.Error(rc);
+              /* TODO: return individualized/specific errors. */
+              return;
+          }
+
+          Logger.Info("Parsed Azure device update manifest.");
+
+          Logger.Info("Sending manifest property accept");
+
+          send_adu_accept_manifest_property(version_number);
+
+          did_parse_update = true;
+      }
+    }
+    else
+    {
+      Logger.Info("Unknown Property Received");
+      // The JSON reader must be advanced regardless of whether the property
+      // is of interest or not.
+      rc = az_json_reader_next_token(&jr);
+      if (az_result_failed(rc))
+      {
+        Logger.Error("Invalid JSON. Could not move to next property value");
+      }
+
+      // Skip children in case the property value is an object
+      rc = az_json_reader_skip_children(&jr);
+      if (az_result_failed(rc))
+      {
+        Logger.Error("Invalid JSON. Could not skip children");
+      }
+
+      rc = az_json_reader_next_token(&jr);
+      if (az_result_failed(rc))
+      {
+        Logger.Error("Invalid JSON. Could not move to next property name");
+      }
+    }
+  }
+}
+
 // handle_device_property_message handles incoming properties from Azure IoT Hub.
 static void handle_device_property_message(
-    MQTTClient_message const* message,
+    byte* payload,
+    unsigned int length
     az_iot_hub_client_properties_message const* property_message)
 {
-  az_span const message_span = az_span_create((uint8_t*)message->payload, message->payloadlen);
+  az_span const message_span = az_span_create((uint8_t*)payload, length);
 
   // Invoke appropriate action per message type (3 types only).
   switch (property_message->message_type)
@@ -278,7 +404,7 @@ static void initializeIoTHubClient()
   options.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT);
 
   if (az_result_failed(az_iot_hub_client_init(
-          &client,
+          &hub_client,
           az_span_create((uint8_t*)host, strlen(host)),
           az_span_create((uint8_t*)device_id, strlen(device_id)),
           &options)))
@@ -289,14 +415,14 @@ static void initializeIoTHubClient()
 
   size_t client_id_length;
   if (az_result_failed(az_iot_hub_client_get_client_id(
-          &client, mqtt_client_id, sizeof(mqtt_client_id) - 1, &client_id_length)))
+          &hub_client, mqtt_client_id, sizeof(mqtt_client_id) - 1, &client_id_length)))
   {
     Logger.Error("Failed getting client id");
     return;
   }
 
   if (az_result_failed(az_iot_hub_client_get_user_name(
-          &client, mqtt_username, sizeofarray(mqtt_username), NULL)))
+          &hub_client, mqtt_username, sizeofarray(mqtt_username), NULL)))
   {
     Logger.Error("Failed to get MQTT clientId, return code");
     return;
@@ -400,7 +526,7 @@ static void sendTelemetry()
   // however if properties are used the topic need to be generated again to reflect the
   // current values of the properties.
   if (az_result_failed(az_iot_hub_client_telemetry_get_publish_topic(
-          &client, NULL, telemetry_topic, sizeof(telemetry_topic), NULL)))
+          &hub_client, NULL, telemetry_topic, sizeof(telemetry_topic), NULL)))
   {
     Logger.Error("Failed az_iot_hub_client_telemetry_get_publish_topic");
     return;
