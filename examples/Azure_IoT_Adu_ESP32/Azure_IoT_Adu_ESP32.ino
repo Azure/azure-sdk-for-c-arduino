@@ -416,6 +416,26 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
         Logger.Info("Subscribed for cloud-to-device messages; message id:"  + String(r));
       }
 
+      r = esp_mqtt_client_subscribe(mqtt_client, AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_SUBSCRIBE_TOPIC, MQTT_QOS1);
+      if (r == -1)
+      {
+        Logger.Error("Could not subscribe to properties messages.");
+      }
+      else
+      {
+        Logger.Info("Subscribed to properties messages; message id:"  + String(r));
+      }
+
+      r = esp_mqtt_client_subscribe(mqtt_client, AZ_IOT_HUB_CLIENT_PROPERTIES_WRITABLE_UPDATES_SUBSCRIBE_TOPIC, MQTT_QOS1);
+      if (r == -1)
+      {
+        Logger.Error("Could not subscribe to writable property updates.");
+      }
+      else
+      {
+        Logger.Info("Subscribed to writable property updates; message id:"  + String(r));
+      }
+
       break;
     case MQTT_EVENT_DISCONNECTED:
       Logger.Info("MQTT event MQTT_EVENT_DISCONNECTED");
@@ -563,12 +583,6 @@ static void establishConnection()
   (void)initializeMqttClient();
 }
 
-static void subscribeToTopics(void)
-{
-  int packet_id = esp_mqtt_client_subscribe(mqtt_client, AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_SUBSCRIBE_TOPIC, MQTT_QOS1);
-
-  packet_id = esp_mqtt_client_subscribe(mqtt_client, AZ_IOT_HUB_CLIENT_PROPERTIES_WRITABLE_UPDATES_SUBSCRIBE_TOPIC, MQTT_QOS1);
-}
 
 static void getTelemetryPayload(az_span payload, az_span* out_payload)
 {
@@ -639,7 +653,6 @@ void loop()
     Logger.Info("SAS token expired; reconnecting with a new one.");
     (void)esp_mqtt_client_destroy(mqtt_client);
     initializeMqttClient();
-    subscribeToTopics();
   }
   #endif
   else if (millis() > next_telemetry_send_time_ms)
