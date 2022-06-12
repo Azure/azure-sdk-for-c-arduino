@@ -49,8 +49,8 @@
 #define SAMPLE_MQTT_PAYLOAD_LENGTH 1024
 
 // ADU Values
-#define ADU_DEVICE_MANUFACTURER "Contoso"
-#define ADU_DEVICE_MODEL "azure-sdk-for-c"
+#define ADU_DEVICE_MANUFACTURER "ESPRESSIF"
+#define ADU_DEVICE_MODEL "ESP32-Embedded"
 #define ADU_DEVICE_VERSION "1.0"
 
 // ADU Feature Values
@@ -180,6 +180,97 @@ static az_span get_request_id(void)
   }
 
   return az_span_slice(out_span, 0, az_span_size(out_span) - az_span_size(remainder));
+}
+
+// request_all_properties sends a request to Azure IoT Hub to request all properties for
+// the device.  This call does not block.  Properties will be received on
+// a topic previously subscribed to (AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_SUBSCRIBE_TOPIC.)
+static void request_all_properties(void)
+{
+  az_result rc;
+
+  Logger.Info("Client requesting device property document from service.");
+
+  // Get the topic to publish the property document request.
+  char property_document_topic_buffer[SAMPLE_MQTT_TOPIC_LENGTH];
+  rc = az_iot_hub_client_properties_document_get_publish_topic(
+      &hub_client,
+      get_request_id(),
+      property_document_topic_buffer,
+      sizeof(property_document_topic_buffer),
+      NULL);
+  if(az_result_failed(rc))
+  {
+    Logger.Info("Failed to get the property document topic");
+  }
+
+  if (esp_mqtt_client_publish(
+        mqtt_client,
+        property_document_topic_buffer,
+        NULL,
+        0,
+        MQTT_QOS1,
+        DO_NOT_RETAIN_MSG)
+    == 0)
+  {
+    Logger.Error("Failed publishing");
+  }
+  else
+  {
+    Logger.Info("Message published successfully");
+  }
+}
+
+// send_adu_device_reported_property writes a property payload reporting device state and then sends it to
+// Azure IoT Hub.
+static void send_adu_device_information_property(void)
+{
+  az_result rc;
+
+  // Get the property topic to send a reported property update.
+  char property_update_topic_buffer[SAMPLE_MQTT_TOPIC_LENGTH];
+  rc = az_iot_hub_client_properties_get_reported_publish_topic(
+      &hub_client,
+      get_request_id(),
+      property_update_topic_buffer,
+      sizeof(property_update_topic_buffer),
+      NULL);
+  if(az_result_failed(rc))
+  {
+    Logger.Error("Failed to get the property update topic");
+  }
+
+  // Write the updated reported property message.
+  char reported_property_payload_buffer[SAMPLE_MQTT_PAYLOAD_LENGTH];
+  az_span reported_property_payload = AZ_SPAN_FROM_BUFFER(reported_property_payload_buffer);
+
+  rc = az_iot_adu_get_properties_payload(
+    &adu_device_information,
+    AZ_IOT_ADU_AGENT_STATE_IDLE,
+    NULL,
+    NULL,
+    reported_property_payload,
+    &reported_property_payload);
+  if(az_result_failed(rc))
+  {
+    Logger.Error("Failed to get the adu device information payload");
+  }
+
+  if (esp_mqtt_client_publish(
+        mqtt_client,
+        property_update_topic_buffer,
+        (const char*)az_span_ptr(reported_property_payload),
+        az_span_size(reported_property_payload),
+        MQTT_QOS1,
+        DO_NOT_RETAIN_MSG)
+    == 0)
+  {
+    Logger.Error("Failed publishing");
+  }
+  else
+  {
+    Logger.Info("Client published the device's information.");
+  }
 }
 
 static void send_adu_accept_manifest_property(int32_t version_number)
@@ -381,18 +472,14 @@ void receivedCallback(char* topic, byte* payload, unsigned int length)
   if (az_result_succeeded(rc))
   {
     Logger.Info("Client received a properties topic.");
-    Logger.Info("Status: %d" + String(property_message.status));
+    Logger.Info("Status: " + String(property_message.status));
 
     handle_device_property_message(payload, length, &property_message);
   }
-  Logger.Info("Received [");
-  Logger.Info(topic);
-  Logger.Info("]: ");
-  for (int i = 0; i < length; i++)
+  else
   {
-    Serial.print((char)payload[i]);
+    Logger.Error("Received a message from an unknown topic: " + String(topic));
   }
-  Serial.println("");
 }
 
 static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
@@ -414,7 +501,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
       }
       else
       {
-        Logger.Info("Subscribed for cloud-to-device messages; message id:"  + String(r));
+        Logger.Info("Subscribed for cloud-to-device messages; message id:" + String(r));
       }
 
       r = esp_mqtt_client_subscribe(mqtt_client, AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_SUBSCRIBE_TOPIC, MQTT_QOS1);
@@ -436,6 +523,12 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
       {
         Logger.Info("Subscribed to writable property updates; message id:"  + String(r));
       }
+
+      Logger.Info("Sending ADU device information");
+      send_adu_device_information_property();
+
+      Logger.Info("Requesting all device properties");
+      request_all_properties();
 
       break;
     case MQTT_EVENT_DISCONNECTED:
