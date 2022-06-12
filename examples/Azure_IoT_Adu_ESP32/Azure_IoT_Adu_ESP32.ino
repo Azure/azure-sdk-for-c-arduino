@@ -113,7 +113,8 @@ static uint8_t telemetry_payload[100];
 static uint32_t telemetry_send_count = 0;
 
 #define INCOMING_DATA_BUFFER_SIZE 128
-static char incoming_data[INCOMING_DATA_BUFFER_SIZE];
+static char incoming_topic[SAMPLE_MQTT_TOPIC_LENGTH];
+static char incoming_data[SAMPLE_MQTT_PAYLOAD_LENGTH];
 
 // Auxiliary functions
 #ifndef IOT_CONFIG_USE_X509_CERT
@@ -452,19 +453,21 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     case MQTT_EVENT_DATA:
       Logger.Info("MQTT event MQTT_EVENT_DATA");
 
-      for (i = 0; i < (INCOMING_DATA_BUFFER_SIZE - 1) && i < event->topic_len; i++)
+      for (i = 0; i < (SAMPLE_MQTT_TOPIC_LENGTH - 1) && i < event->topic_len; i++)
       {
-        incoming_data[i] = event->topic[i]; 
+        incoming_topic[i] = event->topic[i]; 
       }
-      incoming_data[i] = '\0';
-      Logger.Info("Topic: " + String(incoming_data));
+      incoming_topic[i] = '\0';
+      Logger.Info("Topic: " + String(incoming_topic));
       
-      for (i = 0; i < (INCOMING_DATA_BUFFER_SIZE - 1) && i < event->data_len; i++)
+      for (i = 0; i < (SAMPLE_MQTT_PAYLOAD_LENGTH - 1) && i < event->data_len; i++)
       {
         incoming_data[i] = event->data[i]; 
       }
       incoming_data[i] = '\0';
       Logger.Info("Data: " + String(incoming_data));
+
+      receivedCallback(incoming_topic, (byte*)incoming_data, event->data_len);
 
       break;
     case MQTT_EVENT_BEFORE_CONNECT:
