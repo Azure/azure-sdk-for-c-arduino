@@ -36,7 +36,7 @@ products:
   
 ## Introduction
 
-In this tutorial you use the Azure SDK for C to connect the [Arduino Nano RP2040 Connect](https://docs.arduino.cc/hardware/nano-rp2040-connect) to Azure IoT Central. The article is part of the series [IoT Device Development](https://go.microsoft.com/fwlink/p/?linkid=2129824). The series introduces device developers to the Azure SDK for C, and shows how to connect several device evaluation kits to Azure IoT.
+In this tutorial you will use the Azure SDK for C to connect the [Arduino Nano RP2040 Connect](https://docs.arduino.cc/hardware/nano-rp2040-connect) to Azure IoT Central. The article is part of the series [IoT Device Development](https://go.microsoft.com/fwlink/p/?linkid=2129824). The series introduces device developers to the Azure SDK for C, and shows how to connect several device evaluation kits to Azure IoT.
 
 ### What is Covered
 You will complete the following tasks:
@@ -83,13 +83,13 @@ To create a device:
 
 1. On the left side menu, under 'Connect', select **'Devices'**.
 1. Select **'+ New'**. A 'Create a new device' window will appear.
-1. Create a Device name and Device ID.
+1. Fill in the desired 'Device name' and 'Device ID'.
 1. Leave Device template as 'Unassigned'.
 
     ![IoT Central create a device](media/iotcentralcreate-device.png)
 
 1. Select **'Create'**. The newly created device will appear in the 'All devices' list.  
-1. Under 'Device name', select your newly created device.
+1. Under 'Device name', select your newly created device name.
 1. In the top menu bar, select **'Connect'**. A 'Device connection groups' window will appear.
 
     ![IoT Central create a device](media/iotcentraldevice-connection-info.png)
