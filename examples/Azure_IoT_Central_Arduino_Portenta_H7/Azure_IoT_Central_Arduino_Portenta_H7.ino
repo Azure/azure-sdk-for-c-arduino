@@ -111,8 +111,13 @@ static int mqtt_client_init_function(mqtt_client_config_t* mqtt_client_config, m
   const char* client_id = (const char*)az_span_ptr(mqtt_client_config->client_id);
   const char* username = (const char*)az_span_ptr(mqtt_client_config->username);
   const char* password = (const char*)az_span_ptr(mqtt_client_config->password);
-  const char* address = (const char*)az_span_ptr(mqtt_client_config->address);
   int port = mqtt_client_config->port;
+ 
+  // Address for DPS is az_span from string literal (#define DPS_GLOBAL_ENDPOINT_FQDN). Null terminated.
+  // Address for Hub is az_span, retrieved from message from DPS.  Not null terminated.
+  // This function will be called for both scenarios.
+  char address[128] = {0}; // Default to null-termination.
+  memcpy(address, az_span_ptr(mqtt_client_config->address), az_span_size(mqtt_client_config->address));
 
   arduino_mqtt_client.setId(client_id);
   arduino_mqtt_client.setUsernamePassword(username, password);
@@ -121,11 +126,9 @@ static int mqtt_client_init_function(mqtt_client_config_t* mqtt_client_config, m
 
   LogInfo("MQTT Client ID: %s", client_id);
   LogInfo("MQTT Username: %s", username);
-  LogInfo("MQTT Password: %s", password);
+  LogInfo("MQTT Password: ***");
   LogInfo("MQTT client address: %s", address);
   LogInfo("MQTT client port: %d", port);
-
-  ArduinoBearSSL.onGetTime(get_time); // Required for server trusted root validation.
 
   while (!arduino_mqtt_client.connect(address, port)) 
   {
@@ -220,6 +223,11 @@ static int mqtt_client_publish_function(mqtt_client_handle_t mqtt_client_handle,
 
   if (mqtt_result == 1) // ArduinoMqttClient: 1 on success, 0 on failure 
   {
+    // Constructed payload may not be null terminated. Even if a null character exists, az_span_size does not include it in its size calculation.
+    //uint8_t* temp = az_span_ptr(mqtt_message->payload);
+    //*(temp + az_span_size(mqtt_message->payload)) = 0; // Add null character.
+
+    LogInfo("payload: %s", az_span_ptr(mqtt_message->payload));
     arduino_mqtt_client_handle->print((const char*)az_span_ptr(mqtt_message->payload));
 
     mqtt_result = arduino_mqtt_client_handle->endMessage();
@@ -342,6 +350,7 @@ void setup()
 
   connect_to_wifi();
   sync_device_clock_with_ntp_server();
+  ArduinoBearSSL.onGetTime(get_time); // Required for server trusted root validation.
 
   azure_pnp_init();
   /* 
@@ -391,7 +400,6 @@ void loop()
     switch(azure_iot_get_status(&azure_iot))
     {
       case azure_iot_connected:
-        LogInfo("Sending device info or telemetry");
         if (send_device_info)
         {
           (void)azure_pnp_send_device_info(&azure_iot, properties_request_id++);

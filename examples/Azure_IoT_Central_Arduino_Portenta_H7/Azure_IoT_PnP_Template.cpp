@@ -121,20 +121,19 @@ int azure_pnp_send_telemetry(azure_iot_t* azure_iot)
 {
   _az_PRECONDITION_NOT_NULL(azure_iot);
 
-  LogInfo("azure_pnp_send_telemetry");
-  time_t now = time(NULL);
+  uint32_t now = azure_iot->config->get_time();
 
-  if (now == INDEFINITE_TIME)
+  if ((time_t)now == INDEFINITE_TIME)
   {
     LogError("Failed getting current time for controlling telemetry.");
     return RESULT_ERROR;
   }
   else if (last_telemetry_send_time == INDEFINITE_TIME ||
-           difftime(now, last_telemetry_send_time) >= telemetry_frequency_in_seconds)
+           difftime((time_t)now, last_telemetry_send_time) >= telemetry_frequency_in_seconds)
   {
     size_t payload_size;
 
-    last_telemetry_send_time = now;
+    last_telemetry_send_time = (time_t)now;
 
     if (generate_telemetry_payload(data_buffer, DATA_BUFFER_SIZE, &payload_size) != RESULT_OK)
     {
@@ -159,7 +158,6 @@ int azure_pnp_send_device_info(azure_iot_t* azure_iot, uint32_t request_id)
   int result;
   size_t length;  
 
-  LogInfo("azure_pnp_send_device_info");
   result = generate_device_info_payload(&azure_iot->iot_hub_client, data_buffer, DATA_BUFFER_SIZE, &length);
   EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed generating telemetry payload.");
 

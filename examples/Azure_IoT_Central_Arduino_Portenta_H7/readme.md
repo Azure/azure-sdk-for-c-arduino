@@ -181,10 +181,32 @@ To create a device:
       <p>
 
       ```text
-      Sketch uses 187636 bytes (1%) of program storage space. Maximum is 16777216 bytes.
-      Global variables use 63492 bytes (23%) of dynamic memory, leaving 206844 bytes for local variables. Maximum is 270336 bytes.
-      .
-      
+      Sketch uses 431236 bytes (21%) of program storage space. Maximum is 1966080 bytes.
+      Global variables use 95208 bytes (18%) of dynamic memory, leaving 428416 bytes for local variables. Maximum is 523624 bytes.
+      dfu-util 0.10-dev
+
+      Copyright 2005-2009 Weston Schmidt, Harald Welte and OpenMoko Inc.
+      Copyright 2010-2021 Tormod Volden and Stefan Schmidt
+      This program is Free Software and has ABSOLUTELY NO WARRANTY
+      Please report bugs to http://sourceforge.net/p/dfu-util/tickets/
+
+      Opening DFU capable USB device...
+      Device ID 2341:035b
+      Device DFU version 011a
+      Claiming USB DFU Interface...
+      Setting Alternate Interface #0 ...
+      Determining device status...
+      DFU state(2) = dfuIDLE, status(0) = No error condition is present
+      DFU mode device DFU version 011a
+      Device returned transfer size 4096
+      DfuSe interface name: "Internal Flash   "
+      Downloading element to address = 0x08040000, size = 435916
+      Erase   	[=========================] 100%       435916 bytes
+      Erase    done.
+      Download	[=========================] 100%       435916 bytes
+      Download done.
+      File downloaded successfully
+      Transitioning to dfuMANIFEST state
       ```
       
       </p>
@@ -215,6 +237,8 @@ To view the device status in IoT Central portal:
 1. Find your device in the devices list.
 1. Confirm the 'Device status' of the device is updated to 'Provisioned'.
 1. Confirm the 'Device template' of the device has updated to 'Espressif ESP32 Azure IoT Kit'.
+
+    *Note: The device template 'Espressif ESP32 Azure IoT Kit' is a published device template available from IoT Central. It is in this Arduino Portenta H7 sample to simplify the steps and data simulation.* 
 
     ![IoT Central device status](media/azure-iot-central-device-view-status.png)
 
