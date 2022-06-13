@@ -26,14 +26,14 @@
 #define SAMPLE_TOTAL_MEMORY_PROPERTY_NAME              "totalMemory"
 
 #define SAMPLE_MANUFACTURER_PROPERTY_VALUE             "Arduino"
-#define SAMPLE_MODEL_PROPERTY_VALUE                    "Nano RP2040 Connet"
+#define SAMPLE_MODEL_PROPERTY_VALUE                    "Arduino Portenta H7"
 #define SAMPLE_VERSION_PROPERTY_VALUE                  "1.0.0"
-#define SAMPLE_OS_NAME_PROPERTY_VALUE                  "TBD"
-#define SAMPLE_ARCHITECTURE_PROPERTY_VALUE             "TBD"
-#define SAMPLE_PROCESSOR_MANUFACTURER_PROPERTY_VALUE   "TBD"
+#define SAMPLE_OS_NAME_PROPERTY_VALUE                  "FreeRTOS"
+#define SAMPLE_ARCHITECTURE_PROPERTY_VALUE             "STM32H747"
+#define SAMPLE_PROCESSOR_MANUFACTURER_PROPERTY_VALUE   "Arduino"
 // The next couple properties are in KiloBytes.
-#define SAMPLE_TOTAL_STORAGE_PROPERTY_VALUE            4096
-#define SAMPLE_TOTAL_MEMORY_PROPERTY_VALUE             8192
+#define SAMPLE_TOTAL_STORAGE_PROPERTY_VALUE            2000
+#define SAMPLE_TOTAL_MEMORY_PROPERTY_VALUE             16000
 
 #define TELEMETRY_PROP_NAME_TEMPERATURE                "temperature"
 #define TELEMETRY_PROP_NAME_HUMIDITY                   "humidity"
