@@ -1,6 +1,6 @@
 ---
 page_type: sample
-description: Connecting Arduino Nano RP2040 Connect to Azure IoT Central using the Azure SDK for C Arduino library
+description: Connecting Arduino Portenta H7 to Azure IoT Central using the Azure SDK for C Arduino library
 languages:
 - c
 products:
@@ -9,16 +9,39 @@ products:
 - azure-iot-central
 ---
 
-# Getting started with the Arduino Nano RP2040 Connect and Azure IoT Central with Azure SDK for C Arduino library
+# Getting started with the Arduino Portenta H7 and Azure IoT Central with Azure SDK for C Arduino library
 
 **Total completion time**:  30 minutes
 
-In this tutorial you use the Azure SDK for C to connect the [Arduino Nano RP2040 Connect](https://docs.arduino.cc/hardware/nano-rp2040-connect) to Azure IoT Central. The article is part of the series [IoT Device Development](https://go.microsoft.com/fwlink/p/?linkid=2129824). The series introduces device developers to the Azure SDK for C, and shows how to connect several device evaluation kits to Azure IoT.
+- [Getting started with the Arduino Portenta H7 and Azure IoT Central with Azure SDK for C Arduino library](#getting-started-with-the-arduino-portenta-h7-and-azure-iot-central-with-azure-sdk-for-c-arduino-library)
+  - [Introduction](#introduction)
+    - [What is Covered](#what-is-covered)
+  - [Prerequisites](#prerequisites)
+  - [IoT Central and Device Setup](#iot-central-and-device-setup)
+    - [Create the IoT Central Application](#create-the-iot-central-application)
+    - [Create a new device](#create-a-new-device)
+  - [Arduino IDE Setup](#arduino-ide-setup)
+  - [Run the Sample](#run-the-sample)
+  - [Verify the device status](#verify-the-device-status)
+  - [View telemetry](#view-telemetry)
+  - [Send a command on the device](#send-a-command-on-the-device)
+  - [View device information](#view-device-information)
+  - [Clean up resources](#clean-up-resources)
+  - [Certificates - Important to know](#certificates---important-to-know)
+    - [Additional Information](#additional-information)
+  - [Troubleshooting](#troubleshooting)
+  - [Contributing](#contributing)
+    - [License](#license)
+  
+## Introduction
 
+In this tutorial you will use the Azure SDK for C to connect the [Arduino Portenta H7](https://docs.arduino.cc/hardware/portenta-h7) to Azure IoT Central. The article is part of the series [IoT Device Development](https://go.microsoft.com/fwlink/p/?linkid=2129824). The series introduces device developers to the Azure SDK for C, and shows how to connect several device evaluation kits to Azure IoT.
+
+### What is Covered
 You will complete the following tasks:
 
 * Install the Azure SDK for C library on Arduino
-* Build the image and flash it onto the Arduino Nano RP2040 Connect
+* Build the image and flash it onto the Arduino Portenta H7
 * Use Azure IoT Central to create cloud components, view properties, view device telemetry, and call direct commands
 
 ## Prerequisites
@@ -37,11 +60,11 @@ There are several ways to connect devices to Azure IoT. In this section, you lea
 To create a new application:
 
 1. Go to [Azure IoT Central portal](https://apps.azureiotcentral.com/).
-1. On the left side menu select **'My apps'**.
+1. On the left side menu, select **'My apps'**.
 1. Select **'+ New application'**.
-1. In the **Custom app** box, select **'Create app'**.
+1. In the 'Custom app' box, select **'Create app'**.
 1. Create a custom Application name and a URL.
-1. Under **Pricing plan**, select **'Free'** to activate a 7-day trial.
+1. Under 'Pricing plan', select **'Free'** to activate a 7-day trial.
 
     ![IoT Central create an application](media/iotcentralcreate-custom.png)
 
@@ -56,25 +79,24 @@ In this section, you will use the IoT Central application dashboard to create a 
 
 To create a device:
 
-1. On the left side menu, under **Connect**, select **'Devices'**.
-1. Select **'+ New'**. A **Create a new device** window will appear.
-1. Create a Device name and Device ID.
-1. Leave Device template as **Unassigned**.
+1. On the left side menu, under 'Connect', select **'Devices'**.
+1. Select **'+ New'**. A 'Create a new device' window will appear.
+1. Fill in the desired 'Device name' and 'Device ID'.
+1. Leave Device template as 'Unassigned'.
 
     ![IoT Central create a device](media/iotcentralcreate-device.png)
 
-1. Select **'Create'**. The newly created device will appear in the **All devices** list.  
-1. Under **Device name**, select your newly created device.
-1. In the top menu bar, select **'Connect'**. A **Device connection groups** window will appear.
+1. Select **'Create'**. The newly created device will appear in the 'All devices' list.  
+1. Under 'Device name', select your newly created device name.
+1. In the top menu bar, select **'Connect'**. A 'Device connection groups' window will appear.
 
     ![IoT Central create a device](media/iotcentraldevice-connection-info.png)
 
-1. You will need the following information from this window:
+1. We will need the following information from this window:
 
-> * ID scope
-> * Device ID
-> * Primary key
-
+     - ID scope
+     - Device ID
+     - Primary key
 
 ## Arduino IDE Setup
 
@@ -86,62 +108,67 @@ To create a device:
     - Search for the **'azure-sdk-for-c'** library. 
     - Install the latest version.
 
-1. Install Arduino Mbed OS Nano Boards support in the Arduino IDE. [Full instructions can be found here.](https://docs.arduino.cc/hardware/nano-rp2040-connect)
+1. Install Arduino Mbed OS Portenta Boards support in the Arduino IDE. [Full instructions can be found here.](https://docs.arduino.cc/software/ide-v1/tutorials/getting-started/cores/arduino-mbed_portenta)
 
     - Navigate to **Tools > Board > Board Manager**.
-    - Search for **'RP2040'** and install the **Arduino Mbed OS Nano Boards** core.
+    - Search for **'Portenta'** and install the **Arduino Mbed OS Portenta Boards** core.
     - Install the latest version.    
     
       *Note: This process may take several minutes.*  
 
-1. Nagivate to **Tools > Board > Arduino Mbed OS Nano Boards** and select **'Arduino Nano RP2040 Connect'**.
+1. Nagivate to **Tools > Board > Arduino Mbed OS Portenta Boards** and select **'Arduino Portenta H7 (M7 core)'**.
 
-1. Install WiFiNINA library for the Nano RP2040 Embedded C SDK sample. 
+1. In **Tools > Flash split**, set the flash split to be **'2MB M7 + M4 in SDRAM'**.
 
-    - Navigate to **Tools > Manage Libraries**.
-    - Search for the **'WiFiNINA'** library. 
-    - Install the latest version.
+1. If this is your first time using the Portenta, [follow these instructions to update the WiFi firmware on the Portenta](https://support.arduino.cc/hc/en-us/articles/4403365234322-How-to-update-Wi-Fi-firmware-on-Portenta-H7).
 
-      *Note: This process may take several minutes.*  
-    
-1. If this is your first time using the Nano RP2040 Connect, [follow these instructions to update the WiFi firmware on the Nano RP2040 Connect](https://docs.arduino.cc/tutorials/nano-rp2040-connect/rp2040-upgrading-nina-firmware).
+1. Install additional libraries for the Portenta Embedded C SDK sample. 
 
-1. Install the ArduinoBearSSL and ArduinoMqttClient libraries.
+    - This process is more involved than typical because we are using the NTP Client Generic library which has circular dependencies so we must do a special install to only grab the what we need.
 
-    - Navigate to **Tools > Manage Libraries**.
-    - Search for the **'ArduinoBearSSL'** library. Install the latest version.
-    - Search for the **'Arduino MQTT Client'** library. Install the latest version.
+    - There are two ways to do this:
+        1. Download the  NTP Client Generic library manually from its repository, or
+        2. Use the Arduino CLI. 
+
+    - This tutorial will use the CLI approach because it is faster and easier to describe. 
+    - Using the Arduino CLI, type and run the following command to install the NTP Client :
+
+      ```
+      arduino-cli lib install --no-deps NTPClient_Generic
+      ```
+
+    - Since we're already in the Arduino CLI, let's install remaining libraries (can also install these from Library Manager):
+
+      ``` 
+      arduino-cli lib install "Azure SDK for C" ArduinoBearSSL Time ArduinoMqttClient
+      ```
 
 1. You may need to restart the Arduino IDE for changes to show up.
 
 ## Run the Sample
 
-1. Open the Arduino Nano RP2040 Connect sample.
+1. Open the Arduino Portenta H7 sample.
 
     - In the Arduino IDE, navigate to **File > Examples > Azure SDK For C**
-    - Select **'Azure_IoT_Hub_Arduino_Nano_RP2040_Connect'** to open the sample.
+    - Select **Azure_IoT_Central_Arduino_Portenta_H7** to open the sample. 
 
 1. Navigate to the '*iot_configs.h*' file
 
 1. In the '*iot_configs.h*' file, fill in your credentials. 
 
     - Add in your WiFi SSID and password.
-    - Paste your IoT Hub device Hostname for the `IOT_CONFIG_IOTHUB_FQDN` variable. It should look something like:
+    - Paste your ID Scope for the  `IOT_CONFIG_DPS_ID_SCOPE` variable.
+    - Paste your Device ID for the `IOT_CONFIG_DEVICE_ID` variable.
+    - Finally, paste your Primary Key for the `IOT_CONFIG_DEVICE_KEY` variable.
 
-        ```#define IOT_CONFIG_IOTHUB_FQDN "my-resource-group.azure-devices.net"```
+1. Connect the Arduino Portenta H7 to your USB port.
 
-    - Paste your IoT Hub device ID for the `IOT_CONFIG_DEVICE_ID` variable.
-
-    - Finally, paste your IoT Hub Primary Key for the `IOT_CONFIG_DEVICE_KEY` variable.
-
-1. Connect the Arduino Nano RP 2040 to your USB port.
-
-1. On the Arduino IDE, select the port.
+3. On the Arduino IDE, select the port.
 
     - Navigate to **Tools > Port**.
-    - Select the port to which the Nano RP2040 Connect is connected.
+    - Select the port to which the Portenta H7 is connected.
 
-1. Upload the sketch.
+4. Upload the sketch.
 
     - Navigate to **Sketch > Upload**.
     
@@ -160,64 +187,15 @@ To create a device:
       </p>
       </details>
 
-1. While the sketch is uploading, open the Serial Monitor to monitor the MCU (microcontroller) locally via the Serial Port.
+5. While the sketch is uploading, open the Serial Monitor to monitor the MCU (microcontroller) locally via the Serial Port.
 
     - Navigate to **Tools > Serial Monitor**.
 
         If you perform this step right away after uploading the sketch, the serial monitor will show an output similar to the following upon success:
 
         ```text
-        ...
-        1970/1/1 00:00:03 [INFO] WiFi connected, IP address: 192.168.1.228
-        1970/1/1 00:00:03 [INFO] Setting time using SNTP
-        ...
-        2022/1/18 23:53:17 [INFO] Time initialized!
-        2022/1/18 23:53:18 [INFO] Azure IoT client initialized (state=1)
-        2022/1/18 23:53:18 [INFO] MQTT client target uri set to 'mqtts://global.azure-devices-provisioning.net'
-        2022/1/18 23:53:18 [INFO] MQTT client connecting.
-        2022/1/18 23:53:19 [INFO] MQTT client connected (session_present=0).
-        2022/1/18 23:53:19 [INFO] MQTT client subscribing to '$dps/registrations/res/#'
-        2022/1/18 23:53:19 [INFO] MQTT topic subscribed (message id=48879).
-        2022/1/18 23:53:19 [INFO] MQTT client publishing to '$dps/registrations/PUT/iotdps-register/?$rid=1{"modelId":"dtmi:azureiot:devkit:freertos:Esp32AzureIotKit;1"}{"registrationId":"myDeviceId","payload":{"modelId":"dtmi:azureiot:devkit:freertos:Esp32AzureIotKit;1"}}'
-        2022/1/18 23:53:19 [INFO] MQTT message received.
-        2022/1/18 23:53:19 [INFO] MQTT client publishing to '$dps/registrations/GET/iotdps-get-operationstatus/?$rid=1&operationId=4.8a7f95e72373290a.f936a9b2-12ff-4b7d-8189-4c250236c141'
-        2022/1/18 23:53:19 [INFO] MQTT message received.
-        2022/1/18 23:53:22 [INFO] MQTT client publishing to '$dps/registrations/GET/iotdps-get-operationstatus/?$rid=1&operationId=4.8a7f95e72373290a.f936a9b2-12ff-4b7d-8189-4c250236c141'
-        2022/1/18 23:53:22 [INFO] MQTT message received.
-        2022/1/18 23:53:22 [INFO] MQTT client being disconnected.
-        2022/1/18 23:53:22 [INFO] MQTT client target uri set to 'mqtts://myProvisionedIoTHubFqdn.azure-devices.net'
-        2022/1/18 23:53:22 [INFO] MQTT client connecting.
-        2022/1/18 23:53:23 [INFO] MQTT client connected (session_present=0).
-        2022/1/18 23:53:23 [INFO] MQTT client subscribing to '$iothub/methods/POST/#'
-        2022/1/18 23:53:23 [INFO] MQTT topic subscribed (message id=556).
-        2022/1/18 23:53:23 [INFO] MQTT client subscribing to '$iothub/twin/res/#'
-        2022/1/18 23:53:23 [INFO] MQTT topic subscribed (message id=10757).
-        2022/1/18 23:53:23 [INFO] MQTT client subscribing to '$iothub/twin/PATCH/properties/desired/#'
-        2022/1/18 23:53:23 [INFO] MQTT topic subscribed (message id=15912).
-        2022/1/18 23:53:23 [INFO] MQTT client publishing to '$iothub/twin/PATCH/properties/reported/?$rid=0'
-        2022/1/18 23:53:23 [INFO] MQTT client publishing to 'devices/myDeviceId/messages/events/'
-        2022/1/18 23:53:23 [INFO] MQTT message received.
-        2022/1/18 23:53:23 [INFO] Properties update request completed (id=0, status=204)
-        2022/1/18 23:53:33 [INFO] MQTT client publishing to 'devices/myDeviceId/messages/events/'
+        TBD
         ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 ## Verify the device status
 
