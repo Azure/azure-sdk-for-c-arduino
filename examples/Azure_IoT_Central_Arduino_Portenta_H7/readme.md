@@ -22,11 +22,12 @@ products:
     - [Create a new device](#create-a-new-device)
   - [Arduino IDE Setup](#arduino-ide-setup)
   - [Run the Sample](#run-the-sample)
-  - [Verify the device status](#verify-the-device-status)
-  - [View telemetry](#view-telemetry)
-  - [Send a command on the device](#send-a-command-on-the-device)
-  - [View device information](#view-device-information)
-  - [Clean up resources](#clean-up-resources)
+  - [View your device data from IoT Central](#view-your-device-data-from-iot-central)
+    - [Verify the device status](#verify-the-device-status)
+    - [View device information](#view-device-information)
+    - [View telemetry](#view-telemetry)
+    - [Send a command](#send-a-command)
+    - [Clean up resources](#clean-up-resources)
   - [Certificates - Important to know](#certificates---important-to-know)
     - [Additional Information](#additional-information)
   - [Troubleshooting](#troubleshooting)
@@ -165,12 +166,12 @@ To create a device:
 
 1. Connect the Arduino Portenta H7 to your USB port.
 
-3. On the Arduino IDE, select the port.
+1. On the Arduino IDE, select the port.
 
     - Navigate to **Tools > Port**.
     - Select the port to which the Portenta H7 is connected.
 
-4. Upload the sketch.
+1. Upload the sketch.
 
     - Navigate to **Sketch > Upload**.
     
@@ -189,7 +190,7 @@ To create a device:
       </p>
       </details>
 
-5. While the sketch is uploading, open the Serial Monitor to monitor the MCU (microcontroller) locally via the Serial Port.
+1. While the sketch is uploading, open the Serial Monitor to monitor the MCU (microcontroller) locally via the Serial Port.
 
     - Navigate to **Tools > Serial Monitor**.
 
@@ -199,70 +200,78 @@ To create a device:
         TBD
         ```
 
-## Verify the device status
+## View your device data from IoT Central
+
+With IoT Central, you can view the device status and information, observe telemetry, and send commands.
+
+1. Go to your [IoT Central application portal](https://apps.azureiotcentral.com/myapps).
+1. Select your application.
+1. On the left side menu, under 'Connect', select **'Devices'**.
+   
+### Verify the device status
 
 To view the device status in IoT Central portal:
 
-1. From the application dashboard, select **Devices** on the side navigation menu.
-1. Check the **Device status** of the device is updated to **Provisioned**.
-1. Check the **Device template** of the device has updated to **Espressif ESP32 Azure IoT Kit**.
+1. Find your device in the devices list.
+1. Confirm the 'Device status' of the device is updated to 'Provisioned'.
+1. Confirm the 'Device template' of the device has updated to 'Espressif ESP32 Azure IoT Kit'.
 
     ![IoT Central device status](media/azure-iot-central-device-view-status.png)
 
-## View telemetry
+### View device information
 
-With IoT Central, you can view the flow of telemetry from your device to the cloud.
+To view the device information in IoT Central portal:
+
+1. Select the **'About'** tab.
+   
+    ![IoT Central device info](media/azure-iot-central-device-about.png)
+
+### View telemetry
 
 To view telemetry in IoT Central portal:
 
-1. From the application dashboard, select **Devices** on the side navigation menu.
-1. Select the device from the device list.
-1. View the telemetry as the device sends messages to the cloud in the **Overview** tab.
+1. Click on your device's name in the device list.
+1. Select the **'Overview'** tab.
+1. View the telemetry as the device sends messages to the cloud.
 
     ![IoT Central device telemetry](media/azure-iot-central-device-telemetry.png)
 
-## Send a command on the device
+### Send a command
 
-You can also use IoT Central to send a command to your device. In this section, you can call a command to toggle LEDs or write to the screen.
+To send a command to the device:
 
-To write to the screen:
-
-1. Select the **Command** tab from the device page.
-1. Locate the **Display Text** command.
-1. In the **Content** textbox, enter the text to be displayed on the screen.
-1. Select **Run**. 
-1. The screen on the device will update with the desired text.
+1. Select the **'Commands'** tab.
+2. Locate the 'Display Text' box.
+3. In the 'Content' textbox, enter the text to be displayed on the screen.
+4. Select **'Run'**.
+5. The screen on the device will update with the desired text.
 
 To toggle an LED:
 
-1. Select the **Command** tab from the device page.
-1. Locate the **Toggle LED 1** or **Toggle LED 2** command
-1. Select **Run**.
-1. An LED light on the device will toggle state.
+1. Select the **'Commands'** tab.
+2. Locate the 'Toggle LED 1' or 'Toggle LED 2' box.
+3. Select **'Run'**.
+4. An LED light on the device will toggle state.
 
 ![IoT Central invoke method](media/azure-iot-central-invoke-method.png)
 
-## View device information
-
-You can view the device information from IoT Central.
-
-Select **About** tab from the device page.
-![IoT Central device info](media/azure-iot-central-device-about.png)
-
-## Clean up resources
+### Clean up resources
 
 If you no longer need the Azure resources created in this tutorial, you can delete them from the IoT Central portal. Optionally, if you continue to another tutorial in this Getting Started guide, you can keep the resources you've already created and reuse them.
 
 To keep the Azure IoT Central sample application but remove only specific devices:
 
-1. Select the **Devices** tab for your application.
-1. Select the device from the device list.
-1. Select **Delete**.
+1. On the left side menu, under 'Connect', select **'Devices'**.
+2. Hover of your device's name and click on the circle that appears to the left. The circle will turn blue.
+3. Select **'Delete'**.
 
 To remove the entire Azure IoT Central sample application and all its devices and resources:
 
-1. Select **Administration** > **Your application**.
-1. Select **Delete**.
+1. On the left side menu, under 'Settings', select **'Application'**.
+2. Select the **'Management'** tab.
+3. Scroll to the bottom of the page.
+4. Select **'Delete'**. A box will appear to confirm deletion.
+5. Select **'Delete'** again.
 
 
 ## Certificates - Important to know
