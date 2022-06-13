@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 /*
- * This is an Arduino-based Azure IoT Central sample specific for Arduino Portenta.
+ * This is an Arduino-based Azure IoT Central sample specific for Arduino Portenta H7.
  * It uses our Azure Embedded SDK for C to help interact with Azure IoT.
  * For reference, please visit https://github.com/azure/azure-sdk-for-c and https://azureiotcentral.com/.
  * 
@@ -23,7 +23,7 @@
  * - Receive the callbacks for Plug and Play properties and commands.
  * 
  * Azure_IoT_PnP_Template.cpp contains the actual implementation of the IoT Plug and Play template
- * specific for the Arduino Portenta board.
+ * specific for the Arduino Portenta H7 board.
  * 
  * To properly connect to your Azure IoT services, please fill the information in the `iot_configs.h` file. 
  */

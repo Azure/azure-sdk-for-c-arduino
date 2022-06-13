@@ -257,11 +257,9 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
     case azure_iot_state_initialized:
       break;
     case azure_iot_state_started:
-      LogInfo("azure_iot_state_started.");
       if (azure_iot->config->use_device_provisioning &&
           !is_device_provisioned(azure_iot))
       {
-        LogInfo("configing for dps");
         // This seems harmless, but...
         // azure_iot->config->data_buffer always points to the original buffer provided by the user.
         // azure_iot->data_buffer is an intermediate pointer. It starts by pointing to azure_iot->config->data_buffer.
@@ -282,7 +280,6 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
       }
       else
       {
-        LogInfo("configing for hub");
         result = get_mqtt_client_config_for_iot_hub(azure_iot, &mqtt_client_config);
         azure_iot->state = azure_iot_state_connecting_to_hub;
       }
@@ -294,14 +291,12 @@ void azure_iot_do_work(azure_iot_t* azure_iot)
         LogError("Failed initializing MQTT client.");
         return;
       }
-      LogInfo("done configing");
       break;
     case azure_iot_state_connecting_to_dps:
       break;
     case azure_iot_state_connected_to_dps:
       // Subscribe to DPS topic.
       azure_iot->state = azure_iot_state_subscribing_to_dps;
-      LogInfo("subscribing to dps topic");
       mqtt_result = azure_iot->config->mqtt_client_interface.mqtt_client_subscribe(
           azure_iot->mqtt_client_handle, 
           AZ_SPAN_FROM_STR(AZ_IOT_PROVISIONING_CLIENT_REGISTER_SUBSCRIBE_TOPIC),
@@ -1126,10 +1121,6 @@ static int generate_sas_token_for_dps(
     az_span_ptr(device_key), az_span_size(device_key), az_span_ptr(decoded_sas_key), az_span_size(decoded_sas_key), &decoded_sas_key_length);
   EXIT_IF_TRUE(result != 0, 0, "Failed decoding SAS key.");
 
-  LogInfo("device key: %.*s", az_span_size(device_key), az_span_ptr(device_key));
-  LogInfo("device key size: %u", az_span_size(device_key));
-  LogInfo("decoded key length: %u", decoded_sas_key_length);
-
   // Step 2.c.
   sas_hmac256_signed_signature = split_az_span(data_buffer_span, SAS_HMAC256_ENCRYPTED_SIGNATURE_BUFFER_SIZE, &data_buffer_span);
   EXIT_IF_TRUE(az_span_is_content_equal(sas_hmac256_signed_signature, AZ_SPAN_EMPTY), 0, "Failed reserving buffer for sas_hmac256_signed_signature.");
@@ -1139,8 +1130,6 @@ static int generate_sas_token_for_dps(
     az_span_ptr(plain_sas_signature), az_span_size(plain_sas_signature), 
     az_span_ptr(sas_hmac256_signed_signature), az_span_size(sas_hmac256_signed_signature));
   EXIT_IF_TRUE(result != 0, 0, "Failed encrypting SAS signature.");
-
-LogInfo("size of sas_hmac256_signed_signature: %u", az_span_size(sas_hmac256_signed_signature));
 
   // Step 2.d.
   result = data_manipulation_functions.base64_encode(

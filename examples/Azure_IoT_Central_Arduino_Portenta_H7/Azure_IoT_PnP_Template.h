@@ -3,7 +3,7 @@
 
 /*
  * Azure_IoT_PnP_Template.cpp implements the IoT Plug and Play template
- * specific for the Arduino Portenta board.
+ * specific for the Arduino Portenta H7 board.
  */
  
 #ifndef AZURE_IOT_PNP_TEMPLATE_H
@@ -29,7 +29,7 @@ const az_span azure_pnp_get_model_id();
 /*
  * @brief     Sends the device description to Azure IoT Central.
  * @remark    Azure IoT Central expects the application to send a description of device and its capabilities.
- *            This function generates a description of the Arduino Portenta and sends it to Azure
+ *            This function generates a description of the Arduino Portenta H7 and sends it to Azure
  *            IoT Central.
  *
  * @param[in]    azure_iot     A pointer the azure_iot_t instance with the state of the Azure IoT client.
@@ -54,7 +54,7 @@ void azure_pnp_set_telemetry_frequency(size_t frequency_in_seconds);
 /*
  * @brief     Sends telemetry implemented by this IoT Plug and Play application to Azure IoT Central.
  * @remark    The IoT Plug and Play template implemented by this device is specific to the
- *            Arduino Portenta board, which contains several sensors. The template defines telemetry 
+ *            Arduino Portenta H7 board, which contains several sensors. The template defines telemetry 
  *            data points for temperature, humidity, pressure, altitude, luminosity, magnetic field, 
  *            rolling and pitch angles, as well as acceleration. All of these data are read from the 
  *            board sensors and sent to Azure IoT Central when `azure_pnp_send_telemetry` is called.
