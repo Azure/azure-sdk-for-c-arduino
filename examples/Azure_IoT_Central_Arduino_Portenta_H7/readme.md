@@ -44,6 +44,8 @@ You will complete the following tasks:
 * Build the image and flash it onto the Arduino Portenta H7
 * Use Azure IoT Central to create cloud components, view properties, view device telemetry, and call direct commands
 
+_The following was run on Windows 10 and WSL1 Ubuntu Desktop 20.04 environments, with Arduino IDE 1.8.19 and Arduino Arduino Nano RP2040 Connect with headers._
+
 ## Prerequisites
 
 * Have an [Azure account](https://azure.microsoft.com/) created.
