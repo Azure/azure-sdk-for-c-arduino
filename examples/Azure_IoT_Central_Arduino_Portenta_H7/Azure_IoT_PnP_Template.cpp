@@ -158,6 +158,7 @@ int azure_pnp_send_device_info(azure_iot_t* azure_iot, uint32_t request_id)
   int result;
   size_t length;  
 
+  // Generates payload with a null terminator.  length does NOT include null terminator in count.
   result = generate_device_info_payload(&azure_iot->iot_hub_client, data_buffer, DATA_BUFFER_SIZE, &length);
   EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed generating telemetry payload.");
 

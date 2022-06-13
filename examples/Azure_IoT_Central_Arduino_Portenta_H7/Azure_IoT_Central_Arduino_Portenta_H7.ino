@@ -216,6 +216,8 @@ static int mqtt_client_publish_function(mqtt_client_handle_t mqtt_client_handle,
   int result;
   MqttClient* arduino_mqtt_client_handle = (MqttClient*)mqtt_client_handle;
 
+//publishing the device info -- az_span payload is null terminated, but az_span_size does not include null character in count.
+//publishing telemetry -- az_span payload is null terminated, but az_span_size does not include null character in count.
   int mqtt_result = arduino_mqtt_client_handle->beginMessage(
                         (const char*)az_span_ptr(mqtt_message->topic), 
                         MQTT_DO_NOT_RETAIN_MSG, 
