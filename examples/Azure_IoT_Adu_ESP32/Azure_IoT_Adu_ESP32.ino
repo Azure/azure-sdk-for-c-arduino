@@ -29,6 +29,7 @@
 // Libraries for MQTT client and WiFi connection
 #include <WiFi.h>
 #include <mqtt_client.h>
+#include <ArduinoHttpClient.h>
 
 // Azure IoT SDK for C includes
 #include <az_core.h>
@@ -52,6 +53,7 @@
 #define ADU_DEVICE_MANUFACTURER "ESPRESSIF"
 #define ADU_DEVICE_MODEL "ESP32-Embedded"
 #define ADU_DEVICE_VERSION "1.0"
+#define HTTP_DOWNLOAD_CHUNK 4096
 
 // ADU Feature Values
 static az_iot_adu_update_request xBaseUpdateRequest;
@@ -99,6 +101,7 @@ static const int mqtt_port = AZ_IOT_DEFAULT_MQTT_CONNECT_PORT;
 // Memory allocated for the sample's variables and structures.
 static esp_mqtt_client_handle_t mqtt_client;
 static az_iot_hub_client hub_client;
+static HttpClient http_client;
 
 // MQTT Connection Values
 static uint16_t connection_request_id = 0;
@@ -180,6 +183,59 @@ static az_span get_request_id(void)
   }
 
   return az_span_slice(out_span, 0, az_span_size(out_span) - az_span_size(remainder));
+}
+
+static void prvParseAduUrl( az_span xUrl,
+                            az_span * pxHost,
+                            az_span * pxPath )
+{
+    xUrl = az_span_slice_to_end( xUrl, sizeof( "http://" ) - 1 );
+    int32_t lPathPosition = az_span_find( xUrl, AZ_SPAN_FROM_STR( "/" ) );
+    *pxHost = az_span_slice( xUrl, 0, lPathPosition );
+    *pxPath = az_span_slice_to_end( xUrl, lPathPosition );
+}
+
+static void downloadAndWriteToFlash(void)
+{
+  az_span urlHostSpan;
+  az_span urlPathSpan;
+  prvParseAduUrl(
+      az_span_create(
+          xAzureIoTAduUpdateRequest.pxFileUrls[ 0 ].pucUrl,
+          xAzureIoTAduUpdateRequest.pxFileUrls[ 0 ].ulUrlLength ),
+      &urlHostSpan, &urlPathSpan );
+
+  /* TODO: remove this hack. */
+  char pcNullTerminatedHost[ 128 ];
+  ( void ) memcpy( pcNullTerminatedHost, az_span_ptr( urlHostSpan ), az_span_size( urlHostSpan ) );
+  pcNullTerminatedHost[ az_span_size( urlHostSpan ) ] = '\0';
+
+  /* TODO: remove this hack. */
+  char nullTerminatedPath[ 128 ];
+  ( void ) memcpy( nullTerminatedPath, az_span_ptr( urlPathSpan ), az_span_size( urlPathSpan ) );
+  nullTerminatedPath[ az_span_size( urlPathSpan ) ] = '\0';
+
+  http_client = = HttpClient(wifi_client, pcNullTerminatedHost, 80);
+
+  // Get size of the payload
+  int sizeOfFile = http_client.head();
+
+  // Get the payload in parts
+  int currentIndex = 0;
+  while(currentIndex < sizeOfFile)
+  {
+    http_client.beginRequest();
+    http_client.sendHeader("Range: bytes" + String(currentIndex) + "=" + String(currentIndex + HTTP_DOWNLOAD_CHUNK));
+    http_client.get(nullTerminatedPath);
+    http_client.endRequest();
+
+    currentIndex += HTTP_DOWNLOAD_CHUNK;
+  }
+}
+
+static void verifyImageAndReboot(void)
+{
+
 }
 
 // request_all_properties sends a request to Azure IoT Hub to request all properties for
@@ -755,5 +811,11 @@ void loop()
   {
     sendTelemetry();
     next_telemetry_send_time_ms = millis() + TELEMETRY_FREQUENCY_MILLISECS;
+
+    if(did_parse_update)
+    {
+      downloadAndWriteToFlash();
+      verifyImageAndReboot();
+    }
   }
 }
