@@ -29,7 +29,8 @@
 // Libraries for MQTT client and WiFi connection
 #include <WiFi.h>
 #include <mqtt_client.h>
-#include <ArduinoHttpClient.h>
+#include <HTTPClient.h>
+#include <HTTPUpdate.h>
 
 // Azure IoT SDK for C includes
 #include <az_core.h>
@@ -101,7 +102,7 @@ static const int mqtt_port = AZ_IOT_DEFAULT_MQTT_CONNECT_PORT;
 // Memory allocated for the sample's variables and structures.
 static esp_mqtt_client_handle_t mqtt_client;
 static az_iot_hub_client hub_client;
-static HttpClient http_client;
+static HTTPClient http_client;
 
 // MQTT Connection Values
 static uint16_t connection_request_id = 0;
@@ -195,15 +196,36 @@ static void prvParseAduUrl( az_span xUrl,
     *pxPath = az_span_slice_to_end( xUrl, lPathPosition );
 }
 
+void update_started() {
+  Serial.println("CALLBACK:  HTTP update process started");
+}
+
+void update_finished() {
+  Serial.println("CALLBACK:  HTTP update process finished");
+}
+
+void update_progress(int cur, int total) {
+  Serial.printf("CALLBACK:  HTTP update process at %d of %d bytes...\n", cur, total);
+}
+
+void update_error(int err) {
+  Serial.printf("CALLBACK:  HTTP update fatal error code %d\n", err);
+}
+
 static void downloadAndWriteToFlash(void)
 {
   az_span urlHostSpan;
   az_span urlPathSpan;
   prvParseAduUrl(
-      az_span_create(
-          xAzureIoTAduUpdateRequest.pxFileUrls[ 0 ].pucUrl,
-          xAzureIoTAduUpdateRequest.pxFileUrls[ 0 ].ulUrlLength ),
+      xBaseUpdateRequest.file_urls[ 0 ].url,
       &urlHostSpan, &urlPathSpan );
+
+  WiFiClient client;
+
+  httpUpdate.onStart(update_started);
+  httpUpdate.onEnd(update_finished);
+  httpUpdate.onProgress(update_progress);
+  httpUpdate.onError(update_error);
 
   /* TODO: remove this hack. */
   char pcNullTerminatedHost[ 128 ];
@@ -215,22 +237,7 @@ static void downloadAndWriteToFlash(void)
   ( void ) memcpy( nullTerminatedPath, az_span_ptr( urlPathSpan ), az_span_size( urlPathSpan ) );
   nullTerminatedPath[ az_span_size( urlPathSpan ) ] = '\0';
 
-  http_client = = HttpClient(wifi_client, pcNullTerminatedHost, 80);
-
-  // Get size of the payload
-  int sizeOfFile = http_client.head();
-
-  // Get the payload in parts
-  int currentIndex = 0;
-  while(currentIndex < sizeOfFile)
-  {
-    http_client.beginRequest();
-    http_client.sendHeader("Range: bytes" + String(currentIndex) + "=" + String(currentIndex + HTTP_DOWNLOAD_CHUNK));
-    http_client.get(nullTerminatedPath);
-    http_client.endRequest();
-
-    currentIndex += HTTP_DOWNLOAD_CHUNK;
-  }
+  t_httpUpdate_return ret = httpUpdate.update(client, pcNullTerminatedHost, 80, nullTerminatedPath);
 }
 
 static void verifyImageAndReboot(void)
