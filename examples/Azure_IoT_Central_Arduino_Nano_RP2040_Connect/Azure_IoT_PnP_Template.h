@@ -3,7 +3,7 @@
 
 /*
  * Azure_IoT_PnP_Template.cpp implements the IoT Plug and Play template
- * specific for the Espressif ESP32 Azure IoT Kit board.
+ * specific for the Arduino Nano RP2040 Connect board.
  */
  
 #ifndef AZURE_IOT_PNP_TEMPLATE_H
@@ -29,7 +29,7 @@ const az_span azure_pnp_get_model_id();
 /*
  * @brief     Sends the device description to Azure IoT Central.
  * @remark    Azure IoT Central expects the application to send a description of device and its capabilities.
- *            This function generates a description of the Espressif ESP32 Azure IoT Kit and sends it to
+ *            This function generates a description of the Arduino Nano RP2040 Connect and sends it to
  *            Azure IoT Central.
  *
  * @param[in]    azure_iot     A pointer the azure_iot_t instance with the state of the Azure IoT client.
@@ -54,13 +54,13 @@ void azure_pnp_set_telemetry_frequency(size_t frequency_in_seconds);
 /*
  * @brief     Sends telemetry implemented by this IoT Plug and Play application to Azure IoT Central.
  * @remark    The IoT Plug and Play template implemented by this device is specific to the
- *            Espressif ESP32 Azure IoT Kit board, which contains several sensors.
- *            The template defines telemetry data points for temperature, humidity, 
- *            pressure, altitude, luminosity, magnetic field, rolling and pitch angles, 
- *            as well as acceleration. All of these data are read from the board sensors and sent to 
- *            Azure IoT Central when `azure_pnp_send_telemetry` is called.
- *            This function must be called frequently enough, no slower than the frequency set
- *            with `azure_pnp_set_telemetry_frequency` (or the default frequency of 10 seconds).
+ *            Arduino Nano RP2040 Connect board, which contains several sensors. The template
+ *            defines telemetry data points for temperature, humidity, pressure, altitude, 
+ *            luminosity, magnetic field, rolling and pitch angles, as well as acceleration. All of 
+ *            these data are read from the board sensors and sent to Azure IoT Central when 
+ *            `azure_pnp_send_telemetry` is called. This function must be called frequently enough, 
+ *            no slower than the frequency set with `azure_pnp_set_telemetry_frequency` (or the 
+ *            default frequency of 10 seconds).
  *            
  * @param[in]    azure_iot    A pointer to a azure_iot_t instance, previously initialized 
  *                            with `azure_iot_init`.

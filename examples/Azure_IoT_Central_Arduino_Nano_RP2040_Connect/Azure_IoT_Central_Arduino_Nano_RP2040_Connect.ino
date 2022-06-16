@@ -55,7 +55,8 @@
 #include "iot_configs.h"
 
 /* --- Sample-specific Settings --- */
-#define MQTT_DO_NOT_RETAIN_MSG  0
+#define MQTT_RETAIN_MSG true
+#define MQTT_DO_NOT_RETAIN_MSG !MQTT_RETAIN_MSG
 
 /* --- Time and NTP Settings --- */
 #define SECS_PER_MIN 60
@@ -86,6 +87,7 @@ static MqttClient arduino_mqtt_client(bear_ssl_client);
 
 #define AZ_IOT_DATA_BUFFER_SIZE 1500
 static uint8_t az_iot_data_buffer[AZ_IOT_DATA_BUFFER_SIZE];
+
 static uint8_t message_buffer[AZ_IOT_DATA_BUFFER_SIZE];
 
 static uint32_t properties_request_id = 0;
@@ -108,8 +110,13 @@ static int mqtt_client_init_function(mqtt_client_config_t* mqtt_client_config, m
   const char* client_id = (const char*)az_span_ptr(mqtt_client_config->client_id);
   const char* username = (const char*)az_span_ptr(mqtt_client_config->username);
   const char* password = (const char*)az_span_ptr(mqtt_client_config->password);
-  const char* address = (const char*)az_span_ptr(mqtt_client_config->address);
   int port = mqtt_client_config->port;
+ 
+  // Address for DPS is az_span from string literal (#define DPS_GLOBAL_ENDPOINT_FQDN). Null terminated.
+  // Address for Hub is az_span, retrieved from message from DPS. Not null terminated.
+  // mqtt_client_init_function() is called in both scenarios.
+  char address[128] = {0}; // Default to null-termination.
+  memcpy(address, az_span_ptr(mqtt_client_config->address), az_span_size(mqtt_client_config->address));
 
   arduino_mqtt_client.setId(client_id);
   arduino_mqtt_client.setUsernamePassword(username, password);
@@ -118,11 +125,9 @@ static int mqtt_client_init_function(mqtt_client_config_t* mqtt_client_config, m
 
   LogInfo("MQTT Client ID: %s", client_id);
   LogInfo("MQTT Username: %s", username);
-  LogInfo("MQTT Password: %s", password);
+  LogInfo("MQTT Password: ***");
   LogInfo("MQTT client address: %s", address);
   LogInfo("MQTT client port: %d", port);
-
-  ArduinoBearSSL.onGetTime(get_time); // Required for server trusted root validation.
 
   while (!arduino_mqtt_client.connect(address, port)) 
   {
@@ -177,7 +182,6 @@ static int mqtt_client_subscribe_function(mqtt_client_handle_t mqtt_client_handl
   int result;
   MqttClient* arduino_mqtt_client_handle = (MqttClient*)mqtt_client_handle;
 
-  // As per documentation, `topic` always ends with a null-terminator.
   int mqtt_result = arduino_mqtt_client_handle->subscribe((const char*)az_span_ptr(topic), (uint8_t)qos);
   
   if (mqtt_result == 1) // ArduinoMqttClient: 1 on success, 0 on failure
@@ -218,7 +222,6 @@ static int mqtt_client_publish_function(mqtt_client_handle_t mqtt_client_handle,
   if (mqtt_result == 1) // ArduinoMqttClient: 1 on success, 0 on failure 
   {
     arduino_mqtt_client_handle->print((const char*)az_span_ptr(mqtt_message->payload));
-
     mqtt_result = arduino_mqtt_client_handle->endMessage();
     if (mqtt_result == 1)
     {
@@ -333,11 +336,13 @@ static uint32_t get_time()
 /* --- Arduino setup and loop Functions --- */
 void setup()
 {
+  while (!Serial);
   Serial.begin(MBED_CONF_PLATFORM_DEFAULT_SERIAL_BAUD_RATE);
   set_logging_function(logging_function);
 
   connect_to_wifi();
   sync_device_clock_with_ntp_server();
+  ArduinoBearSSL.onGetTime(get_time); // Required for server trusted root validation.
 
   azure_pnp_init();
 
@@ -388,7 +393,6 @@ void loop()
     switch(azure_iot_get_status(&azure_iot))
     {
       case azure_iot_connected:
-        LogInfo("Sending device info or telemetry");
         if (send_device_info)
         {
           (void)azure_pnp_send_device_info(&azure_iot, properties_request_id++);
@@ -422,7 +426,7 @@ void loop()
 
 /*
  * These are support functions used by the sample itself to perform its basic tasks
- * of connecting to the internet, syncing the board clock, ESP MQTT client event handler 
+ * of connecting to the internet, syncing the board clock, MQTT client callback 
  * and logging.
  */
 
@@ -459,13 +463,14 @@ void on_message_received(int message_size)
   LogInfo("MQTT message received.");
 
   mqtt_message_t mqtt_message;
-  mqtt_message.topic = az_span_create((uint8_t*)arduino_mqtt_client.messageTopic().c_str(), arduino_mqtt_client.messageTopic().length());
 
-  // Logging. Not required.
+  // Copy message topic. Avoids any inadvertant ArduinoMqttClient _rxState or _rxMessageTopic changes.
+  // messageTopic() must be called before read();
+  String message_topic = arduino_mqtt_client.messageTopic();
+
   arduino_mqtt_client.read(message_buffer, (size_t)message_size);
-  Serial.print("message: ");
-  Serial.println((char*)message_buffer);
-  
+
+  mqtt_message.topic = az_span_create((uint8_t*)message_topic.c_str(), message_topic.length());
   mqtt_message.payload = az_span_create(message_buffer, message_size);
   mqtt_message.qos = mqtt_qos_at_most_once; // QoS is unused by azure_iot_mqtt_client_message_received. 
 
