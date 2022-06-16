@@ -344,7 +344,6 @@ To remove the entire Azure IoT Central sample application and all its devices an
 1. Select **'Delete'**. A box will appear to confirm deletion.
 1. Select **'Delete'** again.
 
-
 ## Certificates - Important to know
 
 The Azure IoT service certificates presented during TLS negotiation shall be always validated, on the device, using the appropriate trusted root CA certificate(s).
