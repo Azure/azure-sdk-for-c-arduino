@@ -88,7 +88,7 @@ To create a device:
 
     ![IoT Central create a device](media/iotcentralcreate-device.png)
 
-1. Select **'Create'**. The newly created device will appear in the 'All devices' list.  
+1. Select **'Create'**. The newly created device will appear in the 'All devices' list.
 1. Under 'Device name', select your newly created device name.
 1. In the top menu bar, select **'Connect'**. A 'Device connection groups' window will appear.
 
@@ -156,7 +156,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
     - Paste your Device ID for the `IOT_CONFIG_DEVICE_ID` variable.
     - Finally, paste your Primary key for the `IOT_CONFIG_DEVICE_KEY` variable.
 
-1. Connect the Arduino Nano RP 2040 to your USB port.
+1. Connect the Arduino Nano RP 2040 Connect to your USB port.
 
 1. On the Arduino IDE, select the port.
 
@@ -173,9 +173,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
       <p>
 
       ```text
-      Sketch uses 187636 bytes (1%) of program storage space. Maximum is 16777216 bytes.
-      Global variables use 63492 bytes (23%) of dynamic memory, leaving 206844 bytes for local variables. Maximum is 270336 bytes.
-      .
+      TBD
       
       ```
       
@@ -208,14 +206,17 @@ To view the device status in IoT Central portal:
 1. Confirm the 'Device status' of the device is updated to 'Provisioned'.
 1. Confirm the 'Device template' of the device has updated to 'Espressif ESP32 Azure IoT Kit'.
 
+    > Note: The **'Espressif ESP32 Azure IoT Kit'** device template is used in this **Arduino Nano RP2040 Connect sample for simplicity.** It is a published template available from IoT Central. For more information on creating a custom device template, view these [instructions](https://docs.microsoft.com/en-us/azure/iot-central/core/howto-set-up-template).
+
     ![IoT Central device status](media/azure-iot-central-device-view-status.png)
 
 ### View device information
 
 To view the device information in IoT Central portal:
 
+1. Click on your device's name in the device list.
 1. Select the **'About'** tab.
-   
+
     ![IoT Central device info](media/azure-iot-central-device-about.png)
 
 ### View telemetry
@@ -233,17 +234,25 @@ To view telemetry in IoT Central portal:
 To send a command to the device:
 
 1. Select the **'Commands'** tab.
-2. Locate the 'Display Text' box.
-3. In the 'Content' textbox, enter the text to be displayed on the screen.
-4. Select **'Run'**.
-5. The screen on the device will update with the desired text.
+1. Locate the 'Display Text' box.
+1. In the 'Content' textbox, enter the text to be displayed on the screen.
+1. Select **'Run'**.
+1. Because this is a simulated screen, the text will print to the log.
+
+    ```
+    2022-06-16 13:31:50 [INFO] OLED display: <text>
+    ```
 
 To toggle an LED:
 
 1. Select the **'Commands'** tab.
-2. Locate the 'Toggle LED 1' or 'Toggle LED 2' box.
-3. Select **'Run'**.
-4. An LED light on the device will toggle state.
+1. Locate the 'Toggle LED 1' or 'Toggle LED 2' box.
+1. Select **'Run'**.
+1. Because these are simulated LEDs, the following will print to the log.
+
+    ```
+    2022-06-16 13:31:46 [INFO] LED <#> state: <ON/OFF>
+    ```
 
 ![IoT Central invoke method](media/azure-iot-central-invoke-method.png)
 
@@ -254,16 +263,17 @@ If you no longer need the Azure resources created in this tutorial, you can dele
 To keep the Azure IoT Central sample application but remove only specific devices:
 
 1. On the left side menu, under 'Connect', select **'Devices'**.
-2. Hover of your device's name and click on the circle that appears to the left. The circle will turn blue.
-3. Select **'Delete'**.
+1. Hover over your device's name and click on the circle that appears to the left. The circle will turn blue.
+1. Select **'Delete'**. A box will appear to confirm deletion.
+1. Select **'Delete'** again.
 
 To remove the entire Azure IoT Central sample application and all its devices and resources:
 
 1. On the left side menu, under 'Settings', select **'Application'**.
-2. Select the **'Management'** tab.
-3. Scroll to the bottom of the page.
-4. Select **'Delete'**. A box will appear to confirm deletion.
-5. Select **'Delete'** again.
+1. Select the **'Management'** tab.
+1. Scroll to the bottom of the page.
+1. Select **'Delete'**. A box will appear to confirm deletion.
+1. Select **'Delete'** again.
 
 ## Certificates - Important to know
 
