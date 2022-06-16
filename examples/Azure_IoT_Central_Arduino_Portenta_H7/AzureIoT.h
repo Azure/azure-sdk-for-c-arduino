@@ -182,7 +182,6 @@ typedef int (*mqtt_client_deinit_function_t)(mqtt_client_handle_t mqtt_client_ha
  *                                     an actual MQTT message.
  * 
 
- // 1 on success, 0 on fail for ArduinoMqttClient.
  * @return       int                   The packet ID on success, or NEGATIVE if any failure occurs.
  *                                     If the QoS in `mqtt_message` is:
  *                                     - AT LEAST ONCE, the Azure IoT client expects `azure_iot_mqtt_client_connected` 
@@ -203,7 +202,6 @@ typedef int (*mqtt_client_publish_function_t)(mqtt_client_handle_t mqtt_client_h
  * @param[in]    qos             MQTT QoS to be used for the topic subscription.
  * 
  
- // 1 on success, 0 on fail for ArduinoMqttClient.
  * @return       int             The packet ID of the subscription on success, or NEGATIVE if any failure occurs.
  *                               Azure IoT client expects `azure_iot_mqtt_client_subscribe_completed` to be called once the
  *                               MQTT client receives a SUBACK.
