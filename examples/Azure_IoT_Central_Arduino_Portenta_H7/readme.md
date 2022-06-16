@@ -112,7 +112,7 @@ To create a device:
 
 1. Install Arduino Mbed OS Portenta Boards support in the Arduino IDE. [Full instructions can be found here.](https://docs.arduino.cc/software/ide-v1/tutorials/getting-started/cores/arduino-mbed_portenta)
 
-    - Navigate to **Tools > Board > Board Manager**.
+    - Navigate to **Tools > Board > Boards Manager**.
     - Search for **'Portenta'** and install the **Arduino Mbed OS Portenta Boards** core.
     - Install the latest version.    
     
