@@ -437,6 +437,7 @@ static void sync_device_clock_with_ntp_server()
 
   while (get_time() == 0) 
   {
+    delay(500);
     Serial.print(".");
   }
   Serial.println("");

@@ -114,7 +114,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 
 1. Install Arduino Mbed OS Nano Boards support in the Arduino IDE. [Full instructions can be found here.](https://docs.arduino.cc/hardware/nano-rp2040-connect)
 
-    - Navigate to **Tools > Board > Board Manager**.
+    - Navigate to **Tools > Board > Boards Manager**.
     - Search for **'RP2040'** and install the **Arduino Mbed OS Nano Boards** core.
     - Install the latest version.
 
@@ -136,7 +136,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
 
     - Navigate to **Tools > Manage Libraries**.
     - Search for the **'ArduinoBearSSL'** library. Install the latest version.
-    - Search for the **'Arduino MQTT Client'** library. Install the latest version.
+    - Search for the **'ArduinoMqttClient'** library. Install the latest version.
 
 1. You may need to restart the Arduino IDE for changes to show up.
 
@@ -173,7 +173,9 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
       <p>
 
       ```text
-      TBD
+      Sketch uses 207740 bytes (1%) of program storage space. Maximum is 16777216 bytes.
+      Global variables use 66812 bytes (24%) of dynamic memory, leaving 203524 bytes for local variables. Maximum is 270336 bytes.
+      .
       
       ```
       
@@ -187,7 +189,45 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
         If you perform this step right away after uploading the sketch, the serial monitor will show an output similar to the following upon success:
 
         ```text
-        TBD
+        2106-02-06 23:28:16 [INFO] Connecting to WIFI wifi_ssid <ssid>
+        ..
+        2106-02-06 23:28:16 [INFO] WiFi connected, IP address: 536923696
+        2106-02-06 23:28:16 [INFO] Setting time using SNTP
+        ....
+        2022-06-16 16:03:03 [INFO] Time initialized!
+        2022-06-16 16:03:03 [INFO] Azure IoT client initialized (state=2)
+        2022-06-16 16:03:04 [INFO] MQTT Client ID: <device id>
+        2022-06-16 16:03:04 [INFO] MQTT Username: <scope id>/registrations/<device id>/api-version=2019-03-31
+        2022-06-16 16:03:04 [INFO] MQTT Password: ***
+        2022-06-16 16:03:04 [INFO] MQTT client address: global.azure-devices-provisioning.net
+        2022-06-16 16:03:04 [INFO] MQTT client port: 8883
+        2022-06-16 16:03:08 [INFO] MQTT client connected.
+        2022-06-16 16:03:09 [INFO] MQTT client subscribing to '$dps/registrations/res/#'
+        2022-06-16 16:03:09 [INFO] MQTT topic subscribed
+        2022-06-16 16:03:09 [INFO] MQTT client publishing to '$dps/registrations/PUT/iotdps-register/?$rid=1'
+        2022-06-16 16:03:10 [INFO] MQTT message received.
+        2022-06-16 16:03:11 [INFO] MQTT client publishing to '$dps/registrations/GET/iotdps-get-operationstatus/?$rid=1&operationId=4.36e237c8db462f45.7081bb47-3e8f-4e1e-af40-da3477582335'
+        2022-06-16 16:03:11 [INFO] MQTT message received.
+        2022-06-16 16:03:14 [INFO] MQTT client publishing to '$dps/registrations/GET/iotdps-get-operationstatus/?$rid=1&operationId=4.36e237c8db462f45.7081bb47-3e8f-4e1e-af40-da3477582335'
+        2022-06-16 16:03:14 [INFO] MQTT message received.
+        2022-06-16 16:03:15 [INFO] MQTT client being disconnected.
+        2022-06-16 16:03:15 [INFO] MQTT Client ID: <device id>
+        2022-06-16 16:03:15 [INFO] MQTT Username: <provisioned iot hub fqdn>.azure-devices.net/mydevice/?api-version=2020-09-30&DeviceClientType=c%2F1.3.1(ard;portentaH7)&model-id=dtmi%3Aazureiot%3Adevkit%3Afreertos%3AEsp32AzureIotKit%3B1
+        2022-06-16 16:03:15 [INFO] MQTT Password: ***
+        2022-06-16 16:03:15 [INFO] MQTT client address: <provisioned iot hub fqdn>.azure-devices.net
+        2022-06-16 16:03:15 [INFO] MQTT client port: 8883
+        2022-06-16 16:03:18 [INFO] MQTT client connected.
+        2022-06-16 16:03:18 [INFO] MQTT client subscribing to '$iothub/methods/POST/#'
+        2022-06-16 16:03:19 [INFO] MQTT topic subscribed
+        2022-06-16 16:03:19 [INFO] MQTT client subscribing to '$iothub/twin/res/#'
+        2022-06-16 16:03:19 [INFO] MQTT topic subscribed
+        2022-06-16 16:03:20 [INFO] MQTT client subscribing to '$iothub/twin/PATCH/properties/desired/#'
+        2022-06-16 16:03:20 [INFO] MQTT topic subscribed
+        2022-06-16 16:03:20 [INFO] MQTT client publishing to '$iothub/twin/PATCH/properties/reported/?$rid=0'
+        2022-06-16 16:03:20 [INFO] MQTT client publishing to 'devices/mydevice/messages/events/'
+        2022-06-16 16:03:20 [INFO] MQTT message received.
+        2022-06-16 16:03:20 [INFO] Properties update request completed (id=0, status=204)
+        2022-06-16 16:03:29 [INFO] MQTT client publishing to 'devices/mydevice/messages/events/'
         ```
 
 ## View your device data from IoT Central
