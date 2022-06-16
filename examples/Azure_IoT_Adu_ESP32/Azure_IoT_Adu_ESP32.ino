@@ -45,7 +45,7 @@
 
 // When developing for your own Arduino-based platform,
 // please follow the format '(ard;<platform>)'. 
-#define AZURE_SDK_CLIENT_USER_AGENT "c/" AZ_SDK_VERSION_STRING "(ard;esp32)"
+#define AZURE_SDK_CLIENT_USER_AGENT "c%2f" AZ_SDK_VERSION_STRING "(ard;esp32)"
 
 #define SAMPLE_MQTT_TOPIC_LENGTH 128
 #define SAMPLE_MQTT_PAYLOAD_LENGTH 1024
@@ -64,7 +64,12 @@ static bool did_parse_update = false;
 static bool did_update = false;
 static char adu_scratch_buffer[10000];
 
+#define AZ_IOT_ADU_DTMI "dtmi:azure:iot:deviceUpdateModel;1"
 #define AZ_IOT_ADU_AGENT_VERSION "DU;agent/0.8.0-rc1-public-preview"
+static az_span pnp_components[] =
+{
+    AZ_SPAN_FROM_STR( AZ_IOT_ADU_PROPERTIES_COMPONENT_NAME )
+};
 az_iot_adu_device_information adu_device_information = {
   .manufacturer = AZ_SPAN_LITERAL_FROM_STR(ADU_DEVICE_MANUFACTURER),
   .model = AZ_SPAN_LITERAL_FROM_STR(ADU_DEVICE_MODEL),
@@ -103,12 +108,13 @@ static const int mqtt_port = AZ_IOT_DEFAULT_MQTT_CONNECT_PORT;
 static esp_mqtt_client_handle_t mqtt_client;
 static az_iot_hub_client hub_client;
 static HTTPClient http_client;
+bool didNewlyConnect = true;
 
 // MQTT Connection Values
 static uint16_t connection_request_id = 0;
 static char connection_request_id_buffer[16];
-static char mqtt_client_id[128];
-static char mqtt_username[128];
+static char mqtt_client_id[256];
+static char mqtt_username[256];
 static char mqtt_password[200];
 static uint8_t sas_signature_buffer[256];
 static unsigned long next_telemetry_send_time_ms = 0;
@@ -274,7 +280,7 @@ static void request_all_properties(void)
         0,
         MQTT_QOS1,
         DO_NOT_RETAIN_MSG)
-    == 0)
+    < 0)
   {
     Logger.Error("Failed publishing");
   }
@@ -304,7 +310,7 @@ static void send_adu_device_information_property(void)
   }
 
   // Write the updated reported property message.
-  char reported_property_payload_buffer[SAMPLE_MQTT_PAYLOAD_LENGTH];
+  char reported_property_payload_buffer[SAMPLE_MQTT_PAYLOAD_LENGTH] = { 0 };
   az_span reported_property_payload = AZ_SPAN_FROM_BUFFER(reported_property_payload_buffer);
 
   rc = az_iot_adu_get_properties_payload(
@@ -319,14 +325,17 @@ static void send_adu_device_information_property(void)
     Logger.Error("Failed to get the adu device information payload");
   }
 
+  Logger.Info("Topic " + String(property_update_topic_buffer));
+  Logger.Info("Payload " + String(reported_property_payload_buffer));
+
   if (esp_mqtt_client_publish(
         mqtt_client,
         property_update_topic_buffer,
         (const char*)az_span_ptr(reported_property_payload),
         az_span_size(reported_property_payload),
-        MQTT_QOS1,
+        0,
         DO_NOT_RETAIN_MSG)
-    == 0)
+    < 0)
   {
     Logger.Error("Failed publishing");
   }
@@ -341,12 +350,12 @@ static void send_adu_accept_manifest_property(int32_t version_number)
   az_result rc;
 
   // Get the topic to publish the property document request.
-  char property_document_topic_buffer[SAMPLE_MQTT_TOPIC_LENGTH];
+  char property_accept_topic_buffer[SAMPLE_MQTT_TOPIC_LENGTH];
   rc = az_iot_hub_client_properties_get_reported_publish_topic(
       &hub_client,
       get_request_id(),
-      property_document_topic_buffer,
-      sizeof(property_document_topic_buffer),
+      property_accept_topic_buffer,
+      sizeof(property_accept_topic_buffer),
       NULL);
   if(az_result_failed(rc))
   {
@@ -369,12 +378,12 @@ static void send_adu_accept_manifest_property(int32_t version_number)
 
   if (esp_mqtt_client_publish(
         mqtt_client,
-        property_document_topic_buffer,
+        property_accept_topic_buffer,
         (const char*)az_span_ptr(property_buffer),
         az_span_size(property_buffer),
         MQTT_QOS1,
         DO_NOT_RETAIN_MSG)
-    == 0)
+    < 0)
   {
     Logger.Error("Failed publishing");
   }
@@ -528,7 +537,7 @@ void receivedCallback(char* topic, byte* payload, unsigned int length)
 
   az_iot_hub_client_properties_message property_message;
 
-  az_span topic_span = az_span_create(payload, length);
+  az_span topic_span = az_span_create((uint8_t*)topic, (int32_t)strlen(topic));
 
   rc = az_iot_hub_client_properties_parse_received_topic(
     &hub_client, topic_span, &property_message);
@@ -541,7 +550,7 @@ void receivedCallback(char* topic, byte* payload, unsigned int length)
   }
   else
   {
-    Logger.Error("Received a message from an unknown topic: " + String(topic));
+    Logger.Error("Error: " + String(rc) + " Received a message from an unknown topic: " + String(topic));
   }
 }
 
@@ -553,6 +562,10 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 
     case MQTT_EVENT_ERROR:
       Logger.Info("MQTT event MQTT_EVENT_ERROR");
+      Logger.Info("ESP ERROR " + String(event->error_handle->esp_tls_last_esp_err));
+      Logger.Info("TLS ERROR " + String(event->error_handle->esp_tls_stack_err));
+      Logger.Info("ERROR TYPE " + String(event->error_handle->error_type));
+      Logger.Info("ESP Error " + String(esp_err_to_name(event->error_handle->esp_tls_last_esp_err)));
       break;
     case MQTT_EVENT_CONNECTED:
       Logger.Info("MQTT event MQTT_EVENT_CONNECTED");
@@ -567,7 +580,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
         Logger.Info("Subscribed for cloud-to-device messages; message id:" + String(r));
       }
 
-      r = esp_mqtt_client_subscribe(mqtt_client, AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_SUBSCRIBE_TOPIC, MQTT_QOS1);
+      r = esp_mqtt_client_subscribe(mqtt_client, AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_SUBSCRIBE_TOPIC, 1);
       if (r == -1)
       {
         Logger.Error("Could not subscribe to properties messages.");
@@ -577,7 +590,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
         Logger.Info("Subscribed to properties messages; message id:"  + String(r));
       }
 
-      r = esp_mqtt_client_subscribe(mqtt_client, AZ_IOT_HUB_CLIENT_PROPERTIES_WRITABLE_UPDATES_SUBSCRIBE_TOPIC, MQTT_QOS1);
+      r = esp_mqtt_client_subscribe(mqtt_client, AZ_IOT_HUB_CLIENT_PROPERTIES_WRITABLE_UPDATES_SUBSCRIBE_TOPIC, 1);
       if (r == -1)
       {
         Logger.Error("Could not subscribe to writable property updates.");
@@ -586,12 +599,6 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
       {
         Logger.Info("Subscribed to writable property updates; message id:"  + String(r));
       }
-
-      Logger.Info("Sending ADU device information");
-      send_adu_device_information_property();
-
-      Logger.Info("Requesting all device properties");
-      request_all_properties();
 
       break;
     case MQTT_EVENT_DISCONNECTED:
@@ -641,6 +648,9 @@ static void initializeIoTHubClient()
 {
   az_iot_hub_client_options options = az_iot_hub_client_options_default();
   options.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT);
+  options.model_id = AZ_SPAN_FROM_STR(AZ_IOT_ADU_DTMI);
+  options.component_names = pnp_components;
+  options.component_names_length = sizeof(pnp_components) / sizeof(pnp_components[0]);
 
   if (az_result_failed(az_iot_hub_client_init(
           &hub_client,
@@ -702,6 +712,7 @@ static int initializeMqttClient()
   mqtt_config.event_handle = mqtt_event_handler;
   mqtt_config.user_context = NULL;
   mqtt_config.cert_pem = (const char*)ca_pem;
+  mqtt_config.buffer_size = 2048;
 
   mqtt_client = esp_mqtt_client_init(&mqtt_config);
 
@@ -783,7 +794,7 @@ static void sendTelemetry()
           az_span_size(telemetry),
           MQTT_QOS1,
           DO_NOT_RETAIN_MSG)
-      == 0)
+      < 0)
   {
     Logger.Error("Failed publishing");
   }
@@ -799,6 +810,8 @@ void setup()
 {
   establishConnection();
 }
+
+static int waitCount = 1;
 
 void loop()
 {
@@ -819,10 +832,20 @@ void loop()
     sendTelemetry();
     next_telemetry_send_time_ms = millis() + TELEMETRY_FREQUENCY_MILLISECS;
 
+    if (waitCount % 5 == 0)
+    {
+      Logger.Info("Requesting all device properties");
+      request_all_properties();
+      Logger.Info("Sending ADU device information");
+      send_adu_device_information_property();
+    }
+
     if(did_parse_update)
     {
       downloadAndWriteToFlash();
       verifyImageAndReboot();
     }
+
+    waitCount++;
   }
 }
