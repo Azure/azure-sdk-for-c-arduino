@@ -57,7 +57,8 @@
 #include "iot_configs.h"
 
 /* --- Sample-specific Settings --- */
-#define MQTT_DO_NOT_RETAIN_MSG  0
+#define MQTT_RETAIN_MSG true
+#define MQTT_DO_NOT_RETAIN_MSG !MQTT_RETAIN_MSG
 
 /* --- Time and NTP Settings --- */
 #define GMT_OFFSET_SECS (IOT_CONFIG_DAYLIGHT_SAVINGS ? \
@@ -114,8 +115,8 @@ static int mqtt_client_init_function(mqtt_client_config_t* mqtt_client_config, m
   int port = mqtt_client_config->port;
  
   // Address for DPS is az_span from string literal (#define DPS_GLOBAL_ENDPOINT_FQDN). Null terminated.
-  // Address for Hub is az_span, retrieved from message from DPS.  Not null terminated.
-  // This function will be called for both scenarios.
+  // Address for Hub is az_span, retrieved from message from DPS. Not null terminated.
+  // mqtt_client_init_function() is called in both scenarios.
   char address[128] = {0}; // Default to null-termination.
   memcpy(address, az_span_ptr(mqtt_client_config->address), az_span_size(mqtt_client_config->address));
 
@@ -183,7 +184,6 @@ static int mqtt_client_subscribe_function(mqtt_client_handle_t mqtt_client_handl
   int result;
   MqttClient* arduino_mqtt_client_handle = (MqttClient*)mqtt_client_handle;
 
-  // As per documentation, `topic` always ends with a null-terminator.
   int mqtt_result = arduino_mqtt_client_handle->subscribe((const char*)az_span_ptr(topic), (uint8_t)qos);
   
   if (mqtt_result == 1) // ArduinoMqttClient: 1 on success, 0 on failure
@@ -216,8 +216,6 @@ static int mqtt_client_publish_function(mqtt_client_handle_t mqtt_client_handle,
   int result;
   MqttClient* arduino_mqtt_client_handle = (MqttClient*)mqtt_client_handle;
 
-//publishing the device info -- az_span payload is null terminated, but az_span_size does not include null character in count.
-//publishing telemetry -- az_span payload is null terminated, but az_span_size does not include null character in count.
   int mqtt_result = arduino_mqtt_client_handle->beginMessage(
                         (const char*)az_span_ptr(mqtt_message->topic), 
                         MQTT_DO_NOT_RETAIN_MSG, 
@@ -225,13 +223,7 @@ static int mqtt_client_publish_function(mqtt_client_handle_t mqtt_client_handle,
 
   if (mqtt_result == 1) // ArduinoMqttClient: 1 on success, 0 on failure 
   {
-    // Constructed payload may not be null terminated. Even if a null character exists, az_span_size does not include it in its size calculation.
-    //uint8_t* temp = az_span_ptr(mqtt_message->payload);
-    //*(temp + az_span_size(mqtt_message->payload)) = 0; // Add null character.
-
-    LogInfo("payload: %s", az_span_ptr(mqtt_message->payload));
     arduino_mqtt_client_handle->print((const char*)az_span_ptr(mqtt_message->payload));
-
     mqtt_result = arduino_mqtt_client_handle->endMessage();
     if (mqtt_result == 1)
     {
@@ -475,13 +467,14 @@ void on_message_received(int message_size)
   LogInfo("MQTT message received.");
 
   mqtt_message_t mqtt_message;
-  mqtt_message.topic = az_span_create((uint8_t*)arduino_mqtt_client.messageTopic().c_str(), arduino_mqtt_client.messageTopic().length());
 
-  // Logging. Not required.
+  // Copy message topic. Avoids any inadvertant ArduinoMqttClient _rxState or _rxMessageTopic changes.
+  // messageTopic() must be called before read();
+  String message_topic = arduino_mqtt_client.messageTopic();
+
   arduino_mqtt_client.read(message_buffer, (size_t)message_size);
-  Serial.print("message: ");
-  Serial.println((char*)message_buffer);
-  
+
+  mqtt_message.topic = az_span_create((uint8_t*)message_topic.c_str(), message_topic.length());
   mqtt_message.payload = az_span_create(message_buffer, message_size);
   mqtt_message.qos = mqtt_qos_at_most_once; // QoS is unused by azure_iot_mqtt_client_message_received. 
 

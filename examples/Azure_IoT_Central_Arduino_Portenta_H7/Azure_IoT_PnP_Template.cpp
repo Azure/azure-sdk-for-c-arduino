@@ -28,7 +28,7 @@
 #define SAMPLE_MANUFACTURER_PROPERTY_VALUE             "Arduino"
 #define SAMPLE_MODEL_PROPERTY_VALUE                    "Arduino Portenta H7"
 #define SAMPLE_VERSION_PROPERTY_VALUE                  "1.0.0"
-#define SAMPLE_OS_NAME_PROPERTY_VALUE                  "FreeRTOS"
+#define SAMPLE_OS_NAME_PROPERTY_VALUE                  "Mbed OS"
 #define SAMPLE_ARCHITECTURE_PROPERTY_VALUE             "STM32H747"
 #define SAMPLE_PROCESSOR_MANUFACTURER_PROPERTY_VALUE   "Arduino"
 // The next couple properties are in KiloBytes.
@@ -161,6 +161,7 @@ int azure_pnp_send_device_info(azure_iot_t* azure_iot, uint32_t request_id)
   // Generates payload with a null terminator.  length does NOT include null terminator in count.
   result = generate_device_info_payload(&azure_iot->iot_hub_client, data_buffer, DATA_BUFFER_SIZE, &length);
   EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed generating telemetry payload.");
+
 
   result = azure_iot_send_properties_update(azure_iot, request_id, az_span_create(data_buffer, length));
   EXIT_IF_TRUE(result != RESULT_OK, RESULT_ERROR, "Failed sending reported properties update.");

@@ -33,7 +33,7 @@ products:
   - [Troubleshooting](#troubleshooting)
   - [Contributing](#contributing)
     - [License](#license)
-  
+
 ## Introduction
 
 In this tutorial you will use the Azure SDK for C to connect the [Arduino Portenta H7](https://docs.arduino.cc/hardware/portenta-h7) to Azure IoT Central. The article is part of the series [IoT Device Development](https://go.microsoft.com/fwlink/p/?linkid=2129824). The series introduces device developers to the Azure SDK for C, and shows how to connect several device evaluation kits to Azure IoT.
@@ -52,7 +52,6 @@ _The following was run on Windows 10 and WSL1 Ubuntu Desktop 20.04 environments,
 * Have an [Azure account](https://azure.microsoft.com/) created.
 
 * Have the latest [Arduino IDE](https://www.arduino.cc/en/Main/Software) installed.
-
 
 ## IoT Central and Device Setup
 
@@ -89,7 +88,7 @@ To create a device:
 
     ![IoT Central create a device](media/iotcentralcreate-device.png)
 
-1. Select **'Create'**. The newly created device will appear in the 'All devices' list.  
+1. Select **'Create'**. The newly created device will appear in the 'All devices' list.
 1. Under 'Device name', select your newly created device name.
 1. In the top menu bar, select **'Connect'**. A 'Device connection groups' window will appear.
 
@@ -108,7 +107,7 @@ To create a device:
 1. Install the Azure SDK for Embedded C library.
 
     - Navigate to **Tools > Manage Libraries**.
-    - Search for the **'azure-sdk-for-c'** library. 
+    - Search for the **'azure-sdk-for-c'** library.
     - Install the latest version.
 
 1. Install Arduino Mbed OS Portenta Boards support in the Arduino IDE. [Full instructions can be found here.](https://docs.arduino.cc/software/ide-v1/tutorials/getting-started/cores/arduino-mbed_portenta)
@@ -117,7 +116,7 @@ To create a device:
     - Search for **'Portenta'** and install the **Arduino Mbed OS Portenta Boards** core.
     - Install the latest version.    
     
-      *Note: This process may take several minutes.*  
+      *Note: This process may take several minutes.*
 
 1. Nagivate to **Tools > Board > Arduino Mbed OS Portenta Boards** and select **'Arduino Portenta H7 (M7 core)'**.
 
@@ -125,15 +124,15 @@ To create a device:
 
 1. If this is your first time using the Portenta, [follow these instructions to update the WiFi firmware on the Portenta](https://support.arduino.cc/hc/en-us/articles/4403365234322-How-to-update-Wi-Fi-firmware-on-Portenta-H7).
 
-1. Install additional libraries for the Portenta Embedded C SDK sample. 
+1. Install additional libraries for the Portenta Embedded C SDK sample.
 
     - This process is more involved than typical because we are using the NTP Client Generic library which has circular dependencies so we must do a special install to only grab the what we need.
 
     - There are two ways to do this:
         1. Download the  NTP Client Generic library manually from its repository, or
-        2. Use the Arduino CLI. 
+        2. Use the Arduino CLI.
 
-    - This tutorial will use the CLI approach because it is faster and easier to describe. 
+    - This tutorial will use the CLI approach because it is faster and easier to describe.
     - Using the Arduino CLI, type and run the following command to install the NTP Client :
 
       ```
@@ -142,7 +141,7 @@ To create a device:
 
     - Since we're already in the Arduino CLI, let's install remaining libraries (can also install these from Library Manager):
 
-      ``` 
+      ```
       arduino-cli lib install "Azure SDK for C" ArduinoBearSSL Time ArduinoMqttClient
       ```
 
@@ -153,7 +152,7 @@ To create a device:
 1. Open the Arduino Portenta H7 sample.
 
     - In the Arduino IDE, navigate to **File > Examples > Azure SDK For C**
-    - Select **Azure_IoT_Central_Arduino_Portenta_H7** to open the sample. 
+    - Select **Azure_IoT_Central_Arduino_Portenta_H7** to open the sample.
 
 1. Navigate to the '*iot_configs.h*' file
 
@@ -219,7 +218,45 @@ To create a device:
         If you perform this step right away after uploading the sketch, the serial monitor will show an output similar to the following upon success:
 
         ```text
-        TBD
+        2106-02-06 23:32:04 [INFO] Connecting to WIFI wifi_ssid <ssid>
+        ...
+        2106-02-06 23:32:44 [INFO] WiFi connected, IP address: 604051168
+        2106-02-06 23:32:44 [INFO] Setting time using SNTP
+
+        2022-06-16 13:04:50 [INFO] Time initialized!
+        2022-06-16 13:04:50 [INFO] Azure IoT client initialized (state=2)
+        2022-06-16 13:04:50 [INFO] MQTT Client ID: <device id>
+        2022-06-16 13:04:50 [INFO] MQTT Username: <id scope>/registrations/<device id>/api-version=2019-03-31
+        2022-06-16 13:04:50 [INFO] MQTT Password: ***
+        2022-06-16 13:04:50 [INFO] MQTT client address: global.azure-devices-provisioning.net
+        2022-06-16 13:04:50 [INFO] MQTT client port: 8883
+        2022-06-16 13:04:52 [INFO] MQTT client connected.
+        2022-06-16 13:04:53 [INFO] MQTT client subscribing to '$dps/registrations/res/#'
+        2022-06-16 13:04:53 [INFO] MQTT topic subscribed
+        2022-06-16 13:04:54 [INFO] MQTT client publishing to '$dps/registrations/PUT/iotdps-register/?$rid=1'
+        2022-06-16 13:04:55 [INFO] MQTT message received.
+        2022-06-16 13:04:55 [INFO] MQTT client publishing to '$dps/registrations/GET/iotdps-get-operationstatus/?$rid=1&operationId=4.36e237c8db462f45.1209aff3-9c58-4c56-b070-0fd4359286d1'
+        2022-06-16 13:04:56 [INFO] MQTT message received.
+        2022-06-16 13:04:58 [INFO] MQTT client publishing to '$dps/registrations/GET/iotdps-get-operationstatus/?$rid=1&operationId=4.36e237c8db462f45.1209aff3-9c58-4c56-b070-0fd4359286d1'
+        2022-06-16 13:04:59 [INFO] MQTT message received.
+        2022-06-16 13:05:00 [INFO] MQTT client being disconnected.
+        2022-06-16 13:05:00 [INFO] MQTT Client ID: <device id>
+        2022-06-16 13:05:00 [INFO] MQTT Username: <provisioned iot hub fqdn>.azure-devices.net/<device id>/?api-version=2020-09-30&DeviceClientType=c%2F1.3.1(ard;portentaH7)&model-id=dtmi%3Aazureiot%3Adevkit%3Afreertos%3AEsp32AzureIotKit%3B1
+        2022-06-16 13:05:00 [INFO] MQTT Password: ***
+        2022-06-16 13:05:00 [INFO] MQTT client address: <provisioned iot hub fqdn>.azure-devices.net
+        2022-06-16 13:05:00 [INFO] MQTT client port: 8883
+        2022-06-16 13:05:02 [INFO] MQTT client connected.
+        2022-06-16 13:05:02 [INFO] MQTT client subscribing to '$iothub/methods/POST/#'
+        2022-06-16 13:05:03 [INFO] MQTT topic subscribed
+        2022-06-16 13:05:03 [INFO] MQTT client subscribing to '$iothub/twin/res/#'
+        2022-06-16 13:05:03 [INFO] MQTT topic subscribed
+        2022-06-16 13:05:04 [INFO] MQTT client subscribing to '$iothub/twin/PATCH/properties/desired/#'
+        2022-06-16 13:05:04 [INFO] MQTT topic subscribed
+        2022-06-16 13:05:04 [INFO] MQTT client publishing to '$iothub/twin/PATCH/properties/reported/?$rid=0'
+        2022-06-16 13:05:04 [INFO] MQTT client publishing to 'devices/<device id>/messages/events/'
+        2022-06-16 13:05:04 [INFO] MQTT message received.
+        2022-06-16 13:05:04 [INFO] Properties update request completed (id=0, status=204)
+        2022-06-16 13:05:14 [INFO] MQTT client publishing to 'devices/mydevice/messages/events/'
         ```
 
 ## View your device data from IoT Central
@@ -229,7 +266,7 @@ With IoT Central, you can view the device status and information, observe teleme
 1. Go to your [IoT Central application portal](https://apps.azureiotcentral.com/myapps).
 1. Select your application.
 1. On the left side menu, under 'Connect', select **'Devices'**.
-   
+
 ### Verify the device status
 
 To view the device status in IoT Central portal:
@@ -238,7 +275,7 @@ To view the device status in IoT Central portal:
 1. Confirm the 'Device status' of the device is updated to 'Provisioned'.
 1. Confirm the 'Device template' of the device has updated to 'Espressif ESP32 Azure IoT Kit'.
 
-    *Note: The device template 'Espressif ESP32 Azure IoT Kit' is a published device template available from IoT Central. It is in this Arduino Portenta H7 sample to simplify the steps and data simulation.* 
+    *Note: The device template 'Espressif ESP32 Azure IoT Kit' is a published device template available from IoT Central. It is used in this Arduino Portenta H7 sample for simplicity. For more information on creating a custom device template, view these [instructions](https://docs.microsoft.com/en-us/azure/iot-central/core/howto-set-up-template).* 
 
     ![IoT Central device status](media/azure-iot-central-device-view-status.png)
 
@@ -246,8 +283,9 @@ To view the device status in IoT Central portal:
 
 To view the device information in IoT Central portal:
 
+1. Click on your device's name in the device list.
 1. Select the **'About'** tab.
-   
+
     ![IoT Central device info](media/azure-iot-central-device-about.png)
 
 ### View telemetry
@@ -265,17 +303,25 @@ To view telemetry in IoT Central portal:
 To send a command to the device:
 
 1. Select the **'Commands'** tab.
-2. Locate the 'Display Text' box.
-3. In the 'Content' textbox, enter the text to be displayed on the screen.
-4. Select **'Run'**.
-5. The screen on the device will update with the desired text.
+1. Locate the 'Display Text' box.
+1. In the 'Content' textbox, enter the text to be displayed on the screen.
+1. Select **'Run'**.
+1. Because this is a simulated screen, the text will print to the log.
+
+    ```
+    2022-06-16 13:31:50 [INFO] OLED display: <text>
+    ```
 
 To toggle an LED:
 
 1. Select the **'Commands'** tab.
-2. Locate the 'Toggle LED 1' or 'Toggle LED 2' box.
-3. Select **'Run'**.
-4. An LED light on the device will toggle state.
+1. Locate the 'Toggle LED 1' or 'Toggle LED 2' box.
+1. Select **'Run'**.
+1. Because these are simulated LEDs, the following will print to the log.
+
+    ```
+    2022-06-16 13:31:46 [INFO] LED <#> state: <ON/OFF>
+    ```
 
 ![IoT Central invoke method](media/azure-iot-central-invoke-method.png)
 
@@ -286,16 +332,17 @@ If you no longer need the Azure resources created in this tutorial, you can dele
 To keep the Azure IoT Central sample application but remove only specific devices:
 
 1. On the left side menu, under 'Connect', select **'Devices'**.
-2. Hover of your device's name and click on the circle that appears to the left. The circle will turn blue.
-3. Select **'Delete'**.
+1. Hover over your device's name and click on the circle that appears to the left. The circle will turn blue.
+1. Select **'Delete'**. A box will appear to confirm deletion.
+1. Select **'Delete'** again.
 
 To remove the entire Azure IoT Central sample application and all its devices and resources:
 
 1. On the left side menu, under 'Settings', select **'Application'**.
-2. Select the **'Management'** tab.
-3. Scroll to the bottom of the page.
-4. Select **'Delete'**. A box will appear to confirm deletion.
-5. Select **'Delete'** again.
+1. Select the **'Management'** tab.
+1. Scroll to the bottom of the page.
+1. Select **'Delete'**. A box will appear to confirm deletion.
+1. Select **'Delete'** again.
 
 
 ## Certificates - Important to know
