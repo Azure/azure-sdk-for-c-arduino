@@ -53,7 +53,7 @@
 // ADU Values
 #define ADU_DEVICE_MANUFACTURER "ESPRESSIF"
 #define ADU_DEVICE_MODEL "ESP32-Embedded"
-#define ADU_DEVICE_VERSION "1.0"
+#define ADU_DEVICE_VERSION "1.1"
 #define HTTP_DOWNLOAD_CHUNK 4096
 
 // ADU Feature Values
@@ -63,6 +63,7 @@ static char adu_new_version[16];
 static bool did_parse_update = false;
 static bool did_update = false;
 static char adu_scratch_buffer[10000];
+static int chunked_data_index;
 
 #define AZ_IOT_ADU_DTMI "dtmi:azure:iot:deviceUpdateModel;1"
 #define AZ_IOT_ADU_AGENT_VERSION "DU;agent/0.8.0-rc1-public-preview"
@@ -616,13 +617,17 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     case MQTT_EVENT_DATA:
       Logger.Info("MQTT event MQTT_EVENT_DATA");
 
-      for (i = 0; i < (SAMPLE_MQTT_TOPIC_LENGTH - 1) && i < event->topic_len; i++)
+      // Chunked data will not have a topic. Only copy when topic length is great than 0.
+      if(event->topic_len > 0)
       {
-        incoming_topic[i] = event->topic[i]; 
+          for (i = 0; i < (SAMPLE_MQTT_TOPIC_LENGTH - 1) && i < event->topic_len; i++)
+          {
+            incoming_topic[i] = event->topic[i]; 
+          }
+          incoming_topic[i] = '\0';
+          Logger.Info("Topic: " + String(incoming_topic));
       }
-      incoming_topic[i] = '\0';
-      Logger.Info("Topic: " + String(incoming_topic));
-      
+
       for (i = 0; i < (SAMPLE_MQTT_PAYLOAD_LENGTH - 1) && i < event->data_len; i++)
       {
         incoming_data[i] = event->data[i]; 
@@ -630,7 +635,24 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
       incoming_data[i] = '\0';
       Logger.Info("Data: " + String(incoming_data));
 
-      receivedCallback(incoming_topic, (byte*)incoming_data, event->data_len);
+      if(event->total_data_len > event->data_len)
+      {
+        Logger.Info("Received Chunked Payload Data");
+        chunked_data_index = event->current_data_offset != 0 ? chunked_data_index : 0;
+        // This data is going to be incoming in chunks. Piece it together.
+        memcpy((void*)&adu_scratch_buffer[chunked_data_index], event->data, event->data_len);
+        chunked_data_index += event->data_len;
+
+        if(chunked_data_index == event->total_data_len)
+        {
+          Logger.Info("Received all of the chunked data. Moving to process.");
+          receivedCallback(incoming_topic, (byte*)adu_scratch_buffer, event->total_data_len);
+        }
+      }
+      else
+      {
+          receivedCallback(incoming_topic, (byte*)incoming_data, event->data_len);
+      }
 
       break;
     case MQTT_EVENT_BEFORE_CONNECT:
