@@ -275,7 +275,7 @@ To view the device status in IoT Central portal:
 1. Confirm the 'Device status' of the device is updated to 'Provisioned'.
 1. Confirm the 'Device template' of the device has updated to 'Espressif ESP32 Azure IoT Kit'.
 
-    *Note: The device template 'Espressif ESP32 Azure IoT Kit' is a published device template available from IoT Central. It is used in this Arduino Portenta H7 sample for simplicity. For more information on creating a custom device template, view these [instructions](https://docs.microsoft.com/en-us/azure/iot-central/core/howto-set-up-template).* 
+    > Note: **The 'Espressif ESP32 Azure IoT Kit' device template is used in this Arduino Portenta H7 sample for simplicity.** It is a published template available from IoT Central. For more information on creating a custom device template, view these [instructions](https://docs.microsoft.com/en-us/azure/iot-central/core/howto-set-up-template).* 
 
     ![IoT Central device status](media/azure-iot-central-device-view-status.png)
 
