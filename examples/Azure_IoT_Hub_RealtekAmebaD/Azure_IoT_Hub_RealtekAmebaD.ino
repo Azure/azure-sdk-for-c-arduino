@@ -24,7 +24,7 @@
 
 // When developing for your own Arduino-based platform,
 // please follow the format '(ard;<platform>)'. 
-#define AZURE_SDK_CLIENT_USER_AGENT "c%2f" AZ_SDK_VERSION_STRING "(ard;amebaD)"
+#define AZURE_SDK_CLIENT_USER_AGENT "c%2F" AZ_SDK_VERSION_STRING "(ard;amebaD)"
 
 // Utility macros and defines
 // Status LED: will remain high on error and pulled high for a short time for each successful send.

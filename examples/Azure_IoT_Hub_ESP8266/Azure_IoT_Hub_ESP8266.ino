@@ -46,7 +46,7 @@
 
 // When developing for your own Arduino-based platform,
 // please follow the format '(ard;<platform>)'. 
-#define AZURE_SDK_CLIENT_USER_AGENT "c%2f" AZ_SDK_VERSION_STRING "(ard;esp8266)"
+#define AZURE_SDK_CLIENT_USER_AGENT "c%2F" AZ_SDK_VERSION_STRING "(ard;esp8266)"
 
 // Utility macros and defines
 #define LED_PIN 2
