@@ -256,7 +256,7 @@ To create a device:
         2022-06-16 13:05:04 [INFO] MQTT client publishing to 'devices/<device id>/messages/events/'
         2022-06-16 13:05:04 [INFO] MQTT message received.
         2022-06-16 13:05:04 [INFO] Properties update request completed (id=0, status=204)
-        2022-06-16 13:05:14 [INFO] MQTT client publishing to 'devices/mydevice/messages/events/'
+        2022-06-16 13:05:14 [INFO] MQTT client publishing to 'devices/<device id>/messages/events/'
         ```
 
 ## View your device data from IoT Central
