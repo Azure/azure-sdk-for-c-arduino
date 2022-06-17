@@ -212,7 +212,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
         2022-06-16 16:03:14 [INFO] MQTT message received.
         2022-06-16 16:03:15 [INFO] MQTT client being disconnected.
         2022-06-16 16:03:15 [INFO] MQTT Client ID: <device id>
-        2022-06-16 16:03:15 [INFO] MQTT Username: <provisioned iot hub fqdn>.azure-devices.net/mydevice/?api-version=2020-09-30&DeviceClientType=c%2F1.3.1(ard;portentaH7)&model-id=dtmi%3Aazureiot%3Adevkit%3Afreertos%3AEsp32AzureIotKit%3B1
+        2022-06-16 16:03:15 [INFO] MQTT Username: <provisioned iot hub fqdn>.azure-devices.net/<device id>/?api-version=2020-09-30&DeviceClientType=c%2F1.3.1(ard;portentaH7)&model-id=dtmi%3Aazureiot%3Adevkit%3Afreertos%3AEsp32AzureIotKit%3B1
         2022-06-16 16:03:15 [INFO] MQTT Password: ***
         2022-06-16 16:03:15 [INFO] MQTT client address: <provisioned iot hub fqdn>.azure-devices.net
         2022-06-16 16:03:15 [INFO] MQTT client port: 8883
@@ -224,10 +224,10 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
         2022-06-16 16:03:20 [INFO] MQTT client subscribing to '$iothub/twin/PATCH/properties/desired/#'
         2022-06-16 16:03:20 [INFO] MQTT topic subscribed
         2022-06-16 16:03:20 [INFO] MQTT client publishing to '$iothub/twin/PATCH/properties/reported/?$rid=0'
-        2022-06-16 16:03:20 [INFO] MQTT client publishing to 'devices/mydevice/messages/events/'
+        2022-06-16 16:03:20 [INFO] MQTT client publishing to 'devices/<device id>/messages/events/'
         2022-06-16 16:03:20 [INFO] MQTT message received.
         2022-06-16 16:03:20 [INFO] Properties update request completed (id=0, status=204)
-        2022-06-16 16:03:29 [INFO] MQTT client publishing to 'devices/mydevice/messages/events/'
+        2022-06-16 16:03:29 [INFO] MQTT client publishing to 'devices/<device id>/messages/events/'
         ```
 
 ## View your device data from IoT Central
