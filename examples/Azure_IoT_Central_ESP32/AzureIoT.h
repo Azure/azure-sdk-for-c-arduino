@@ -528,7 +528,7 @@ typedef struct azure_iot_config_t_struct
    *              <pnp-model-id>    = "dtmi:azureiot:devkit:freertos:Esp32AzureIotKit;1"
    *              <api-version>     = "api-version=2020-09-30"
    *              <expiration-time> = "1641251566"
-   *              <user-agent>      = "c/1.1.0-beta.1(FreeRTOS)"
+   *              <user-agent>      = "c%2F1.1.0-beta.1(FreeRTOS)"
    *              
    *              sizeof(data_buffer) >= 592 bytes (59 bytes + 2 bytes + 3 bytes + 190 bytes + 338 bytes, respectively)
    */

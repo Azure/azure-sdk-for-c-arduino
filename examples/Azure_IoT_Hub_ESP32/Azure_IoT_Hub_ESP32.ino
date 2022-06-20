@@ -42,7 +42,7 @@
 
 // When developing for your own Arduino-based platform,
 // please follow the format '(ard;<platform>)'. 
-#define AZURE_SDK_CLIENT_USER_AGENT "c/" AZ_SDK_VERSION_STRING "(ard;esp32)"
+#define AZURE_SDK_CLIENT_USER_AGENT "c%2F" AZ_SDK_VERSION_STRING "(ard;esp32)"
 
 // Utility macros and defines
 #define sizeofarray(a) (sizeof(a) / sizeof(a[0]))
