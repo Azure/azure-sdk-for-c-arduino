@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: MIT
 
 param(
-	$SdkVersion = $(throw "Azure SDK for C Version (git tag) not provided"),
-	$NewLibraryVersion = $(throw "New Azure SDK for C Arduino Library version not provided")
+  $SdkBranch = $(throw "SDKBranch not provided"),
+	$SdkVersion = $(throw "SdkVersion not provided"),
+	$NewLibraryVersion = $(throw "NewLibraryVersion not provided")
 )
 
 $SrcFolder = "..\src"
@@ -11,8 +12,7 @@ $LibConfigFile = "..\library.properties"
 
 Write-Host "Cloning azure-sdk-for-c repository."
 
-git config --local core.autocrlf false
-git clone -b $SdkVersion https://github.com/Azure/azure-sdk-for-c sdkrepo
+git clone -b $SdkBranch https://github.com/Azure/azure-sdk-for-c sdkrepo
 
 Write-Host "Flattening the azure-sdk-for-c file structure and updating src/."
 
