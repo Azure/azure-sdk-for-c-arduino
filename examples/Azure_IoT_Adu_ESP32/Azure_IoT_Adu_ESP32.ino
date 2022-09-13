@@ -67,7 +67,7 @@ static az_iot_adu_client adu_client;
 static az_iot_adu_client_update_request xBaseUpdateRequest;
 static az_iot_adu_client_update_manifest xBaseUpdateManifest;
 static char adu_new_version[16];
-static bool did_parse_update = false;
+static bool process_update_request = false;
 static bool did_update = false;
 static char adu_scratch_buffer[10000];
 static char adu_verification_buffer[ jwsSCRATCH_BUFFER_SIZE ];
@@ -604,7 +604,7 @@ static void process_device_property_message(
           Logger.Info("Sending manifest property accept");
           send_adu_accept_manifest_property(version_number);
 
-          did_parse_update = true;
+          process_update_request = true;
       }
     }
     else
@@ -1011,18 +1011,26 @@ void loop()
       send_adu_device_information_property();
     }
 
-    if(did_parse_update)
+    if(process_update_request)
     {
       xResult = download_and_write_to_flash();
 
       if(xResult == AZ_OK)
       {
-        xResult = verify_image(xBaseUpdateManifest.files[0].hashes->hash_value, xBaseUpdateManifest.files[0].size_in_bytes);
-
-        if(xResult == AZ_OK)
+        if(xBaseUpdateRequest.workflow.action == AZ_IOT_ADU_CLIENT_SERVICE_ACTION_CANCEL)
         {
-          // All is verified. Reboot device to new update.
-          esp_restart();
+          Logger.Info("Cancellation request was received during download. Aborting update.");
+          process_update_request = false;
+        }
+        else
+        {
+          xResult = verify_image(xBaseUpdateManifest.files[0].hashes->hash_value, xBaseUpdateManifest.files[0].size_in_bytes);
+
+          if(xResult == AZ_OK)
+          {
+            // All is verified. Reboot device to new update.
+            esp_restart();
+          }
         }
       }
     }
