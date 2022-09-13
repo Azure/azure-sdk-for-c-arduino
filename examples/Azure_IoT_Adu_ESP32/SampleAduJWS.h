@@ -31,12 +31,12 @@
 /* This is the minimum amount of space needed to store values which are held at
  * the same time. jwsJWS_PAYLOAD_SIZE, one jwsSIGNATURE_SIZE, and one
  * jwsSHA256_SIZE are excluded since they will reuse buffer space. */
-#define jwsSCRATCH_BUFFER_SIZE                                                 \
-  (jwsJWS_HEADER_SIZE + jwsJWK_HEADER_SIZE + jwsJWK_PAYLOAD_SIZE +             \
-   jwsSIGNATURE_SIZE + jwsSIGNING_KEY_N_SIZE + jwsSIGNING_KEY_E_SIZE +         \
-   jwsSHA_CALCULATION_SCRATCH_SIZE)
+#define jwsSCRATCH_BUFFER_SIZE                                                       \
+  (jwsJWS_HEADER_SIZE + jwsJWK_HEADER_SIZE + jwsJWK_PAYLOAD_SIZE + jwsSIGNATURE_SIZE \
+   + jwsSIGNING_KEY_N_SIZE + jwsSIGNING_KEY_E_SIZE + jwsSHA_CALCULATION_SCRATCH_SIZE)
 
-namespace SampleJWS {
+namespace SampleJWS
+{
 /**
  * @brief Authenticate the manifest from ADU.
  *
@@ -48,8 +48,10 @@ namespace SampleJWS {
  * @retval AZ_OK if successful.
  * @retval Otherwise if failed.
  */
-az_result ManifestAuthenticate(az_span manifest_span, az_span jws_span,
-                               az_span scratch_buffer_span);
+az_result ManifestAuthenticate(
+    az_span manifest_span,
+    az_span jws_span,
+    az_span scratch_buffer_span);
 }; // namespace SampleJWS
 
 #endif /* SAMPLEADUJWS_H */

@@ -6,7 +6,8 @@
 
 #include <stdint.h>
 
-namespace AzIoTCryptoMbedTLS {
+namespace AzIoTCryptoMbedTLS
+{
 /**
  * @brief Compute HMAC SHA256
  *
@@ -19,9 +20,14 @@ namespace AzIoTCryptoMbedTLS {
  * @param[in] pulBytesCopied Number of bytes copied to out buffer.
  * @return An #uint32_t with result of operation.
  */
-int HMAC256(const uint8_t *pucKey, int ulKeyLength, const uint8_t *pucData,
-            int ulDataLength, uint8_t *pucOutput, int ulOutputLength,
-            int *pulBytesCopied);
+int HMAC256(
+    const uint8_t* pucKey,
+    int ulKeyLength,
+    const uint8_t* pucData,
+    int ulDataLength,
+    uint8_t* pucOutput,
+    int ulOutputLength,
+    int* pulBytesCopied);
 }; // namespace AzIoTCryptoMbedTLS
 
 #endif // AZIOTCRYPTOMBEDTLS_H

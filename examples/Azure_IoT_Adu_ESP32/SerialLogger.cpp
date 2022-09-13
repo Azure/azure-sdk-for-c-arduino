@@ -6,8 +6,9 @@
 
 #define UNIX_EPOCH_START_YEAR 1900
 
-static void writeTime() {
-  struct tm *ptm;
+static void writeTime()
+{
+  struct tm* ptm;
   time_t now = time(NULL);
 
   ptm = gmtime(&now);
@@ -19,21 +20,24 @@ static void writeTime() {
   Serial.print(ptm->tm_mday);
   Serial.print(" ");
 
-  if (ptm->tm_hour < 10) {
+  if (ptm->tm_hour < 10)
+  {
     Serial.print(0);
   }
 
   Serial.print(ptm->tm_hour);
   Serial.print(":");
 
-  if (ptm->tm_min < 10) {
+  if (ptm->tm_min < 10)
+  {
     Serial.print(0);
   }
 
   Serial.print(ptm->tm_min);
   Serial.print(":");
 
-  if (ptm->tm_sec < 10) {
+  if (ptm->tm_sec < 10)
+  {
     Serial.print(0);
   }
 
@@ -42,13 +46,15 @@ static void writeTime() {
 
 SerialLogger::SerialLogger() { Serial.begin(SERIAL_LOGGER_BAUD_RATE); }
 
-void SerialLogger::Info(String message) {
+void SerialLogger::Info(String message)
+{
   writeTime();
   Serial.print(" [INFO] ");
   Serial.println(message);
 }
 
-void SerialLogger::Error(String message) {
+void SerialLogger::Error(String message)
+{
   writeTime();
   Serial.print(" [ERROR] ");
   Serial.println(message);
