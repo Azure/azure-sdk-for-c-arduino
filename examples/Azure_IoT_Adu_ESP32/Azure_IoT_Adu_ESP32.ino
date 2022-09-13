@@ -62,15 +62,15 @@
 // ADU Values
 #define ADU_DEVICE_MANUFACTURER "ESPRESSIF"
 #define ADU_DEVICE_MODEL "ESP32-Embedded"
-#define ADU_DEVICE_VERSION "1.1"
+#define ADU_DEVICE_VERSION "1.0"
 #define ADU_DEVICE_SHA_SIZE 32
 #define ADU_SHA_PARTITION_READ_BUFFER_SIZE 32
 #define HTTP_DOWNLOAD_CHUNK 4096
 
 // ADU Feature Values
 static az_iot_adu_client adu_client;
-static az_iot_adu_client_update_request xBaseUpdateRequest;
-static az_iot_adu_client_update_manifest xBaseUpdateManifest;
+static az_iot_adu_client_update_request adu_update_request;
+static az_iot_adu_client_update_manifest adu_update_manifest;
 static char adu_new_version[16];
 static bool process_update_request = false;
 static bool did_update = false;
@@ -145,7 +145,7 @@ static AzIoTSasToken sasToken(
     AZ_SPAN_FROM_BUFFER(mqtt_password));
 #endif // IOT_CONFIG_USE_X509_CERT
 
-static void connectToWiFi()
+static void connect_to_wifi()
 {
   Logger.Info("Connecting to WIFI SSID " + String(ssid));
 
@@ -162,7 +162,7 @@ static void connectToWiFi()
   Logger.Info("WiFi connected, IP address: " + WiFi.localIP().toString());
 }
 
-static void initializeTime()
+static void initialize_time()
 {
   Logger.Info("Setting time using SNTP");
 
@@ -223,9 +223,9 @@ void update_error(int err) { Serial.printf("CALLBACK:  HTTP update fatal error c
 
 static az_result download_and_write_to_flash(void)
 {
-  az_span urlHostSpan;
-  az_span urlPathSpan;
-  prvParseAduUrl(xBaseUpdateRequest.file_urls[0].url, &urlHostSpan, &urlPathSpan);
+  az_span url_host_span;
+  az_span url_path_span;
+  prvParseAduUrl(adu_update_request.file_urls[0].url, &url_host_span, &url_path_span);
 
   WiFiClient client;
 
@@ -238,16 +238,16 @@ static az_result download_and_write_to_flash(void)
   // TODO: Add SHA check of image (don't immediately reboot)
 
   /* TODO: remove this hack. */
-  char pcNullTerminatedHost[128];
-  (void)memcpy(pcNullTerminatedHost, az_span_ptr(urlHostSpan), az_span_size(urlHostSpan));
-  pcNullTerminatedHost[az_span_size(urlHostSpan)] = '\0';
+  char null_terminated_host[128];
+  (void)memcpy(null_terminated_host, az_span_ptr(url_host_span), az_span_size(url_host_span));
+  null_terminated_host[az_span_size(url_host_span)] = '\0';
 
   /* TODO: remove this hack. */
-  char nullTerminatedPath[128];
-  (void)memcpy(nullTerminatedPath, az_span_ptr(urlPathSpan), az_span_size(urlPathSpan));
-  nullTerminatedPath[az_span_size(urlPathSpan)] = '\0';
+  char null_terminated_path[128];
+  (void)memcpy(null_terminated_path, az_span_ptr(url_path_span), az_span_size(url_path_span));
+  null_terminated_path[az_span_size(url_path_span)] = '\0';
 
-  t_httpUpdate_return ret = httpUpdate.update(client, pcNullTerminatedHost, 80, nullTerminatedPath);
+  t_httpUpdate_return ret = httpUpdate.update(client, null_terminated_host, 80, null_terminated_path);
 
   if (ret != HTTP_UPDATE_OK)
   {
@@ -263,7 +263,7 @@ static az_result download_and_write_to_flash(void)
 
 static az_result verify_image(az_span sha256_hash, int32_t update_size)
 {
-  az_result xResult;
+  az_result result;
   esp_err_t espErr;
 
   int32_t out_size;
@@ -272,23 +272,23 @@ static az_result verify_image(az_span sha256_hash, int32_t update_size)
 
   Logger.Info("Verifying downloaded image with manifest SHA256 hash");
 
-  const esp_partition_t* pxCurrentPartition = esp_ota_get_running_partition();
-  const esp_partition_t* xUpdatePartition = esp_ota_get_next_update_partition(pxCurrentPartition);
+  const esp_partition_t* current_partition = esp_ota_get_running_partition();
+  const esp_partition_t* update_partition = esp_ota_get_next_update_partition(current_partition);
 
-  if (az_result_failed(xResult = az_base64_decode(out_buffer, sha256_hash, &out_size)))
+  if (az_result_failed(result = az_base64_decode(out_buffer, sha256_hash, &out_size)))
   {
-    Logger.Error("az_base64_decode failed: core error=0x" + String(xResult, HEX));
+    Logger.Error("az_base64_decode failed: core error=0x" + String(result, HEX));
   }
   else
   {
     Logger.Info("Unencoded the base64 encoding\r\n");
-    xResult = AZ_OK;
+    result = AZ_OK;
   }
 
-  if (xResult != AZ_OK)
+  if (result != AZ_OK)
   {
     Logger.Error("Unable to decode base64 SHA256\r\n");
-    return xResult;
+    return result;
   }
 
   mbedtls_md_context_t ctx;
@@ -299,18 +299,18 @@ static az_result verify_image(az_span sha256_hash, int32_t update_size)
   mbedtls_md_starts(&ctx);
 
   Logger.Info("Starting the mbedtls calculation: image size " + String(update_size));
-  for (size_t ulOffset = 0; ulOffset < update_size; ulOffset += ADU_SHA_PARTITION_READ_BUFFER_SIZE)
+  for (size_t offset_index = 0; offset_index < update_size; offset_index += ADU_SHA_PARTITION_READ_BUFFER_SIZE)
   {
-    read_size = update_size - ulOffset < ADU_SHA_PARTITION_READ_BUFFER_SIZE
-        ? update_size - ulOffset
+    read_size = update_size - offset_index < ADU_SHA_PARTITION_READ_BUFFER_SIZE
+        ? update_size - offset_index
         : ADU_SHA_PARTITION_READ_BUFFER_SIZE;
 
-    espErr = esp_partition_read_raw(xUpdatePartition, ulOffset, partition_read_buffer, read_size);
+    espErr = esp_partition_read_raw(update_partition, offset_index, partition_read_buffer, read_size);
     (void)espErr;
 
     mbedtls_md_update(&ctx, (const unsigned char*)partition_read_buffer, read_size);
 
-    if ((ulOffset % 65536 == 0) && (ulOffset != 0))
+    if ((offset_index % 65536 == 0) && (offset_index != 0))
     {
       printf(".");
     }
@@ -326,15 +326,15 @@ static az_result verify_image(az_span sha256_hash, int32_t update_size)
   if (memcmp(adu_sha_buffer, adu_calculated_sha_buffer, ADU_DEVICE_SHA_SIZE) == 0)
   {
     Logger.Info("SHAs match\r\n");
-    xResult = AZ_OK;
+    result = AZ_OK;
   }
   else
   {
     Logger.Info("SHAs do not match\r\n");
-    xResult = AZ_ERROR_ITEM_NOT_FOUND;
+    result = AZ_ERROR_ITEM_NOT_FOUND;
   }
 
-  return xResult;
+  return result;
 }
 
 // request_all_properties sends a request to Azure IoT Hub to request all
@@ -523,7 +523,7 @@ static void process_device_property_message(
 
   az_span component_name;
 
-  az_span xScratchBufferSpan
+  az_span scratch_buffer_span
       = az_span_create((uint8_t*)adu_scratch_buffer, (int32_t)sizeof(adu_scratch_buffer));
 
   // Applications call az_iot_hub_client_properties_get_next_component_property
@@ -535,7 +535,7 @@ static void process_device_property_message(
     {
       // ADU Component
       rc = az_iot_adu_client_parse_service_properties(
-          &adu_client, &jr, xScratchBufferSpan, &xBaseUpdateRequest, &xScratchBufferSpan);
+          &adu_client, &jr, scratch_buffer_span, &adu_update_request, &scratch_buffer_span);
 
       if (az_result_failed(rc))
       {
@@ -544,7 +544,7 @@ static void process_device_property_message(
       }
       else
       {
-        rc = az_json_reader_init(&jr_adu_manifest, xBaseUpdateRequest.update_manifest, NULL);
+        rc = az_json_reader_init(&jr_adu_manifest, adu_update_request.update_manifest, NULL);
 
         if (az_result_failed(rc))
         {
@@ -553,7 +553,7 @@ static void process_device_property_message(
         }
 
         rc = az_iot_adu_client_parse_update_manifest(
-            &adu_client, &jr_adu_manifest, &xBaseUpdateManifest);
+            &adu_client, &jr_adu_manifest, &adu_update_manifest);
 
         if (az_result_failed(rc))
         {
@@ -564,8 +564,8 @@ static void process_device_property_message(
         Logger.Info("Parsed Azure device update manifest.");
 
         rc = SampleJWS::ManifestAuthenticate(
-            xBaseUpdateRequest.update_manifest,
-            xBaseUpdateRequest.update_manifest_signature,
+            adu_update_request.update_manifest,
+            adu_update_request.update_manifest_signature,
             AZ_SPAN_FROM_BUFFER(adu_verification_buffer));
         if (az_result_failed(rc))
         {
@@ -650,7 +650,7 @@ static void handle_device_property_message(
   }
 }
 
-void receivedCallback(char* topic, byte* payload, unsigned int length)
+void received_callback(char* topic, byte* payload, unsigned int length)
 {
   az_result rc;
 
@@ -771,12 +771,12 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
           Logger.Info("Received all of the chunked data. Moving to process.");
           adu_scratch_buffer[chunked_data_index] = '\0';
           Logger.Info("Data: " + String(adu_scratch_buffer));
-          receivedCallback(incoming_topic, (byte*)adu_scratch_buffer, event->total_data_len);
+          received_callback(incoming_topic, (byte*)adu_scratch_buffer, event->total_data_len);
         }
       }
       else
       {
-        receivedCallback(incoming_topic, (byte*)incoming_data, event->data_len);
+        received_callback(incoming_topic, (byte*)incoming_data, event->data_len);
       }
 
       break;
@@ -791,7 +791,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
   return ESP_OK;
 }
 
-static void initializeIoTHubClient()
+static void initialize_iot_hub_client()
 {
   az_iot_hub_client_options options = az_iot_hub_client_options_default();
   options.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT);
@@ -834,7 +834,7 @@ static void initializeIoTHubClient()
   Logger.Info("Username: " + String(mqtt_username));
 }
 
-static int initializeMqttClient()
+static int initialize_mqtt_client()
 {
 #ifndef IOT_CONFIG_USE_X509_CERT
   if (sasToken.Generate(SAS_TOKEN_DURATION_IN_MINUTES) != 0)
@@ -893,17 +893,17 @@ static int initializeMqttClient()
  * @brief           Gets the number of seconds since UNIX epoch until now.
  * @return uint32_t Number of seconds.
  */
-static uint32_t getEpochTimeInSecs() { return (uint32_t)time(NULL); }
+static uint32_t get_epoch_time_in_seconds() { return (uint32_t)time(NULL); }
 
-static void establishConnection()
+static void establish_connection()
 {
-  connectToWiFi();
-  initializeTime();
-  initializeIoTHubClient();
-  (void)initializeMqttClient();
+  connect_to_wifi();
+  initialize_time();
+  initialize_iot_hub_client();
+  (void)initialize_mqtt_client();
 }
 
-static void getTelemetryPayload(az_span payload, az_span* out_payload)
+static void get_telemetry_payload(az_span payload, az_span* out_payload)
 {
   az_result rc;
   az_span original_payload = payload;
@@ -918,7 +918,7 @@ static void getTelemetryPayload(az_span payload, az_span* out_payload)
       original_payload, 0, az_span_size(original_payload) - az_span_size(payload) - 1);
 }
 
-static void sendTelemetry()
+static void send_telemetry()
 {
   az_span telemetry = AZ_SPAN_FROM_BUFFER(telemetry_payload);
 
@@ -934,7 +934,7 @@ static void sendTelemetry()
     return;
   }
 
-  getTelemetryPayload(telemetry, &telemetry);
+  get_telemetry_payload(telemetry, &telemetry);
 
   if (esp_mqtt_client_publish(
           mqtt_client,
@@ -955,33 +955,33 @@ static void sendTelemetry()
 
 // Arduino setup and loop main functions.
 
-void setup() { establishConnection(); }
+void setup() { establish_connection(); }
 
-static int waitCount = 1;
+static int wait_count = 1;
 
 void loop()
 {
-  az_result xResult;
+  az_result result;
 
   if (WiFi.status() != WL_CONNECTED)
   {
     Logger.Info("Connecting to WiFI");
-    connectToWiFi();
+    connect_to_wifi();
   }
 #ifndef IOT_CONFIG_USE_X509_CERT
   else if (sasToken.IsExpired())
   {
     Logger.Info("SAS token expired; reconnecting with a new one.");
     (void)esp_mqtt_client_destroy(mqtt_client);
-    initializeMqttClient();
+    initialize_mqtt_client();
   }
 #endif
   else if (millis() > next_telemetry_send_time_ms)
   {
-    sendTelemetry();
+    send_telemetry();
     next_telemetry_send_time_ms = millis() + TELEMETRY_FREQUENCY_MILLISECS;
 
-    if (waitCount % 5 == 0)
+    if (wait_count % 5 == 0)
     {
       Logger.Info("Requesting all device properties");
       request_all_properties();
@@ -991,11 +991,11 @@ void loop()
 
     if (process_update_request)
     {
-      xResult = download_and_write_to_flash();
+      result = download_and_write_to_flash();
 
-      if (xResult == AZ_OK)
+      if (result == AZ_OK)
       {
-        if (xBaseUpdateRequest.workflow.action == AZ_IOT_ADU_CLIENT_SERVICE_ACTION_CANCEL)
+        if (adu_update_request.workflow.action == AZ_IOT_ADU_CLIENT_SERVICE_ACTION_CANCEL)
         {
           Logger.Info("Cancellation request was received during download. "
                       "Aborting update.");
@@ -1003,11 +1003,11 @@ void loop()
         }
         else
         {
-          xResult = verify_image(
-              xBaseUpdateManifest.files[0].hashes->hash_value,
-              xBaseUpdateManifest.files[0].size_in_bytes);
+          result = verify_image(
+              adu_update_manifest.files[0].hashes->hash_value,
+              adu_update_manifest.files[0].size_in_bytes);
 
-          if (xResult == AZ_OK)
+          if (result == AZ_OK)
           {
             // All is verified. Reboot device to new update.
             esp_restart();
@@ -1016,6 +1016,6 @@ void loop()
       }
     }
 
-    waitCount++;
+    wait_count++;
   }
 }
