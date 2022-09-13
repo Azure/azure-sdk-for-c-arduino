@@ -243,7 +243,7 @@ static az_result download_and_write_to_flash(void)
   httpUpdate.onEnd(update_finished);
   httpUpdate.onProgress(update_progress);
   httpUpdate.onError(update_error);
-  httpUpdate.rebootOnUpdate = false;
+  httpUpdate.rebootOnUpdate(false);
 
   // TODO: Add SHA check of image (don't immediately reboot)
 
@@ -262,15 +262,13 @@ static az_result download_and_write_to_flash(void)
   if (ret != HTTP_UPDATE_OK)
   {
     Logger.Error("Image download failed");
-    return AZ_
+    return AZ_ERROR_CANCELED;
   }
   else
   {
     Logger.Info("Download of image succeeded");
     return AZ_OK;
   }
-
-
 }
 
 static az_result verify_image(az_span sha256_hash,
@@ -279,14 +277,16 @@ static az_result verify_image(az_span sha256_hash,
     az_result xResult;
     esp_err_t espErr;
 
-    uint32_t out_size;
-    uint32_t ulReadSize;
+    int32_t out_size;
+    int32_t read_size;
     az_span out_buffer = AZ_SPAN_FROM_BUFFER(adu_sha_buffer);
+
+    Logger.Info("Verifying downloaded image with manifest SHA256 hash");
 
     const esp_partition_t * pxCurrentPartition = esp_ota_get_running_partition();
     const esp_partition_t * xUpdatePartition = esp_ota_get_next_update_partition( pxCurrentPartition );
 
-    if( az_result_failed( xResult = az_base64_decode( out_buffer, sha256_hash, ( int32_t * ) out_size ) ) )
+    if( az_result_failed( xResult = az_base64_decode( out_buffer, sha256_hash, &out_size ) ) )
     {
         Logger.Error( "az_base64_decode failed: core error=0x" + String(xResult, HEX) );
     }
@@ -312,16 +312,16 @@ static az_result verify_image(az_span sha256_hash,
     Logger.Info( "Starting the mbedtls calculation: image size " + String(update_size) );
     for( size_t ulOffset = 0; ulOffset < update_size; ulOffset += ADU_SHA_PARTITION_READ_BUFFER_SIZE )
     {
-        ulReadSize = update_size - ulOffset < ADU_SHA_PARTITION_READ_BUFFER_SIZE ?
+        read_size = update_size - ulOffset < ADU_SHA_PARTITION_READ_BUFFER_SIZE ?
                                       update_size - ulOffset : ADU_SHA_PARTITION_READ_BUFFER_SIZE;
 
         espErr = esp_partition_read_raw( xUpdatePartition,
                                          ulOffset,
                                          partition_read_buffer,
-                                         ulReadSize );
+                                         read_size );
         ( void ) espErr;
 
-        mbedtls_md_update( &ctx, ( const unsigned char * ) partition_read_buffer, ulReadSize );
+        mbedtls_md_update( &ctx, ( const unsigned char * ) partition_read_buffer, read_size );
 
         if( ( ulOffset % 65536 == 0 ) && ( ulOffset != 0 ) )
         {
