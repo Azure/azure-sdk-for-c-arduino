@@ -44,6 +44,9 @@
 #include "SerialLogger.h"
 #include "iot_configs.h"
 
+#include "esp_ota_ops.h"
+#include "esp_system.h"
+
 // When developing for your own Arduino-based platform,
 // please follow the format '(ard;<platform>)'. 
 #define AZURE_SDK_CLIENT_USER_AGENT "c%2f" AZ_SDK_VERSION_STRING "(ard;esp32)"
@@ -55,6 +58,8 @@
 #define ADU_DEVICE_MANUFACTURER "ESPRESSIF"
 #define ADU_DEVICE_MODEL "ESP32-Embedded"
 #define ADU_DEVICE_VERSION "1.1"
+#define ADU_DEVICE_SHA_SIZE 32
+#define ADU_SHA_PARTITION_READ_BUFFER_SIZE 32
 #define HTTP_DOWNLOAD_CHUNK 4096
 
 // ADU Feature Values
@@ -66,6 +71,9 @@ static bool did_parse_update = false;
 static bool did_update = false;
 static char adu_scratch_buffer[10000];
 static char adu_verification_buffer[ jwsSCRATCH_BUFFER_SIZE ];
+static char adu_sha_buffer[ ADU_DEVICE_SHA_SIZE ];
+static char adu_calculated_sha_buffer[ ADU_DEVICE_SHA_SIZE ];
+static char partition_read_buffer[ ADU_SHA_PARTITION_READ_BUFFER_SIZE ];
 static int chunked_data_index;
 
 #define AZ_IOT_ADU_DTMI "dtmi:azure:iot:deviceUpdateModel;1"
@@ -200,7 +208,7 @@ static void prvParseAduUrl( az_span xUrl,
                             az_span * pxPath )
 {
     xUrl = az_span_slice_to_end( xUrl, sizeof( "http://" ) - 1 );
-    int32_t lPathPosition = az_span_find( xUrl, AZ_SPAN_FROM_STR( "/" ) );
+    int32_t lPathPosition = az_span_find( xUrl, AZ_SPAN_FROM_STR( "/" ));
     *pxHost = az_span_slice( xUrl, 0, lPathPosition );
     *pxPath = az_span_slice_to_end( xUrl, lPathPosition );
 }
@@ -221,7 +229,7 @@ void update_error(int err) {
   Serial.printf("CALLBACK:  HTTP update fatal error code %d\n", err);
 }
 
-static void downloadAndWriteToFlash(void)
+static az_result download_and_write_to_flash(void)
 {
   az_span urlHostSpan;
   az_span urlPathSpan;
@@ -235,25 +243,111 @@ static void downloadAndWriteToFlash(void)
   httpUpdate.onEnd(update_finished);
   httpUpdate.onProgress(update_progress);
   httpUpdate.onError(update_error);
+  httpUpdate.rebootOnUpdate = false;
 
   // TODO: Add SHA check of image (don't immediately reboot)
 
   /* TODO: remove this hack. */
   char pcNullTerminatedHost[ 128 ];
-  ( void ) memcpy( pcNullTerminatedHost, az_span_ptr( urlHostSpan ), az_span_size( urlHostSpan ) );
+  ( void ) memcpy( pcNullTerminatedHost, az_span_ptr( urlHostSpan ), az_span_size( urlHostSpan ));
   pcNullTerminatedHost[ az_span_size( urlHostSpan ) ] = '\0';
 
   /* TODO: remove this hack. */
   char nullTerminatedPath[ 128 ];
-  ( void ) memcpy( nullTerminatedPath, az_span_ptr( urlPathSpan ), az_span_size( urlPathSpan ) );
+  ( void ) memcpy( nullTerminatedPath, az_span_ptr( urlPathSpan ), az_span_size( urlPathSpan ));
   nullTerminatedPath[ az_span_size( urlPathSpan ) ] = '\0';
 
   t_httpUpdate_return ret = httpUpdate.update(client, pcNullTerminatedHost, 80, nullTerminatedPath);
+
+  if (ret != HTTP_UPDATE_OK)
+  {
+    Logger.Error("Image download failed");
+    return AZ_
+  }
+  else
+  {
+    Logger.Info("Download of image succeeded");
+    return AZ_OK;
+  }
+
+
 }
 
-static void verifyImageAndReboot(void)
+static az_result verify_image(az_span sha256_hash,
+                                      int32_t update_size)
 {
+    az_result xResult;
+    esp_err_t espErr;
 
+    uint32_t out_size;
+    uint32_t ulReadSize;
+    az_span out_buffer = AZ_SPAN_FROM_BUFFER(adu_sha_buffer);
+
+    const esp_partition_t * pxCurrentPartition = esp_ota_get_running_partition();
+    const esp_partition_t * xUpdatePartition = esp_ota_get_next_update_partition( pxCurrentPartition );
+
+    if( az_result_failed( xResult = az_base64_decode( out_buffer, sha256_hash, ( int32_t * ) out_size ) ) )
+    {
+        Logger.Error( "az_base64_decode failed: core error=0x" + String(xResult, HEX) );
+    }
+    else
+    {
+      Logger.Info( "Unencoded the base64 encoding\r\n" );
+      xResult = AZ_OK;
+    }
+
+    if( xResult != AZ_OK )
+    {
+        Logger.Error( "Unable to decode base64 SHA256\r\n" );
+        return xResult;
+    }
+
+    mbedtls_md_context_t ctx;
+    mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
+
+    mbedtls_md_init( &ctx );
+    mbedtls_md_setup( &ctx, mbedtls_md_info_from_type( md_type ), 0 );
+    mbedtls_md_starts( &ctx );
+
+    Logger.Info( "Starting the mbedtls calculation: image size " + String(update_size) );
+    for( size_t ulOffset = 0; ulOffset < update_size; ulOffset += ADU_SHA_PARTITION_READ_BUFFER_SIZE )
+    {
+        ulReadSize = update_size - ulOffset < ADU_SHA_PARTITION_READ_BUFFER_SIZE ?
+                                      update_size - ulOffset : ADU_SHA_PARTITION_READ_BUFFER_SIZE;
+
+        espErr = esp_partition_read_raw( xUpdatePartition,
+                                         ulOffset,
+                                         partition_read_buffer,
+                                         ulReadSize );
+        ( void ) espErr;
+
+        mbedtls_md_update( &ctx, ( const unsigned char * ) partition_read_buffer, ulReadSize );
+
+        if( ( ulOffset % 65536 == 0 ) && ( ulOffset != 0 ) )
+        {
+            printf( "." );
+        }
+    }
+
+    printf( "\r\n" );
+
+    Logger.Info( "Done\r\n" );
+
+    mbedtls_md_finish( &ctx, (unsigned char*)adu_calculated_sha_buffer );
+    mbedtls_md_free( &ctx );
+
+    if( memcmp( adu_sha_buffer, adu_calculated_sha_buffer, ADU_DEVICE_SHA_SIZE ) == 0 )
+    {
+        Logger.Info( "SHAs match\r\n" );
+        xResult = AZ_OK;
+    }
+    else
+    {
+        Logger.Info( "SHAs do not match\r\n" );
+        xResult = AZ_ERROR_ITEM_NOT_FOUND;
+    }
+
+    return xResult;
 }
 
 // request_all_properties sends a request to Azure IoT Hub to request all properties for
@@ -448,7 +542,7 @@ static void process_device_property_message(
 
   az_span component_name;
 
-  az_span xScratchBufferSpan = az_span_create( (uint8_t*)adu_scratch_buffer, ( int32_t ) sizeof(adu_scratch_buffer) );
+  az_span xScratchBufferSpan = az_span_create( (uint8_t*)adu_scratch_buffer, ( int32_t ) sizeof(adu_scratch_buffer));
 
   // Applications call az_iot_hub_client_properties_get_next_component_property to enumerate
   // properties received.
@@ -889,6 +983,8 @@ static int waitCount = 1;
 
 void loop()
 {
+  az_result xResult;
+
   if (WiFi.status() != WL_CONNECTED)
   {
     Logger.Info("Connecting to WiFI");
@@ -917,8 +1013,18 @@ void loop()
 
     if(did_parse_update)
     {
-      downloadAndWriteToFlash();
-      verifyImageAndReboot();
+      xResult = download_and_write_to_flash();
+
+      if(xResult == AZ_OK)
+      {
+        xResult = verify_image(xBaseUpdateManifest.files[0].hashes->hash_value, xBaseUpdateManifest.files[0].size_in_bytes);
+
+        if(xResult == AZ_OK)
+        {
+          // All is verified. Reboot device to new update.
+          esp_restart();
+        }
+      }
     }
 
     waitCount++;
