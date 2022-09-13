@@ -247,7 +247,8 @@ static az_result download_and_write_to_flash(void)
   (void)memcpy(null_terminated_path, az_span_ptr(url_path_span), az_span_size(url_path_span));
   null_terminated_path[az_span_size(url_path_span)] = '\0';
 
-  t_httpUpdate_return ret = httpUpdate.update(client, null_terminated_host, 80, null_terminated_path);
+  t_httpUpdate_return ret
+      = httpUpdate.update(client, null_terminated_host, 80, null_terminated_path);
 
   if (ret != HTTP_UPDATE_OK)
   {
@@ -299,13 +300,15 @@ static az_result verify_image(az_span sha256_hash, int32_t update_size)
   mbedtls_md_starts(&ctx);
 
   Logger.Info("Starting the mbedtls calculation: image size " + String(update_size));
-  for (size_t offset_index = 0; offset_index < update_size; offset_index += ADU_SHA_PARTITION_READ_BUFFER_SIZE)
+  for (size_t offset_index = 0; offset_index < update_size;
+       offset_index += ADU_SHA_PARTITION_READ_BUFFER_SIZE)
   {
     read_size = update_size - offset_index < ADU_SHA_PARTITION_READ_BUFFER_SIZE
         ? update_size - offset_index
         : ADU_SHA_PARTITION_READ_BUFFER_SIZE;
 
-    espErr = esp_partition_read_raw(update_partition, offset_index, partition_read_buffer, read_size);
+    espErr
+        = esp_partition_read_raw(update_partition, offset_index, partition_read_buffer, read_size);
     (void)espErr;
 
     mbedtls_md_update(&ctx, (const unsigned char*)partition_read_buffer, read_size);
