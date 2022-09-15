@@ -235,8 +235,6 @@ static az_result download_and_write_to_flash(void)
   httpUpdate.onError(update_error);
   httpUpdate.rebootOnUpdate(false);
 
-  // TODO: Add SHA check of image (don't immediately reboot)
-
   /* TODO: remove this hack. */
   char null_terminated_host[128];
   (void)memcpy(null_terminated_host, az_span_ptr(url_host_span), az_span_size(url_host_span));
