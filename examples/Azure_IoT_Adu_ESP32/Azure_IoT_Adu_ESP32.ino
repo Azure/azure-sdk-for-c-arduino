@@ -730,7 +730,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     case MQTT_EVENT_DATA:
       Logger.Info("MQTT event MQTT_EVENT_DATA");
 
-      // Chunked data will not have a topic. Only copy when topic length is great
+      // Chunked data will not have a topic. Only copy when topic length is greater
       // than 0.
       if (event->topic_len > 0)
       {
@@ -747,7 +747,6 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
         incoming_data[i] = event->data[i];
       }
       incoming_data[i] = '\0';
-      // Logger.Info("Data: " + String(incoming_data));
 
       if (event->total_data_len > event->data_len)
       {
