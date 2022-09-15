@@ -277,17 +277,12 @@ static az_result verify_image(az_span sha256_hash, int32_t update_size)
   if (az_result_failed(result = az_base64_decode(out_buffer, sha256_hash, &out_size)))
   {
     Logger.Error("az_base64_decode failed: core error=0x" + String(result, HEX));
+    return result;
   }
   else
   {
     Logger.Info("Unencoded the base64 encoding\r\n");
     result = AZ_OK;
-  }
-
-  if (result != AZ_OK)
-  {
-    Logger.Error("Unable to decode base64 SHA256\r\n");
-    return result;
   }
 
   mbedtls_md_context_t ctx;
@@ -310,11 +305,6 @@ static az_result verify_image(az_span sha256_hash, int32_t update_size)
     (void)espErr;
 
     mbedtls_md_update(&ctx, (const unsigned char*)partition_read_buffer, read_size);
-
-    if ((offset_index % 65536 == 0) && (offset_index != 0))
-    {
-      printf(".");
-    }
   }
 
   printf("\r\n");
