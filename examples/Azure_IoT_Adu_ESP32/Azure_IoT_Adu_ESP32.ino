@@ -43,7 +43,6 @@
 #include <azure_ca.h>
 
 // Additional sample headers
-#include "AzIoTCryptoMbedTLS.h"
 #include "AzIoTSasToken.h"
 #include "SampleAduJWS.h"
 #include "SerialLogger.h"
