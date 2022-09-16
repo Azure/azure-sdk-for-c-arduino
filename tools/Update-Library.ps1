@@ -3,8 +3,8 @@
 
 param(
   $SdkBranch = $(throw "SDKBranch not provided"),
-	$SdkVersion = $(throw "SdkVersion not provided"),
-	$NewLibraryVersion = $(throw "NewLibraryVersion not provided")
+  $SdkVersion = $(throw "SdkVersion not provided"),
+  $NewLibraryVersion = $(throw "NewLibraryVersion not provided")
 )
 
 $SrcFolder = "..\src"
@@ -12,6 +12,7 @@ $LibConfigFile = "..\library.properties"
 
 Write-Host "Cloning azure-sdk-for-c repository."
 
+git config --local core.autocrlf false
 git clone -b $SdkBranch https://github.com/Azure/azure-sdk-for-c sdkrepo
 
 Write-Host "Flattening the azure-sdk-for-c file structure and updating src/."

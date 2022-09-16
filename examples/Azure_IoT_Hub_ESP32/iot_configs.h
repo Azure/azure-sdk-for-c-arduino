@@ -59,5 +59,10 @@
   #define IOT_CONFIG_DEVICE_KEY "Device Key"
 #endif  // IOT_CONFIG_USE_X509_CERT
 
+// Azure IoT ADU values
+#define ADU_DEVICE_MANUFACTURER "ESPRESSIF"
+#define ADU_DEVICE_MODEL "ESP32-Embedded"
+#define ADU_DEVICE_VERSION "1.0"
+
 // Publish 1 message every 2 seconds
 #define TELEMETRY_FREQUENCY_MILLISECS 2000
