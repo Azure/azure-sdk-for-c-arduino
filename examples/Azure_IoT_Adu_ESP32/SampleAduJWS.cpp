@@ -56,7 +56,7 @@ typedef struct prvJWSValidationContext
   az_span jwk_base64_encoded_header;
   az_span jwk_base64_encoded_payload;
   az_span jwk_base64_encoded_signature;
-  uint32_t base64_signature_length;
+  int32_t base64_signature_length;
   int32_t out_parsed_manifest_sha_size;
   int32_t out_signing_key_e_length;
   int32_t out_signing_key_n_length;
@@ -84,9 +84,9 @@ static az_result split_jws(
 {
   uint8_t* first_dot;
   uint8_t* second_dot;
-  uint32_t dot_count = 0;
-  uint32_t index = 0;
-  uint32_t jws_length = az_span_size(jws_span);
+  int32_t dot_count = 0;
+  int32_t index = 0;
+  int32_t jws_length = az_span_size(jws_span);
   uint8_t* jws_ptr = az_span_ptr(jws_span);
 
   while (index < jws_length)
@@ -134,9 +134,9 @@ static az_result split_jws(
 /* for `-` and `_`. We have to swap them back to the usual characters. */
 static void swap_to_url_encoding_chars(az_span signature_span)
 {
-  uint32_t index = 0;
+  int32_t index = 0;
   uint8_t* signature_ptr = az_span_ptr(signature_span);
-  uint32_t signature_length = az_span_size(signature_span);
+  int32_t signature_length = az_span_size(signature_span);
 
   while (index < signature_length)
   {
@@ -157,15 +157,13 @@ static void swap_to_url_encoding_chars(az_span signature_span)
 /**
  * @brief Calculate the SHA256 over a buffer of bytes
  *
- * @param pucInput The input buffer over which to calculate the SHA256.
- * @param ulInputLength The length of \p pucInput.
- * @param pucOutput The output buffer into which the SHA256. It must be 32 bytes
+ * @param input_span The input span over which to calculate the SHA256.
+ * @param output_span The output span into which the SHA256. It must be 32 bytes
  * in length.
- * @return uint32_t The result of the operation.
- * @retval 0 if successful.
- * @retval Non-0 if not successful.
+ * @return az_result The result of the operation.
+ * @retval AZ_OK if successful.
  */
-static az_result prvJWS_SHA256Calculate(az_span input_span, az_span output_span)
+static az_result jws_sha256_calculate(az_span input_span, az_span output_span)
 {
   mbedtls_md_context_t ctx;
   mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
@@ -183,21 +181,15 @@ static az_result prvJWS_SHA256Calculate(az_span input_span, az_span output_span)
 /**
  * @brief Verify the manifest via RS256 for the JWS.
  *
- * @param pucInput The input over which the RS256 will be verified.
- * @param ulInputLength The length of \p pucInput.
- * @param pucSignature The encrypted signature which will be decrypted by \p
- * pucN and \p pucE.
- * @param ulSignatureLength The length of \p pucSignature.
- * @param pucN The key's modulus which is used to decrypt \p signature.
- * @param ulNLength The length of \p pucN.
- * @param pucE The exponent used for the key.
- * @param ulELength The length of \p pucE.
- * @param pucBuffer The buffer used as scratch space to make the calculations.
+ * @param input_span The input span over which the RS256 will be verified.
+ * @param signature_span The encrypted signature span which will be decrypted by \p
+ * n_span and \p e_span.
+ * @param n_span The key's modulus which is used to decrypt \p signature.
+ * @param e_span The exponent used for the key.
+ * @param buffer_span The buffer used as scratch space to make the calculations.
  * It should be at least `jwsRSA3072_SIZE` + `jwsSHA256_SIZE` in size.
- * @param ulBufferLength The length of \p pucBuffer.
- * @return uint32_t The result of the operation.
- * @retval 0 if successful.
- * @retval Non-0 if not successful.
+ * @return az_result The result of the operation.
+ * @retval AZ_OK if successful.
  */
 static az_result jws_rs256_verify(
     az_span input_span,
@@ -216,7 +208,7 @@ static az_result jws_rs256_verify(
   if (az_span_size(buffer_span) < jwsSHA_CALCULATION_SCRATCH_SIZE)
   {
     Logger.Error("[JWS] Buffer Not Large Enough");
-    return 1;
+    return AZ_ERROR_NOT_ENOUGH_SPACE;
   }
 
   sha_buffer_ptr = az_span_ptr(buffer_span) + jwsRSA3072_SIZE;
@@ -285,11 +277,11 @@ static az_result jws_rs256_verify(
 
   mbedtls_rsa_free(&ctx);
 
-  result = prvJWS_SHA256Calculate(input_span, az_span_create(sha_buffer_ptr, jwsSHA256_SIZE));
+  result = jws_sha256_calculate(input_span, az_span_create(sha_buffer_ptr, jwsSHA256_SIZE));
 
   if (result != AZ_OK)
   {
-    Logger.Error("[JWS] prvJWS_SHA256Calculate failed");
+    Logger.Error("[JWS] jws_sha256_calculate failed");
     return result;
   }
 
@@ -345,7 +337,7 @@ static az_result find_sjwk_value(az_json_reader* payload_json_reader, az_span* j
   return AZ_OK;
 }
 
-static az_result prvFindRootKeyValue(az_json_reader* payload_json_reader, az_span* kid_span_ptr)
+static az_result find_root_key_value(az_json_reader* payload_json_reader, az_span* kid_span_ptr)
 {
   az_result result = AZ_OK;
 
@@ -442,7 +434,7 @@ static az_result find_key_parts(
   return AZ_OK;
 }
 
-static az_result prvFindManifestSHA(az_json_reader* payload_json_reader, az_span* sha_span_ptr)
+static az_result find_manifest_sha(az_json_reader* payload_json_reader, az_span* sha_span_ptr)
 {
   az_result result = AZ_OK;
 
@@ -658,7 +650,7 @@ static az_result validate_root_key(jws_validation_context* manifest_context)
     return result;
   }
 
-  if (prvFindRootKeyValue(&json_reader, &manifest_context->kid_span) != AZ_OK)
+  if (find_root_key_value(&json_reader, &manifest_context->kid_span) != AZ_OK)
   {
     Logger.Error("Could not find kid in JSON");
     return AZ_ERROR_ITEM_NOT_FOUND;
@@ -683,7 +675,7 @@ static az_result verify_sha_match(jws_validation_context* manifest_context, az_s
   az_result result;
 
   verification_result
-      = prvJWS_SHA256Calculate(manifest_span, manifest_context->manifest_sha_calculation);
+      = jws_sha256_calculate(manifest_span, manifest_context->manifest_sha_calculation);
 
   if (verification_result != AZ_OK)
   {
@@ -699,7 +691,7 @@ static az_result verify_sha_match(jws_validation_context* manifest_context, az_s
     return result;
   }
 
-  if (prvFindManifestSHA(&json_reader, &manifest_context->sha256_span) != AZ_OK)
+  if (find_manifest_sha(&json_reader, &manifest_context->sha256_span) != AZ_OK)
   {
     Logger.Error("Error finding manifest signature SHA");
     return AZ_ERROR_ITEM_NOT_FOUND;
@@ -735,12 +727,12 @@ static az_result verify_sha_match(jws_validation_context* manifest_context, az_s
     return AZ_ERROR_ITEM_NOT_FOUND;
   }
 
-  int32_t lComparisonResult = memcmp(
+  int32_t comparison_result = memcmp(
       az_span_ptr(manifest_context->manifest_sha_calculation),
       az_span_ptr(manifest_context->parsed_manifest_sha),
       jwsSHA256_SIZE);
 
-  if (lComparisonResult != 0)
+  if (comparison_result != 0)
   {
     Logger.Error("[JWS] Calculated manifest SHA does not match SHA in payload");
     return AZ_ERROR_NOT_SUPPORTED;
