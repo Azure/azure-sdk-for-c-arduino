@@ -779,10 +779,10 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 
 static void initialize_iot_hub_client()
 {
-  Logger.Info(( ( "------------------------------------------------------------------------------" ) );
-  Logger.Info(( ( "ADU SAMPLE" ) );
-  Logger.Info(( ( "Version: " + String(ADU_DEVICE_VERSION) ) );
-  Logger.Info(( ( "------------------------------------------------------------------------------" ) );
+  Logger.Info( "------------------------------------------------------------------------------" );
+  Logger.Info( "ADU SAMPLE" );
+  Logger.Info( "Version: " + String(ADU_DEVICE_VERSION) );
+  Logger.Info( "------------------------------------------------------------------------------" );
 
   az_iot_hub_client_options options = az_iot_hub_client_options_default();
   options.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT);
