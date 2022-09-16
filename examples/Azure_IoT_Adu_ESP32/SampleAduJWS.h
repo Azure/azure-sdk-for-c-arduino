@@ -41,7 +41,7 @@ namespace SampleJWS
  * @brief Authenticate the manifest from ADU.
  *
  * @param[in] manifest_span The escaped manifest from the ADU twin property.
- * @param[in] jws_span The JWS used to authenticate \p pucManifest.
+ * @param[in] jws_span The JWS used to authenticate \p manifest_span.
  * @param[in] scratch_buffer_span Scratch buffer space for calculations. It
  * should be `jwsSCRATCH_BUFFER_SIZE` in length.
  * @return az_result The return value of this function.
