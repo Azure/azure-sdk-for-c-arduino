@@ -14,7 +14,7 @@ products:
 
 To get this to work locally, copy all files over to your Arduino libraries directory. On my machine, it is at `~\Documents\Arduino\libraries\`. Create a folder there called `Azure_ADU` and copy over `examples`, `source`, and `tools` directories, along with all other individual files. Should look like the following:
 
-![img](lib.png)
+![img](./docs/lib.png)
 
 The next time you open the Arduino IDE, you should be able to go to `File` -> `Examples` -> then at the bottom `Azure SDK for C ADU` where you'll find `Azure_IoT_Adu_ESP32`. Click on that and the example should open. Follow the rest of the directions here as any other sample, but pay attention to the step where you have to select the correct partition scheme.
 
@@ -172,6 +172,20 @@ Verify you have the following files in your ADU-update directory:
 To import the update (`azure_iot_freertos_esp32-v1.1.bin`) and manifest (`ESPRESSIF.ESP32-Azure-IoT-Kit.1.1.importmanifest.json`), follow the instructions at the link below:
 
 - [Import Update and Manifest](https://docs.microsoft.com/azure/iot-hub-device-update/import-update)
+
+### Tag Your Device
+
+Add the `"ADUGroup"` tag to the device's top-level twin document. This is used to group device together, and you may choose whichever title you prefer.
+
+```json
+"tags": {
+    "ADUGroup": "<your-tag-here>"
+},
+```
+
+Viewing the device twin on the portal, the "tag" section should look similar to the following. Don't worry if you do or do not have a `"deviceUpdate"` section in the `"ADUGroup"` tag. ADU adds that as a default group.
+
+![img](./docs/tagged-twin.png)
 
 ## Upload Base Image Instructions
 
