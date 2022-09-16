@@ -113,7 +113,7 @@ In order to update our device, we have to build the image which our device will 
 
 ### Generate the ADU Update Manifest
 
-Navigate to `C:\ADU-update` directory in a Powershell prompt.
+Navigate to the `C:\ADU-update` directory in a Powershell prompt.
 
 Clone the ADU toolset.
 
