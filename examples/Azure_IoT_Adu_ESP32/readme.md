@@ -28,9 +28,9 @@ To find the output binary, you might also want to add `build.path=C:\ArduinoBuil
 > 
 > _If this is what you’re looking for please visit  [this GitHub repo](https://github.com/Azure-Samples/iot-middleware-freertos-samples/blob/main/README.md)_.
 
-# How to Setup and Run Azure SDK for Embedded C IoT Hub Client on Espressif ESP32
+# How to Setup and Run Azure SDK for Embedded C ADU on Espressif ESP32
 
-  - [How to Setup and Run Azure SDK for Embedded C IoT Hub Client on Espressif ESP32](#how-to-setup-and-run-azure-sdk-for-embedded-c-iot-hub-client-on-espressif-esp32)
+  - [How to Setup and Run Azure SDK for Embedded C ADU on Espressif ESP32](#how-to-setup-and-run-azure-sdk-for-embedded-c-iot-hub-client-on-espressif-esp32)
   - [Introduction](#introduction)
   - [What is Covered](#what-is-covered)
   - [Prerequisites](#prerequisites)
@@ -41,7 +41,7 @@ To find the output binary, you might also want to add `build.path=C:\ArduinoBuil
 
 ## Introduction
 
-This is a "to-the-point" guide outlining how to run an Azure SDK for Embedded C IoT Hub telemetry sample on an ESP32 microcontroller. The command line examples are tailored to Debian/Ubuntu environments.
+This is a "to-the-point" guide outlining how to run an Azure SDK for Embedded C ADU sample on an ESP32 microcontroller. The command line examples are tailored to Debian/Ubuntu environments.
 
 ### What is Covered
 
@@ -49,13 +49,13 @@ This is a "to-the-point" guide outlining how to run an Azure SDK for Embedded C 
 - Setting up and configuring the necessary services for the scenario.
 - Configuration, build, and run instructions for the IoT ADU sample.
 
-_The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with Arduino IDE 1.8.15 and ESP32 board library version 1.0.6._
+_The following was run on Windows 11 and Ubuntu Desktop 20.04 environments, with Arduino IDE 1.8.19 and ESP32 board library version 2.0.4._
 
 ## Prerequisites
 
 - Have an [Azure account](https://azure.microsoft.com/) created.
 - Have an [Azure IoT Hub](https://docs.microsoft.com/azure/iot-hub/iot-hub-create-through-portal) created.
-- Have an [Azure Device Update](https://docs.microsoft.com/azure/iot-hub-device-update/create-device-update-account?tabs=portal) instance created.
+- Have an [Azure Device Update](https://docs.microsoft.com/azure/iot-hub-device-update/create-device-update-account?tabs=portal) instance created and linked to your Azure IoT Hub.
 - Have a logical device created in your Azure IoT Hub: using authentication type "Symmetric Key" or "X.509 self-signed".   
     - **Symmetric Key**: follow [this guidance](https://docs.microsoft.com/azure/iot-hub/iot-hub-create-through-portal#register-a-new-device-in-the-iot-hub) to create a device.In this case, the device keys are used to automatically generate a SAS token for authentication.
     - **X.509 self-signed cert**: Instructions on how to create an X.509 cert for tests can be found [here](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#configure-and-run-the-samples) (Step 1). Please note that you might need to install some of the [prerequisites](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#prerequisites) like OpenSSL.
@@ -66,30 +66,6 @@ _The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with
     - ESP32 boards are not natively supported by Arduino IDE, so you need to add them manually.
     - Follow the [instructions](https://github.com/espressif/arduino-esp32) in the official ESP32 repository.
 
-- Have one of the following interfaces to your Azure IoT Hub set up:
-  - [Azure Command Line Interface](https://docs.microsoft.com/cli/azure/install-azure-cli?view=azure-cli-latest) (Azure CLI) utility installed, along with the [Azure IoT CLI extension](https://github.com/Azure/azure-iot-cli-extension).
-
-    On Windows:
-
-      Download and install: https://aka.ms/installazurecliwindows
-
-      ```powershell
-      PS C:\>az extension add --name azure-iot
-      ```
-
-    On Linux:
-
-      ```bash
-      $ curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      $ az extension add --name azure-iot
-      ```
-
-      A list of all the Azure IoT CLI extension commands can be found [here](https://docs.microsoft.com/cli/azure/iot?view=azure-cli-latest).
-
-  - The most recent version of [Azure IoT Explorer](https://github.com/Azure/azure-iot-explorer/releases) installed. More instruction on its usage can be found [here](https://docs.microsoft.com/azure/iot-pnp/howto-use-iot-explorer).
-
-  NOTE: This guide demonstrates use of the Azure CLI and does NOT demonstrate use of Azure IoT Explorer.
-
 ## Setup Instructions
 
 1. Run the Arduino IDE.
@@ -98,7 +74,7 @@ _The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with
 
     - On the Arduino IDE, go to menu `Sketch`, `Include Library`, `Manage Libraries...`.
     - Search for and install `azure-sdk-for-c`.
-    - TODO: Make sure to install the <INSERT BETA VERSION> to use the preview version of the ADU client.
+    - TODO: Make sure to install the `<INSERT BETA VERSION>` to use the preview version of the Embedded C SDK.
 
 1. Open the ESPRESSIF ESP32 sample.
 
@@ -169,7 +145,7 @@ Verify you have the following files in your ADU-update directory:
 
 ### Import the Update Manifest
 
-To import the update (`azure_iot_freertos_esp32-v1.1.bin`) and manifest (`ESPRESSIF.ESP32-Azure-IoT-Kit.1.1.importmanifest.json`), follow the instructions at the link below:
+To import the update (`Azure_IoT_Adu_ESP32_1.1.bin`) and manifest (`ESPRESSIF.ESP32-Embedded.1.1.importmanifest.json`), follow the instructions at the link below:
 
 - [Import Update and Manifest](https://docs.microsoft.com/azure/iot-hub-device-update/import-update)
 
