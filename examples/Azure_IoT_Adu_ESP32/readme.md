@@ -46,7 +46,8 @@ This is a "to-the-point" guide outlining how to run an Azure SDK for Embedded C 
 ### What is Covered
 
 - Configuration instructions for the Arduino IDE to compile a sample using the [Azure SDK for Embedded C](https://github.com/Azure/azure-sdk-for-c).
-- Configuration, build, and run instructions for the IoT Hub telemetry sample.
+- Setting up and configuring the necessary services for the scenario.
+- Configuration, build, and run instructions for the IoT ADU sample.
 
 _The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with Arduino IDE 1.8.15 and ESP32 board library version 1.0.6._
 
@@ -54,6 +55,7 @@ _The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with
 
 - Have an [Azure account](https://azure.microsoft.com/) created.
 - Have an [Azure IoT Hub](https://docs.microsoft.com/azure/iot-hub/iot-hub-create-through-portal) created.
+- Have an [Azure Device Update](https://docs.microsoft.com/azure/iot-hub-device-update/create-device-update-account?tabs=portal) instance created.
 - Have a logical device created in your Azure IoT Hub: using authentication type "Symmetric Key" or "X.509 self-signed".   
     - **Symmetric Key**: follow [this guidance](https://docs.microsoft.com/azure/iot-hub/iot-hub-create-through-portal#register-a-new-device-in-the-iot-hub) to create a device.In this case, the device keys are used to automatically generate a SAS token for authentication.
     - **X.509 self-signed cert**: Instructions on how to create an X.509 cert for tests can be found [here](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#configure-and-run-the-samples) (Step 1). Please note that you might need to install some of the [prerequisites](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#prerequisites) like OpenSSL.
@@ -88,7 +90,7 @@ _The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with
 
   NOTE: This guide demonstrates use of the Azure CLI and does NOT demonstrate use of Azure IoT Explorer.
 
-## Setup and Run Instructions
+## Setup Instructions
 
 1. Run the Arduino IDE.
 
@@ -96,11 +98,12 @@ _The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with
 
     - On the Arduino IDE, go to menu `Sketch`, `Include Library`, `Manage Libraries...`.
     - Search for and install `azure-sdk-for-c`.
+    - TODO: Make sure to install the <INSERT BETA VERSION> to use the preview version of the ADU client.
 
 1. Open the ESPRESSIF ESP32 sample.
 
     - On the Arduino IDE, go to menu `File`, `Examples`, `azure-sdk-for-c`.
-    - Click on `az_esp32` to open the sample.
+    - Click on `Azure_IoT_Adu_ESP32` to open the sample.
 
 1. Configure the ESPRESSIF ESP32 sample.
 
@@ -115,15 +118,64 @@ _The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with
         - Add your cert PK to `IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY`
     - If using **Symmetric Key**:
         - Add your device key to `IOT_CONFIG_DEVICE_KEY`
+    - **IMPORTANT**: make sure to change the `ADU_DEVICE_VERSION` to version 1.1 so that we can build the new update image.
 
 1. Select the appropriate partition scheme for your device. Go to `Tools` -> `Partition Scheme` -> `Minimal SPIFFS`.
 
+## New Image Instructions
+
+In order to update our device, we have to build the image which our device will update to. We will have to direct the Arduino IDE to specify an output directory so that we can easily find the binary. Open the `preferences.txt` located at `C:\Users\<Your User Dir>\AppData\Local\Arduino15\` and add `build.path=C:\Arduino-output` (or whichever directory you prefer).
+
 1. Connect the ESP32 microcontroller to your USB port.
 
-1. On the Arduino IDE, select the board and port.
+2. On the Arduino IDE, select the board and port.
 
     - Go to menu `Tools`, `Board` and select `ESP32`.
     - Go to menu `Tools`, `Port` and select the port to which the microcontroller is connected.
+
+3. Click on "Verify" to build the update image. Make sure you changed the `ADU_DEVICE_VERSION` in your `iot_configs.h` file to `1.1`. You should now have a file called `Azure_IoT_Adu_ESP32.ino.bin` in your output directory. Copy that file to a new directory `C:\ADU-update`, and rename it `Azure_IoT_Adu_ESP32_1.1.bin`
+
+### Generate the ADU Update Manifest
+
+Navigate to `C:\ADU-update` directory in a Powershell prompt.
+
+Clone the ADU toolset.
+
+```bash
+git clone https://github.com/Azure/iot-hub-device-update
+```
+
+Generate the update manifest using **powershell**.
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+
+Import-Module .\iot-hub-device-update\tools\AduCmdlets\AduUpdate.psm1
+$updateId = New-AduUpdateId -Provider "ESPRESSIF" -Name "ESP32-Embedded" -Version 1.1
+
+$compat = New-AduUpdateCompatibility -Properties @{ deviceManufacturer = 'ESPRESSIF'; deviceModel = 'ESP32-Embedded' }
+
+$installStep = New-AduInstallationStep -Handler 'microsoft/swupdate:1'-HandlerProperties @{ installedCriteria = '1.1' } -Files C:\ADU-update\Azure_IoT_Adu_ESP32_1.1.bin
+
+$update = New-AduImportManifest -UpdateId $updateId -Compatibility $compat -InstallationSteps $installStep
+
+$update | Out-File "./$($updateId.provider).$($updateId.name).$($updateId.version).importmanifest.json" -Encoding utf8
+```
+
+Verify you have the following files in your ADU-update directory:
+
+- `Azure_IoT_Adu_ESP32_1.1.bin`
+- `ESPRESSIF.ESP32-Embedded.1.1.importmanifest.json`
+
+### Import the Update Manifest
+
+To import the update (`azure_iot_freertos_esp32-v1.1.bin`) and manifest (`ESPRESSIF.ESP32-Azure-IoT-Kit.1.1.importmanifest.json`), follow the instructions at the link below:
+
+- [Import Update and Manifest](https://docs.microsoft.com/azure/iot-hub-device-update/import-update)
+
+## Upload Base Image Instructions
+
+Now revert the `ADU_DEVICE_VERSION` in your `iot_configs.h` file to `1.0` to create the base image.
 
 1. Upload the sketch.
 
@@ -186,7 +238,7 @@ _The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with
         </p>
         </details>
 
-1. Monitor the MCU (microcontroller) locally via the Serial Port.
+2. Monitor the MCU (microcontroller) locally via the Serial Port.
 
     - Go to menu `Tools`, `Serial Monitor`.
 
@@ -204,58 +256,12 @@ _The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with
         MQTT connecting ... connected.
         ```
 
-1. Monitor the telemetry messages sent to the Azure IoT Hub using the connection string for the policy name `iothubowner` found under "Shared access policies" on your IoT Hub in the Azure portal.
+### Deploy Update
 
-    ```bash
-    $ az iot hub monitor-events --login <your Azure IoT Hub owner connection string in quotes> --device-id <your device id>
-    ```
+To deploy the update to your ESP32, follow the link below:
 
-    <details><summary><i>Expected telemetry output:</i></summary>
-    <p>
+- [Deploy Update](https://docs.microsoft.com/azure/iot-hub-device-update/deploy-update)
 
-    ```bash
-    Starting event monitor, filtering on device: mydeviceid, use ctrl-c to stop...
-    {
-        "event": {
-            "origin": "mydeviceid",
-            "payload": "payload"
-        }
-    }
-    {
-        "event": {
-            "origin": "mydeviceid",
-            "payload": "payload"
-        }
-    }
-    {
-        "event": {
-            "origin": "mydeviceid",
-            "payload": "payload"
-        }
-    }
-    {
-        "event": {
-            "origin": "mydeviceid",
-            "payload": "payload"
-        }
-    }
-    {
-        "event": {
-            "origin": "mydeviceid",
-            "payload": "payload"
-        }
-    }
-    {
-        "event": {
-            "origin": "mydeviceid",
-            "payload": "payload"
-        }
-    }
-    ^CStopping event monitor...
-    ```
-
-    </p>
-    </details>
 
 ## Certificates - Important to know
 
