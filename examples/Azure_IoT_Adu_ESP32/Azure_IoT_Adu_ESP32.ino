@@ -477,6 +477,14 @@ static void send_adu_accept_manifest_property(int32_t version_number)
   }
 }
 
+static bool is_update_already_applied(void)
+{
+  Logger.Info(String(ADU_DEVICE_VERSION) + "  " + String((char*)az_span_ptr(adu_update_manifest.instructions.steps[0].handler_properties.installed_criteria)));
+  return ((az_span_size(adu_update_manifest.instructions.steps[0].handler_properties.installed_criteria) == sizeof(ADU_DEVICE_VERSION) - 1) &&
+  strncmp(ADU_DEVICE_VERSION, (char*)az_span_ptr(adu_update_manifest.instructions.steps[0].handler_properties.installed_criteria),
+                az_span_size(adu_update_manifest.instructions.steps[0].handler_properties.installed_criteria)) == 0);
+}
+
 // process_device_property_message handles incoming properties from Azure IoT
 // Hub.
 static void process_device_property_message(
@@ -557,18 +565,27 @@ static void process_device_property_message(
         if (az_result_failed(rc))
         {
           Logger.Error("ManifestAuthenticate failed " + String(rc));
+          process_update_request = false;
           return;
         }
 
-        // TODO: Send a reject confirmation if auth doesn't work out.
-        // TODO: Add a step for accept/deny request like in middleware.
-
         Logger.Info("Manifest authenticated successfully");
 
-        Logger.Info("Sending manifest property accept");
-        send_adu_accept_manifest_property(version_number);
+        if(is_update_already_applied())
+        {
+          Logger.Info("Update already applied");
+          process_update_request = false;
+        }
+        else
+        {
+          // TODO: Send a reject confirmation if auth doesn't work out.
+          // TODO: Add a step for accept/deny request like in middleware.
 
-        process_update_request = true;
+          Logger.Info("Sending manifest property accept");
+          send_adu_accept_manifest_property(version_number);
+
+          process_update_request = true;
+        }
       }
     }
     else
