@@ -30,6 +30,11 @@
 #include <_az_cfg_prefix.h>
 
 /**
+ * @brief  Define the ADU agent interface ID.
+ */
+#define AZ_IOT_ADU_CLIENT_AGENT_INTERFACE_ID "dtmi:azure:iot:deviceUpdate;1"
+
+/**
  * @brief ADU Agent Version
  */
 #define AZ_IOT_ADU_CLIENT_AGENT_VERSION "DU;agent/0.8.0-rc1-public-preview"
@@ -100,10 +105,23 @@
 #define AZ_IOT_ADU_CLIENT_AGENT_DEFAULT_COMPATIBILITY_PROPERTIES "manufacturer,model"
 
 /* The following key is used to validate the Azure Device Update update manifest signature */
-/* For more details, please see https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-security */
-extern const uint8_t azure_iot_adu_root_key_id[ 13 ];
-extern const uint8_t azure_iot_adu_root_key_n[ 385 ];
-extern const uint8_t azure_iot_adu_root_key_e[ 3 ];
+/* For more details, please see
+ * https://docs.microsoft.com/azure/iot-hub-device-update/device-update-security */
+
+/**
+ * @brief The root key id used to identify the key.
+ */
+extern const uint8_t azure_iot_adu_root_key_id[13];
+
+/**
+ * @brief The root key n (modulus) used to verify the manifest.
+ */
+extern const uint8_t azure_iot_adu_root_key_n[385];
+
+/**
+ * @brief The root key e (exponent) used to verify the manifest.
+ */
+extern const uint8_t azure_iot_adu_root_key_e[3];
 
 /**
  * @brief     Identity of the update request.
@@ -125,7 +143,7 @@ typedef struct
    * The version for the update.
    */
   az_span version;
-} az_iot_adu_client_update_id;
+} az_iot_adu_update_id;
 
 /**
  * @brief Holds any user-defined custom properties of the device.
@@ -185,7 +203,7 @@ typedef struct
   /**
    * An ID of the update that is currently installed.
    */
-  az_iot_adu_client_update_id update_id;
+  az_span update_id;
 } az_iot_adu_client_device_properties;
 
 /**
@@ -254,9 +272,8 @@ typedef struct
   /**
    * An integer that corresponds to an action the agent should perform.
    * @remark Refer to the following defines for the expected values:
-   *         AZ_IOT_ADU_CLIENT_AGENT_STATE_IDLE
-   *         AZ_IOT_ADU_CLIENT_AGENT_STATE_DEPLOYMENT_IN_PROGRESS
-   *         AZ_IOT_ADU_CLIENT_AGENT_STATE_FAILED
+   *         AZ_IOT_ADU_CLIENT_SERVICE_ACTION_APPLY_DEPLOYMENT
+   *         AZ_IOT_ADU_CLIENT_SERVICE_ACTION_CANCEL
    */
   int32_t action;
   /**
@@ -423,7 +440,7 @@ typedef struct
   /**
    * User-defined identity of the update manifest.
    */
-  az_iot_adu_client_update_id update_id;
+  az_iot_adu_update_id update_id;
   /**
    * Instructions of the update manifest.
    */
