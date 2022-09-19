@@ -55,6 +55,8 @@
 // please follow the format '(ard;<platform>)'.
 #define AZURE_SDK_CLIENT_USER_AGENT "c%2f" AZ_SDK_VERSION_STRING "(ard;esp32)"
 
+#define ADU_UPDATE_ID "{\"provider\":\"" ADU_UPDATE_PROVIDER "\",\"name\":\"" ADU_UPDATE_NAME "\",\"version\":\"" ADU_DEVICE_VERSION "\"}"
+
 #define SAMPLE_MQTT_TOPIC_LENGTH 128
 #define SAMPLE_MQTT_PAYLOAD_LENGTH 1024
 
@@ -77,17 +79,13 @@ static char adu_calculated_sha_buffer[ADU_DEVICE_SHA_SIZE];
 static char partition_read_buffer[ADU_SHA_PARTITION_READ_BUFFER_SIZE];
 static int chunked_data_index;
 
-#define AZ_IOT_ADU_DTMI "dtmi:azure:iot:deviceUpdateModel;1"
-
 static az_span pnp_components[] = { AZ_SPAN_FROM_STR(AZ_IOT_ADU_CLIENT_PROPERTIES_COMPONENT_NAME) };
 az_iot_adu_client_device_properties adu_device_information
     = { .manufacturer = AZ_SPAN_LITERAL_FROM_STR(ADU_DEVICE_MANUFACTURER),
         .model = AZ_SPAN_LITERAL_FROM_STR(ADU_DEVICE_MODEL),
         .adu_version = AZ_SPAN_LITERAL_FROM_STR(AZ_IOT_ADU_CLIENT_AGENT_VERSION),
         .delivery_optimization_agent_version = AZ_SPAN_EMPTY,
-        .update_id = { .provider = AZ_SPAN_LITERAL_FROM_STR(ADU_DEVICE_MANUFACTURER),
-                       .name = AZ_SPAN_LITERAL_FROM_STR(ADU_DEVICE_MODEL),
-                       .version = AZ_SPAN_LITERAL_FROM_STR(ADU_DEVICE_VERSION) } };
+        .update_id = AZ_SPAN_LITERAL_FROM_STR(ADU_UPDATE_ID) };
 
 // Utility macros and defines
 #define sizeofarray(a) (sizeof(a) / sizeof(a[0]))
@@ -813,7 +811,7 @@ static void initialize_iot_hub_client()
 
   az_iot_hub_client_options options = az_iot_hub_client_options_default();
   options.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT);
-  options.model_id = AZ_SPAN_FROM_STR(AZ_IOT_ADU_DTMI);
+  options.model_id = AZ_SPAN_FROM_STR(AZ_IOT_ADU_CLIENT_AGENT_INTERFACE_ID);
   options.component_names = pnp_components;
   options.component_names_length = sizeof(pnp_components) / sizeof(pnp_components[0]);
 
