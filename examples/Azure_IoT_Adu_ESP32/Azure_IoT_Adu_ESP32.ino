@@ -479,10 +479,20 @@ static void send_adu_accept_manifest_property(int32_t version_number)
 
 static bool is_update_already_applied(void)
 {
-  Logger.Info(String(ADU_DEVICE_VERSION) + "  " + String((char*)az_span_ptr(adu_update_manifest.instructions.steps[0].handler_properties.installed_criteria)));
-  return ((az_span_size(adu_update_manifest.instructions.steps[0].handler_properties.installed_criteria) == sizeof(ADU_DEVICE_VERSION) - 1) &&
-  strncmp(ADU_DEVICE_VERSION, (char*)az_span_ptr(adu_update_manifest.instructions.steps[0].handler_properties.installed_criteria),
-                az_span_size(adu_update_manifest.instructions.steps[0].handler_properties.installed_criteria)) == 0);
+  Logger.Info(
+      String(ADU_DEVICE_VERSION) + "  "
+      + String((char*)az_span_ptr(
+          adu_update_manifest.instructions.steps[0].handler_properties.installed_criteria)));
+  return (
+      (az_span_size(adu_update_manifest.instructions.steps[0].handler_properties.installed_criteria)
+       == sizeof(ADU_DEVICE_VERSION) - 1)
+      && strncmp(
+             ADU_DEVICE_VERSION,
+             (char*)az_span_ptr(
+                 adu_update_manifest.instructions.steps[0].handler_properties.installed_criteria),
+             az_span_size(
+                 adu_update_manifest.instructions.steps[0].handler_properties.installed_criteria))
+          == 0);
 }
 
 // process_device_property_message handles incoming properties from Azure IoT
@@ -571,7 +581,7 @@ static void process_device_property_message(
 
         Logger.Info("Manifest authenticated successfully");
 
-        if(is_update_already_applied())
+        if (is_update_already_applied())
         {
           Logger.Info("Update already applied");
           process_update_request = false;
@@ -796,10 +806,10 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 
 static void initialize_iot_hub_client()
 {
-  Logger.Info( "------------------------------------------------------------------------------" );
-  Logger.Info( "ADU SAMPLE" );
-  Logger.Info( "Version: " + String(ADU_DEVICE_VERSION) );
-  Logger.Info( "------------------------------------------------------------------------------" );
+  Logger.Info("------------------------------------------------------------------------------");
+  Logger.Info("ADU SAMPLE");
+  Logger.Info("Version: " + String(ADU_DEVICE_VERSION));
+  Logger.Info("------------------------------------------------------------------------------");
 
   az_iot_hub_client_options options = az_iot_hub_client_options_default();
   options.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT);
