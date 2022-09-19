@@ -65,6 +65,8 @@
 // Azure IoT ADU values
 #define ADU_DEVICE_MANUFACTURER "ESPRESSIF"
 #define ADU_DEVICE_MODEL "ESP32-Embedded"
+#define ADU_UPDATE_PROVIDER "ESPRESSIF"
+#define ADU_UPDATE_NAME "ESP32-Embedded"
 #define ADU_DEVICE_VERSION "1.0"
 
 // Publish 1 message every 2 seconds
