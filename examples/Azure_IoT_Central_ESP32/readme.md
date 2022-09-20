@@ -48,9 +48,9 @@ To create a new application:
 1. Select **+ New application**.
 1. Select **Custom apps**.
 1. Add Application Name and a URL.
-1. Choose the **Free** Pricing plan to activate a 7-day trial.
+1. Choose the pricing plan of your preference.
 
-    ![IoT Central create an application](media/iotcentralcreate-custom.png)
+    ![IoT Central create an application](media/iot-central.png)
 
 1. Select **Create**.
 1. After IoT Central provisions the application, it redirects you automatically to the new application dashboard.

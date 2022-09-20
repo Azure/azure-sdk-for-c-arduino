@@ -1,9 +1,10 @@
 # Project
 
-For more details about the Azure Embedded SDK for C please refer to the [official library website](https://github.com/azure/azure-sdk-for-c).
+The Arduino library is built from the Azure Embedded SDK for C. For more details about it, please refer to the [official library website](https://github.com/azure/azure-sdk-for-c).
 
-This library package contains the following samples.
-Please refer to their documentation for setup and execution instructions:
+There are several other alternatives to get MCU-based devices connected to Azure. See [Other Azure IoT SDKs](https://learn.microsoft.com/azure/iot-develop/concepts-using-c-sdk-and-embedded-c-sdk) to learn more.
+
+This library package contains the following samples. Please refer to their documentation for setup and execution instructions:
 
 - [Azure IoT Central ESPRESSIF ESP32 Azure IoT Kit](examples/Azure_IoT_Central_ESP32_AzureIoTKit/readme.md)
 
