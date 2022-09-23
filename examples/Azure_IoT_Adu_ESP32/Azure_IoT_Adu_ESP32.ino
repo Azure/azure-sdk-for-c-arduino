@@ -501,6 +501,7 @@ static void process_device_property_message(
 {
   az_json_reader jr;
   az_json_reader jr_adu_manifest;
+  int32_t out_manifest_size;
   az_result rc = az_json_reader_init(&jr, message_span, NULL);
   if (az_result_failed(rc))
   {
@@ -538,7 +539,7 @@ static void process_device_property_message(
     {
       // ADU Component
       rc = az_iot_adu_client_parse_service_properties(
-          &adu_client, &jr, scratch_buffer_span, &adu_update_request, &scratch_buffer_span);
+          &adu_client, &jr, &adu_update_request);
 
       if (az_result_failed(rc))
       {
@@ -547,7 +548,15 @@ static void process_device_property_message(
       }
       else
       {
-        rc = az_json_reader_init(&jr_adu_manifest, adu_update_request.update_manifest, NULL);
+        rc = az_json_string_unescape(adu_update_request.update_manifest, (char*)az_span_ptr(scratch_buffer_span), az_span_size(scratch_buffer_span), &out_manifest_size);
+
+        if (az_result_failed(rc))
+        {
+          Logger.Error("az_json_string_unescape failed" + String(rc));
+          return;
+        }
+
+        rc = az_json_reader_init(&jr_adu_manifest, az_span_slice(scratch_buffer_span, 0, out_manifest_size), NULL);
 
         if (az_result_failed(rc))
         {
