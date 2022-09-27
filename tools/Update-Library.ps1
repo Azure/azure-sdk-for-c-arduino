@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 param(
-  $SdkBranch = $(throw "SDKBranch not provided"),
+  $SdkBranch = $(throw "SdkBranch not provided"),
   $SdkVersion = $(throw "SdkVersion not provided"),
   $NewLibraryVersion = $(throw "NewLibraryVersion not provided")
 )
