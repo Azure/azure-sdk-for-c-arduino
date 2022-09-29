@@ -154,6 +154,7 @@ void loop()
 
   // MQTT loop must be called to process Telemetry and Cloud-to-Device (C2D) messages.
   mqttClient.poll();
+  delay(50);
 }
 
 /*-----------------------------------------------*/
@@ -208,7 +209,7 @@ void initializeAzureIoTHubClient()
 
   EXIT_LOOP(az_result_failed(result), "Failed to initialize Azure IoT Hub client. Return code: " + result);
 
-  Logger.Info( "Azure IoT Hub hostname: " + String(IOT_CONFIG_IOTHUB_FQDN));
+  Logger.Info("Azure IoT Hub hostname: " + String(IOT_CONFIG_IOTHUB_FQDN));
   Logger.Info("Azure IoT Hub client initialized.");
 }
 

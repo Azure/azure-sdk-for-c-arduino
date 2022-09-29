@@ -3,8 +3,6 @@
 
 #include "SerialLogger.h"
 
-#define UNIX_EPOCH_START_YEAR 1900
-
 SerialLogger::SerialLogger() { }
 
 void SerialLogger::Info(String message)
