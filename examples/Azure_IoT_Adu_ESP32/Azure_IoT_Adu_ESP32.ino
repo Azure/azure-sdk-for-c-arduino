@@ -820,7 +820,7 @@ static void initialize_iot_hub_client()
 
   az_iot_hub_client_options options = az_iot_hub_client_options_default();
   options.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT);
-  options.model_id = AZ_SPAN_FROM_STR(AZ_IOT_ADU_CLIENT_AGENT_INTERFACE_ID);
+  options.model_id = AZ_SPAN_FROM_STR(AZ_IOT_ADU_CLIENT_AGENT_MODEL_ID);
   options.component_names = pnp_components;
   options.component_names_length = sizeof(pnp_components) / sizeof(pnp_components[0]);
 
