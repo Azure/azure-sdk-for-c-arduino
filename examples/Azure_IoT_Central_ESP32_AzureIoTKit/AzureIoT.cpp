@@ -23,7 +23,7 @@ log_function_t default_logging_function = NULL;
 
 #define MQTT_CLIENT_ID_BUFFER_SIZE                  256
 #define MQTT_USERNAME_BUFFER_SIZE                   350
-#define DECODED_SAS_KEY_BUFFER_SIZE                 32
+#define DECODED_SAS_KEY_BUFFER_SIZE                 64
 #define PLAIN_SAS_SIGNATURE_BUFFER_SIZE             256
 #define SAS_HMAC256_ENCRYPTED_SIGNATURE_BUFFER_SIZE 32
 #define SAS_SIGNATURE_BUFFER_SIZE                   64
