@@ -6,7 +6,7 @@
 #include <cstdbool>
 #include <cstdlib>
 #include <cstring>
-#include <ctime>
+#include <time.h>
 
 // Libraries for SSL client, MQTT client, NTP, and WiFi connection.
 #include <ArduinoBearSSL.h>
@@ -27,6 +27,9 @@
 // Sample header.
 #include "iot_configs.h"
 
+// Logging
+#include "SerialLogger.h"
+
 /*--- Macros ---*/
 #define BUFFER_LENGTH_MQTT_CLIENT_ID 256
 #define BUFFER_LENGTH_MQTT_PASSWORD 256
@@ -35,7 +38,7 @@
 #define BUFFER_LENGTH_SAS 32
 #define BUFFER_LENGTH_SAS_ENCODED_SIGNED_SIGNATURE 64
 #define BUFFER_LENGTH_SAS_SIGNATURE 512
-#define BUFFER_LENGTH_TIME 256
+#define BUFFER_LENGTH_DATETIME_STRING 256
 
 #define LED_PIN 2 // High on error. Briefly high for each successful send.
 
@@ -43,19 +46,16 @@
 #define GMT_OFFSET_SECS (IOT_CONFIG_DAYLIGHT_SAVINGS ? \
                         ((IOT_CONFIG_TIME_ZONE + IOT_CONFIG_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF) * SECS_PER_HOUR) : \
                         (IOT_CONFIG_TIME_ZONE * SECS_PER_HOUR))
-/*--- Logging ---*/
-enum LogLevel 
-{ 
-  LogLevelDebug, 
-  LogLevelInfo, 
-  LogLevelError 
-};
 
-static String logString; // To construct logging String message.
-static void log(LogLevel logLevel, String message);
-#define LogDebug(message) log(LogLevelDebug, message)
-#define LogInfo(message) log(LogLevelInfo, message)
-#define LogError(message) log(LogLevelError, message)
+// Exit into infinite loop
+#define EXIT_LOOP(condition, errorMessage) \
+  do \ 
+  { \
+    if (condition) { \
+      Logger.Error(errorMessage); \
+      while (1); \
+    } \
+  } while (0)
 
 /*--- Sample static variables --*/
 // Clients for NTP, WiFi connection, SSL, MQTT, and Azure IoT SDK for C.
@@ -114,7 +114,7 @@ static String mqttErrorCodeName(int errorCode);
 void setup()
 {
   while (!Serial);
-  Serial.begin(MBED_CONF_PLATFORM_DEFAULT_SERIAL_BAUD_RATE);
+  Serial.begin(SERIAL_LOGGER_BAUD_RATE);
   pinMode(LED_PIN, OUTPUT);
 
   digitalWrite(LED_PIN, HIGH);
@@ -125,6 +125,7 @@ void setup()
   connectMQTTClientToAzureIoTHub();
 
   digitalWrite(LED_PIN, LOW);
+  telemetryNextSendTimeMs = 0;
 }
 
 /*
@@ -155,7 +156,7 @@ void loop()
   // MQTT loop must be called to process Telemetry and Cloud-to-Device (C2D) messages.
   mqttClient.poll();
   ntpClient.update();
-  delay(500);
+  delay(50);
 }
 
 /*-----------------------------------------------*/
@@ -169,19 +170,18 @@ void loop()
  */
 void connectToWiFi()
 {
-  logString = "Attempting to connect to WIFI SSID: ";
-  LogInfo(logString + IOT_CONFIG_WIFI_SSID);
+  Logger.Info("Attempting to connect to WIFI SSID: " + String(IOT_CONFIG_WIFI_SSID));
 
-  while (WiFi.begin(IOT_CONFIG_WIFI_SSID, IOT_CONFIG_WIFI_PASSWORD) != WL_CONNECTED) 
+  WiFi.begin(IOT_CONFIG_WIFI_SSID, IOT_CONFIG_WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) 
   {
     Serial.println(".");
     delay(IOT_CONFIG_WIFI_CONNECT_RETRY_MS);
   }
   Serial.println();
 
-  logString = "WiFi connected, IP address: ";
-  LogInfo(logString + WiFi.localIP() + ", Strength (dBm): " + WiFi.RSSI());
-  LogInfo("Syncing time.");
+  Logger.Info("WiFi connected, IP address: " + String(WiFi.localIP()) + ", Strength (dBm): " + WiFi.RSSI());
+  Logger.Info("Syncing time.");
 
   ntpClient.begin();
   while (!ntpClient.forceUpdate()) 
@@ -191,7 +191,7 @@ void connectToWiFi()
   }
   Serial.println();
 
-  LogInfo("Time synced!");
+  Logger.Info("Time synced!");
 }
 
 /*
@@ -200,7 +200,7 @@ void connectToWiFi()
  */
 void initializeAzureIoTHubClient() 
 {
-  LogInfo("Initializing Azure IoT Hub client.");
+  Logger.Info("Initializing Azure IoT Hub client.");
 
   az_span hostname = AZ_SPAN_FROM_STR(IOT_CONFIG_IOTHUB_FQDN);
   az_span deviceId = AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_ID);
@@ -209,16 +209,11 @@ void initializeAzureIoTHubClient()
   options.user_agent = AZ_SPAN_FROM_STR(IOT_CONFIG_AZURE_SDK_CLIENT_USER_AGENT);
 
   int result = az_iot_hub_client_init(&azIoTHubClient, hostname, deviceId, &options);
-  if (az_result_failed(result)) 
-  {
-    logString = "Failed to initialize Azure IoT Hub client. Return code: ";
-    LogError(logString + result);
-    exit(result);
-  }
 
-  logString = "Azure IoT Hub hostname: ";
-  LogInfo( logString + IOT_CONFIG_IOTHUB_FQDN);
-  LogInfo("Azure IoT Hub client initialized.");
+  EXIT_LOOP(az_result_failed(result), "Failed to initialize Azure IoT Hub client. Return code: " + result);
+
+  Logger.Info("Azure IoT Hub hostname: " + String(IOT_CONFIG_IOTHUB_FQDN));
+  Logger.Info("Azure IoT Hub client initialized.");
 }
 
 /*
@@ -229,27 +224,17 @@ void initializeAzureIoTHubClient()
 void initializeMQTTClient() 
 {
 
-  LogInfo("Initializing MQTT client.");
+  Logger.Info("Initializing MQTT client.");
   
   int result;
 
   result = az_iot_hub_client_get_client_id(
       &azIoTHubClient, mqttClientId, sizeof(mqttClientId), NULL);
-  if (az_result_failed(result)) 
-  {
-    logString = "Failed to get MQTT client ID. Return code: ";
-    LogError(logString + result);
-    exit(result);
-  }
+  EXIT_LOOP(az_result_failed(result), "Failed to get MQTT client ID. Return code: " + result);
   
   result = az_iot_hub_client_get_user_name(
       &azIoTHubClient, mqttUsername, sizeof(mqttUsername), NULL);
-  if (az_result_failed(result)) 
-  {
-    logString = "Failed to get MQTT username. Return code: ";
-    LogError(logString + result);
-    exit(result);
-  }
+  EXIT_LOOP(az_result_failed(result), "Failed to get MQTT username. Return code: " + result);
 
   generateMQTTPassword(); // SAS Token
 
@@ -257,14 +242,10 @@ void initializeMQTTClient()
   mqttClient.setUsernamePassword(mqttUsername, mqttPassword);
   mqttClient.onMessage(onMessageReceived); // Set callback for C2D messages
 
-  logString = "MQTT Client ID: ";
-  LogInfo(logString + mqttClientId);
-  logString = "MQTT Username: ";
-  LogInfo(logString + mqttUsername);
-  logString = "MQTT Password (SAS Token): ";
-  LogInfo(logString + "***");
+  Logger.Info("Client ID: " + String(mqttClientId));
+  Logger.Info("Username: " + String(mqttUsername));
 
-  LogInfo("MQTT client initialized.");
+  Logger.Info("MQTT client initialized.");
 }
 
 /*
@@ -275,7 +256,7 @@ void initializeMQTTClient()
  */
 void connectMQTTClientToAzureIoTHub() 
 {
-  LogInfo("Connecting to Azure IoT Hub.");
+  Logger.Info("Connecting to Azure IoT Hub.");
 
   // Set a callback to get the current time used to validate the server certificate.
   ArduinoBearSSL.onGetTime(getTime);
@@ -283,17 +264,15 @@ void connectMQTTClientToAzureIoTHub()
   while (!mqttClient.connect(IOT_CONFIG_IOTHUB_FQDN, AZ_IOT_DEFAULT_MQTT_CONNECT_PORT)) 
   {
     int code = mqttClient.connectError();
-    logString = "Cannot connect to Azure IoT Hub. Reason: ";
-    LogError(logString + mqttErrorCodeName(code) + ", Code: " + code);
+    Logger.Error("Cannot connect to Azure IoT Hub. Reason: " + mqttErrorCodeName(code) + ", Code: " + code);
     delay(5000);
   }
 
-  LogInfo("Connected to your Azure IoT Hub!");
+  Logger.Info("Connected to your Azure IoT Hub!");
 
   mqttClient.subscribe(AZ_IOT_HUB_CLIENT_C2D_SUBSCRIBE_TOPIC);
 
-  logString = "Subscribed to MQTT topic: ";
-  LogInfo(logString + AZ_IOT_HUB_CLIENT_C2D_SUBSCRIBE_TOPIC);
+  Logger.Info("Subscribed to MQTT topic: " + String(AZ_IOT_HUB_CLIENT_C2D_SUBSCRIBE_TOPIC));
 }
 
 /*------------------------------------------------*/
@@ -308,9 +287,8 @@ void connectMQTTClientToAzureIoTHub()
  */
 void onMessageReceived(int messageSize) 
 {
-  logString = "Message received: Topic: ";
-  LogInfo(logString + mqttClient.messageTopic() + ", Length: " + messageSize);
-  LogInfo("Message: ");
+  Logger.Info("Message received: Topic: " + mqttClient.messageTopic() + ", Length: " + messageSize);
+  Logger.Info("Message: ");
 
   while (mqttClient.available()) 
   {
@@ -327,22 +305,17 @@ void onMessageReceived(int messageSize)
 static void sendTelemetry()
 {
   digitalWrite(LED_PIN, HIGH);
-  LogInfo("Arduino Portenta H7 sending telemetry . . . ");
+  Logger.Info("Arduino Nano RP2040 Connect sending telemetry . . . ");
 
   int result = az_iot_hub_client_telemetry_get_publish_topic(
       &azIoTHubClient, NULL, telemetryTopic, sizeof(telemetryTopic), NULL);
-  if (az_result_failed(result)) 
-  {
-    logString = "Failed to get telemetry publish topic. Return code: ";
-    LogError(logString + result);
-    exit(result);
-  }
+  EXIT_LOOP(az_result_failed(result), "Failed to get telemetry publish topic. Return code: " + result);
 
   mqttClient.beginMessage(telemetryTopic);
   mqttClient.print(generateTelemetry());
   mqttClient.endMessage();
 
-  LogInfo("Telemetry sent.");
+  Logger.Info("Telemetry sent.");
   delay(100);
   digitalWrite(LED_PIN, LOW);
 }
@@ -355,8 +328,7 @@ static void sendTelemetry()
  */
 static char* generateTelemetry() 
 {
-  String payloadStart = "{ \"msgCount\": ";
-  telemetryPayload =  payloadStart + telemetrySendCount + " }";
+  telemetryPayload =  String("{ \"msgCount\": ") + telemetrySendCount + " }";
   telemetrySendCount++;
 
   return (char*)telemetryPayload.c_str();
@@ -390,12 +362,7 @@ static void generateMQTTPassword()
   sasTokenDuration = getSASTokenExpirationTime(IOT_CONFIG_SAS_TOKEN_EXPIRY_MINUTES);
   result = az_iot_hub_client_sas_get_signature(
       &azIoTHubClient, sasTokenDuration, signatureAzSpan, &signatureAzSpan);
-  if (az_result_failed(result)) 
-  {
-    logString = "Could not get the signature for SAS Token. Return code: ";
-    LogError(logString + result);
-    exit(result);
-  }
+  EXIT_LOOP(az_result_failed(result), "Could not get the signature for SAS Token. Return code: " + result);
 
   // Sign and encode the signature (b64 encoded, HMAC-SHA256 signing).
   // Uses the decoded device key.
@@ -409,12 +376,7 @@ static void generateMQTTPassword()
   result = az_iot_hub_client_sas_get_password(
       &azIoTHubClient, sasTokenDuration, encodedSignedSignatureAzSpan, AZ_SPAN_EMPTY,
       mqttPassword, sizeof(mqttPassword), NULL);
-  if (az_result_failed(result)) 
-  {
-    logString = "Could not get the MQTT password. Return code: ";
-    LogError(logString + result);
-    exit(result);
-  }
+  EXIT_LOOP(az_result_failed(result), "Could not get the MQTT password. Return code: " + result);
 }
 
 /*
@@ -441,12 +403,7 @@ static void generateSASBase64EncodedSignedSignature(
   result = mbedtls_base64_decode(
       sasDecodedKey, sizeof(sasDecodedKey), &sasDecodedKeyLength,
       (const unsigned char*)IOT_CONFIG_DEVICE_KEY, sizeof(IOT_CONFIG_DEVICE_KEY) - 1);
-  if (result != 0) 
-  {
-    logString = "mbedtls_base64_decode failed. Return code: ";
-    LogError(logString + result);
-    exit(result);
-  }
+  EXIT_LOOP(result != 0, "mbedtls_base64_decode failed. Return code: " + result);
 
   // HMAC-SHA256 sign the signature with the decoded device key.
   mbedtls_md_init(&ctx);
@@ -460,12 +417,7 @@ static void generateSASBase64EncodedSignedSignature(
   result = mbedtls_base64_encode(
       encodedSignedSignature, encodedSignedSignatureSize, encodedSignedSignatureLength,
       sasHMAC256SignedSignature, sizeof(sasHMAC256SignedSignature));
-  if (result != 0) 
-  {
-    logString = "mbedtls_base64_encode failed. Return code: ";
-    LogError(logString + result);
-    exit(result);
-  }
+  EXIT_LOOP(result != 0, "mbedtls_base64_encode failed. Return code: " + result);
 }
 
 /*
@@ -479,14 +431,10 @@ static uint64_t getSASTokenExpirationTime(uint32_t minutes)
   unsigned long localNow = now + GMT_OFFSET_SECS;
   unsigned long localExpiryTime = expiryTime + GMT_OFFSET_SECS;
 
-  logString = "UTC Current time: ";
-  LogInfo(logString + getFormattedDateTime(now) + " (epoch: " + now + " secs)");
-  logString = "UTC Expiry time: ";
-  LogInfo(logString + getFormattedDateTime(expiryTime) + " (epoch: " + expiryTime + " secs)");
-  logString = "Local Current time: ";
-  LogInfo(logString + getFormattedDateTime(localNow));
-  logString = "Local Expiry time: ";
-  LogInfo(logString + getFormattedDateTime(localExpiryTime));
+  Logger.Info("UTC Current time: " + getFormattedDateTime(now) + " (epoch: " + now + " secs)");
+  Logger.Info("UTC Expiry time: " + getFormattedDateTime(expiryTime) + " (epoch: " + expiryTime + " secs)");
+  Logger.Info("Local Current time: " + getFormattedDateTime(localNow));
+  Logger.Info("Local Expiry time: " + getFormattedDateTime(localExpiryTime));
 
   return (uint64_t)expiryTime;
 }
@@ -512,14 +460,14 @@ static unsigned long getTime()
  */
 static String getFormattedDateTime(unsigned long epochTimeInSeconds) 
 {
-  char buffer[BUFFER_LENGTH_TIME];
+  char dateTimeString[BUFFER_LENGTH_DATETIME_STRING];
 
-  time_t time = (time_t)epochTimeInSeconds;
-  struct tm* timeInfo = localtime(&time);
+  time_t epochTimeInSecondsAsTimeT = (time_t)epochTimeInSeconds;
+  struct tm* timeInfo = localtime(&epochTimeInSecondsAsTimeT);
 
-  strftime(buffer, 20, "%F %T", timeInfo);
+  strftime(dateTimeString, 20, "%F %T", timeInfo);
 
-  return String(buffer);
+  return String(dateTimeString);
 }
 
 /*
@@ -561,35 +509,4 @@ static String mqttErrorCodeName(int errorCode)
   }
 
   return errorMessage;
-}
-
-/**************************/
-/*    Logging functions   */
-/**************************/
-
-/*
- * log:
- * Prints the time, log level, and log message.
- */
-static void log(LogLevel logLevel, String message) 
-{
-  Serial.print(getFormattedDateTime(getTime() + GMT_OFFSET_SECS));
-
-  switch (logLevel) {
-  case LogLevelDebug:
-    Serial.print(" [DEBUG] ");
-    break;
-  case LogLevelInfo:
-    Serial.print(" [INFO] ");
-    break;
-  case LogLevelError:
-    Serial.print(" [ERROR] ");
-    break;
-  default:
-    Serial.print(" [UNKNOWN] ");
-    break;
-  }
-
-  Serial.print(message);
-  Serial.println();
 }
