@@ -479,14 +479,14 @@ static az_result base64_decode_jwk(jws_validation_context* manifest_context)
 {
   az_result result;
 
-  result = az_base64_decode(
+  result = az_base64_url_decode(
       manifest_context->jwk_header,
       manifest_context->jwk_base64_encoded_header,
       &manifest_context->out_jwk_header_length);
 
   if (az_result_failed(result))
   {
-    Logger.Error("[JWS] JWK header az_base64_decode failed: result " + String(result, HEX));
+    Logger.Error("[JWS] JWK header az_base64_url_decode failed: result " + String(result, HEX));
 
     if (result == AZ_ERROR_NOT_ENOUGH_SPACE)
     {
@@ -499,14 +499,14 @@ static az_result base64_decode_jwk(jws_validation_context* manifest_context)
   manifest_context->jwk_header
       = az_span_slice(manifest_context->jwk_header, 0, manifest_context->out_jwk_header_length);
 
-  result = az_base64_decode(
+  result = az_base64_url_decode(
       manifest_context->jwk_payload,
       manifest_context->jwk_base64_encoded_payload,
       &manifest_context->out_jwk_payload_length);
 
   if (az_result_failed(result))
   {
-    Logger.Error("[JWS] JWK payload az_base64_decode failed: result " + String(result, HEX));
+    Logger.Error("[JWS] JWK payload az_base64_url_decode failed: result " + String(result, HEX));
 
     if (result == AZ_ERROR_NOT_ENOUGH_SPACE)
     {
@@ -519,14 +519,14 @@ static az_result base64_decode_jwk(jws_validation_context* manifest_context)
   manifest_context->jwk_payload
       = az_span_slice(manifest_context->jwk_payload, 0, manifest_context->out_jwk_payload_length);
 
-  result = az_base64_decode(
+  result = az_base64_url_decode(
       manifest_context->jwk_signature,
       manifest_context->jwk_base64_encoded_signature,
       &manifest_context->out_jwk_signature_length);
 
   if (az_result_failed(result))
   {
-    Logger.Error("[JWS] JWK signature az_base64_decode failed: result " + String(result, HEX));
+    Logger.Error("[JWS] JWK signature az_base64_url_decode failed: result " + String(result, HEX));
 
     if (result == AZ_ERROR_NOT_ENOUGH_SPACE)
     {
@@ -594,14 +594,14 @@ static az_result base64_decode_jws_header_and_payload(jws_validation_context* ma
 {
   az_result result;
 
-  result = az_base64_decode(
+  result = az_base64_url_decode(
       manifest_context->jws_payload,
       manifest_context->base64_encoded_payload,
       &manifest_context->out_jws_payload_length);
 
   if (az_result_failed(result))
   {
-    Logger.Error("[JWS] JWS payload az_base64_decode failed: result " + String(result, HEX));
+    Logger.Error("[JWS] JWS payload az_base64_url_decode failed: result " + String(result, HEX));
 
     if (result == AZ_ERROR_NOT_ENOUGH_SPACE)
     {
@@ -614,14 +614,14 @@ static az_result base64_decode_jws_header_and_payload(jws_validation_context* ma
   manifest_context->jws_payload
       = az_span_slice(manifest_context->jws_payload, 0, manifest_context->out_jws_payload_length);
 
-  result = az_base64_decode(
+  result = az_base64_url_decode(
       manifest_context->jws_signature,
       manifest_context->base64_encoded_signature,
       &manifest_context->out_jws_signature_length);
 
   if (az_result_failed(result))
   {
-    Logger.Error("[JWS] JWS signature az_base64_decode failed: result " + String(result, HEX));
+    Logger.Error("[JWS] JWS signature az_base64_url_decode failed: result " + String(result, HEX));
 
     if (result == AZ_ERROR_NOT_ENOUGH_SPACE)
     {
@@ -775,22 +775,20 @@ az_result SampleJWS::ManifestAuthenticate(
     return result;
   }
 
-  swap_to_url_encoding_chars(manifest_context.base64_encoded_signature);
-
   /* Note that we do not use mbedTLS to base64 decode values since we need the
    * ability to assume padding characters. */
   /* mbedTLS will stop the decoding short and we would then need to add in the
    * remaining characters. */
   manifest_context.jws_header = az_span_create(persistent_scratch_space_head, jwsJWS_HEADER_SIZE);
   persistent_scratch_space_head += jwsJWS_HEADER_SIZE;
-  result = az_base64_decode(
+  result = az_base64_url_decode(
       manifest_context.jws_header,
       manifest_context.base64_encoded_header,
       &manifest_context.out_jws_header_length);
 
   if (az_result_failed(result))
   {
-    Logger.Error("[JWS] JWS header az_base64_decode failed: result " + String(result, HEX));
+    Logger.Error("[JWS] JWS header az_base64_url_decode failed: result " + String(result, HEX));
 
     if (result == AZ_ERROR_NOT_ENOUGH_SPACE)
     {
