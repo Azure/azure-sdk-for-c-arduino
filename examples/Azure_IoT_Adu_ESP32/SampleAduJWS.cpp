@@ -833,8 +833,6 @@ az_result SampleJWS::ManifestAuthenticate(
     return result;
   }
 
-  swap_to_url_encoding_chars(manifest_context.jwk_base64_encoded_signature);
-
   manifest_context.jwk_header = az_span_create(reusable_scratch_space_head, jwsJWK_HEADER_SIZE);
   reusable_scratch_space_head += jwsJWK_HEADER_SIZE;
   /* Needs to be persisted so we can parse the signing key N and E later */

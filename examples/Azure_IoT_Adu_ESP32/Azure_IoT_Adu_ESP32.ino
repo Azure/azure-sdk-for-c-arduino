@@ -73,6 +73,7 @@ static char adu_new_version[16];
 static bool process_update_request = false;
 static bool did_update = false;
 static char adu_scratch_buffer[10000];
+static char adu_manifest_unescape_buffer[2000];
 static char adu_verification_buffer[jwsSCRATCH_BUFFER_SIZE];
 static char adu_sha_buffer[ADU_DEVICE_SHA_SIZE];
 static char adu_calculated_sha_buffer[ADU_DEVICE_SHA_SIZE];
@@ -548,7 +549,7 @@ static void process_device_property_message(
       }
       else
       {
-        rc = az_json_string_unescape(adu_update_request.update_manifest, (char*)az_span_ptr(scratch_buffer_span), az_span_size(scratch_buffer_span), &out_manifest_size);
+        rc = az_json_string_unescape(adu_update_request.update_manifest, (char*)adu_manifest_unescape_buffer, sizeof(adu_manifest_unescape_buffer), &out_manifest_size);
 
         if (az_result_failed(rc))
         {
@@ -556,7 +557,9 @@ static void process_device_property_message(
           return;
         }
 
-        rc = az_json_reader_init(&jr_adu_manifest, az_span_slice(scratch_buffer_span, 0, out_manifest_size), NULL);
+        az_span manifest_unescaped = az_span_create((uint8_t*)adu_manifest_unescape_buffer, out_manifest_size);
+
+        rc = az_json_reader_init(&jr_adu_manifest, manifest_unescaped, NULL);
 
         if (az_result_failed(rc))
         {
@@ -576,7 +579,7 @@ static void process_device_property_message(
         Logger.Info("Parsed Azure device update manifest.");
 
         rc = SampleJWS::ManifestAuthenticate(
-            adu_update_request.update_manifest,
+            manifest_unescaped,
             adu_update_request.update_manifest_signature,
             AZ_SPAN_FROM_BUFFER(adu_verification_buffer));
         if (az_result_failed(rc))
