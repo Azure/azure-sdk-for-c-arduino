@@ -57,6 +57,7 @@
 /* --- Sample-specific Settings --- */
 #define MQTT_RETAIN_MSG true
 #define MQTT_DO_NOT_RETAIN_MSG !MQTT_RETAIN_MSG
+#define SERIAL_LOGGER_BAUD_RATE 115200
 
 /* --- Time and NTP Settings --- */
 #define SECS_PER_MIN 60
@@ -337,7 +338,7 @@ static uint32_t get_time()
 void setup()
 {
   while (!Serial);
-  Serial.begin(MBED_CONF_PLATFORM_DEFAULT_SERIAL_BAUD_RATE);
+  Serial.begin(SERIAL_LOGGER_BAUD_RATE);
   set_logging_function(logging_function);
 
   connect_to_wifi();
@@ -415,7 +416,7 @@ void loop()
 
     // MQTT loop must be called to process Telemetry and Cloud-to-Device (C2D) messages.
     arduino_mqtt_client.poll();
-    delay(500);
+    delay(50);
 
     azure_iot_do_work(&azure_iot);
   }
@@ -448,7 +449,8 @@ static void connect_to_wifi()
 {
   LogInfo("Connecting to WIFI wifi_ssid %s", IOT_CONFIG_WIFI_SSID);
 
-  while (WiFi.begin(IOT_CONFIG_WIFI_SSID, IOT_CONFIG_WIFI_PASSWORD) != WL_CONNECTED)
+  WiFi.begin(IOT_CONFIG_WIFI_SSID, IOT_CONFIG_WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
     Serial.print(".");
