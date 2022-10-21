@@ -64,6 +64,8 @@
 #define ADU_DEVICE_SHA_SIZE 32
 #define ADU_SHA_PARTITION_READ_BUFFER_SIZE 32
 #define HTTP_DOWNLOAD_CHUNK 4096
+#define ADU_PNP_ACCEPT_CODE 200
+#define ADU_PNP_REJECT_CODE 406
 
 // ADU Feature Values
 static az_iot_adu_client adu_client;
@@ -230,12 +232,10 @@ static az_result download_and_write_to_flash(void)
   httpUpdate.onError(update_error);
   httpUpdate.rebootOnUpdate(false);
 
-  /* TODO: remove this hack. */
   char null_terminated_host[128];
   (void)memcpy(null_terminated_host, az_span_ptr(url_host_span), az_span_size(url_host_span));
   null_terminated_host[az_span_size(url_host_span)] = '\0';
 
-  /* TODO: remove this hack. */
   char null_terminated_path[128];
   (void)memcpy(null_terminated_path, az_span_ptr(url_path_span), az_span_size(url_path_span));
   null_terminated_path[az_span_size(url_path_span)] = '\0';
@@ -360,7 +360,7 @@ static void request_all_properties(void)
 
 // send_adu_device_reported_property writes a property payload reporting device
 // state and then sends it to Azure IoT Hub.
-static void send_adu_device_information_property(void)
+static void send_adu_device_information_property(int32_t agent_state, az_iot_adu_client_workflow * workflow)
 {
   az_result rc;
 
@@ -391,8 +391,8 @@ static void send_adu_device_information_property(void)
   rc = az_iot_adu_client_get_agent_state_payload(
       &adu_client,
       &adu_device_information,
-      AZ_IOT_ADU_CLIENT_AGENT_STATE_IDLE,
-      NULL,
+      agent_state,
+      workflow,
       NULL,
       &adu_payload);
   if (az_result_failed(rc))
@@ -422,7 +422,8 @@ static void send_adu_device_information_property(void)
   }
 }
 
-static void send_adu_accept_manifest_property(int32_t version_number)
+static void send_adu_accept_manifest_property(int32_t version_number,
+                                              int32_t response_code)
 {
   az_result rc;
 
@@ -452,7 +453,7 @@ static void send_adu_accept_manifest_property(int32_t version_number)
   }
 
   rc = az_iot_adu_client_get_service_properties_response(
-      &adu_client, version_number, 200, &adu_payload);
+      &adu_client, version_number, response_code, &adu_payload);
   if (az_result_failed(rc))
   {
     Logger.Error("Could not get service properties response");
@@ -478,10 +479,6 @@ static void send_adu_accept_manifest_property(int32_t version_number)
 
 static bool is_update_already_applied(void)
 {
-  Logger.Info(
-      String(ADU_DEVICE_VERSION) + "  "
-      + String((char*)az_span_ptr(
-          adu_update_manifest.instructions.steps[0].handler_properties.installed_criteria)));
   return (
       (az_span_size(adu_update_manifest.instructions.steps[0].handler_properties.installed_criteria)
        == sizeof(ADU_DEVICE_VERSION) - 1)
@@ -549,62 +546,67 @@ static void process_device_property_message(
       }
       else
       {
-        rc = az_json_string_unescape(adu_update_request.update_manifest, (char*)adu_manifest_unescape_buffer, sizeof(adu_manifest_unescape_buffer), &out_manifest_size);
-
-        if (az_result_failed(rc))
+        if(adu_update_request.workflow.action != AZ_IOT_ADU_CLIENT_SERVICE_ACTION_CANCEL)
         {
-          Logger.Error("az_json_string_unescape failed" + String(rc));
-          return;
-        }
+          rc = az_json_string_unescape(adu_update_request.update_manifest, (char*)adu_manifest_unescape_buffer, sizeof(adu_manifest_unescape_buffer), &out_manifest_size);
 
-        az_span manifest_unescaped = az_span_create((uint8_t*)adu_manifest_unescape_buffer, out_manifest_size);
+          if (az_result_failed(rc))
+          {
+            Logger.Error("az_json_string_unescape failed" + String(rc));
+            return;
+          }
 
-        rc = az_json_reader_init(&jr_adu_manifest, manifest_unescaped, NULL);
+          az_span manifest_unescaped = az_span_create((uint8_t*)adu_manifest_unescape_buffer, out_manifest_size);
 
-        if (az_result_failed(rc))
-        {
-          Logger.Error("az_iot_adu_client_parse_update_manifest failed" + String(rc));
-          return;
-        }
+          rc = az_json_reader_init(&jr_adu_manifest, manifest_unescaped, NULL);
 
-        rc = az_iot_adu_client_parse_update_manifest(
-            &adu_client, &jr_adu_manifest, &adu_update_manifest);
+          if (az_result_failed(rc))
+          {
+            Logger.Error("az_iot_adu_client_parse_update_manifest failed" + String(rc));
+            return;
+          }
 
-        if (az_result_failed(rc))
-        {
-          Logger.Error("az_iot_adu_client_parse_update_manifest failed" + String(rc));
-          return;
-        }
+          rc = az_iot_adu_client_parse_update_manifest(
+              &adu_client, &jr_adu_manifest, &adu_update_manifest);
 
-        Logger.Info("Parsed Azure device update manifest.");
+          if (az_result_failed(rc))
+          {
+            Logger.Error("az_iot_adu_client_parse_update_manifest failed" + String(rc));
+            return;
+          }
 
-        rc = SampleJWS::ManifestAuthenticate(
-            manifest_unescaped,
-            adu_update_request.update_manifest_signature,
-            AZ_SPAN_FROM_BUFFER(adu_verification_buffer));
-        if (az_result_failed(rc))
-        {
-          Logger.Error("ManifestAuthenticate failed " + String(rc));
-          process_update_request = false;
-          return;
-        }
+          Logger.Info("Parsed Azure device update manifest.");
 
-        Logger.Info("Manifest authenticated successfully");
+          rc = SampleJWS::ManifestAuthenticate(
+              manifest_unescaped,
+              adu_update_request.update_manifest_signature,
+              AZ_SPAN_FROM_BUFFER(adu_verification_buffer));
+          if (az_result_failed(rc))
+          {
+            Logger.Error("ManifestAuthenticate failed " + String(rc));
+            process_update_request = false;
+            return;
+          }
 
-        if (is_update_already_applied())
-        {
-          Logger.Info("Update already applied");
-          process_update_request = false;
+          Logger.Info("Manifest authenticated successfully");
+
+          if (is_update_already_applied())
+          {
+            Logger.Info("Update already applied");
+            send_adu_accept_manifest_property(version_number, ADU_PNP_REJECT_CODE);
+            process_update_request = false;
+          }
+          else
+          {
+            Logger.Info("Sending manifest property accept");
+            send_adu_accept_manifest_property(version_number, ADU_PNP_ACCEPT_CODE);
+
+            process_update_request = true;
+          }
         }
         else
         {
-          // TODO: Send a reject confirmation if auth doesn't work out.
-          // TODO: Add a step for accept/deny request like in middleware.
-
-          Logger.Info("Sending manifest property accept");
-          send_adu_accept_manifest_property(version_number);
-
-          process_update_request = true;
+          Logger.Info("ADU action received: cancelled deployment");
         }
       }
     }
@@ -985,7 +987,7 @@ static void send_telemetry()
 
 void setup() { establish_connection(); }
 
-static int wait_count = 1;
+bool send_init_state = true;
 
 void loop()
 {
@@ -995,6 +997,7 @@ void loop()
   {
     Logger.Info("Connecting to WiFI");
     connect_to_wifi();
+    send_init_state = true;
   }
 #ifndef IOT_CONFIG_USE_X509_CERT
   else if (sasToken.IsExpired())
@@ -1002,23 +1005,27 @@ void loop()
     Logger.Info("SAS token expired; reconnecting with a new one.");
     (void)esp_mqtt_client_destroy(mqtt_client);
     initialize_mqtt_client();
+    send_init_state = true;
   }
 #endif
   else if (millis() > next_telemetry_send_time_ms)
   {
-    send_telemetry();
-    next_telemetry_send_time_ms = millis() + TELEMETRY_FREQUENCY_MILLISECS;
-
-    if (wait_count % 5 == 0)
+    if(send_init_state)
     {
       Logger.Info("Requesting all device properties");
       request_all_properties();
       Logger.Info("Sending ADU device information");
-      send_adu_device_information_property();
-    }
+      send_adu_device_information_property(AZ_IOT_ADU_CLIENT_AGENT_STATE_IDLE, NULL);
 
-    if (process_update_request)
+      send_init_state = false;
+    }
+    send_telemetry();
+    next_telemetry_send_time_ms = millis() + TELEMETRY_FREQUENCY_MILLISECS;
+
+    if(process_update_request)
     {
+      send_adu_device_information_property(AZ_IOT_ADU_CLIENT_AGENT_STATE_DEPLOYMENT_IN_PROGRESS, &adu_update_request.workflow);
+
       result = download_and_write_to_flash();
 
       if (result == AZ_OK)
@@ -1043,7 +1050,5 @@ void loop()
         }
       }
     }
-
-    wait_count++;
   }
 }
