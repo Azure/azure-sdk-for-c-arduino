@@ -36,9 +36,7 @@
 #include <time.h>
 
 // For hmac SHA256 encryption
-#include <mbedtls/base64.h>
-#include <mbedtls/md.h>
-#include <mbedtls/sha256.h>
+#include <ECCX08.h>
 
 // Libraries for SSL client, MQTT client, NTP, and WiFi connection
 #include <ArduinoBearSSL.h>
@@ -258,16 +256,14 @@ static int mqtt_client_publish_function(mqtt_client_handle_t mqtt_client_handle,
 static int mbedtls_hmac_sha256(const uint8_t* key, size_t key_length, const uint8_t* payload, size_t payload_length, uint8_t* signed_payload, size_t signed_payload_size)
 {
   (void)signed_payload_size;
-  mbedtls_md_context_t ctx;
-  mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
 
-  mbedtls_md_init(&ctx);
-  mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(md_type), 1);
-  mbedtls_md_hmac_starts(&ctx, (const unsigned char*)key, key_length);
-  mbedtls_md_hmac_update(&ctx, (const unsigned char*)payload, payload_length);
-  mbedtls_md_hmac_finish(&ctx, (byte*)signed_payload);
-  mbedtls_md_free(&ctx);
-
+  // HMAC-SHA256 sign the signature with the decoded device key.
+  ECCX08.begin();
+  ECCX08.nonce(key);
+  ECCX08.beginHMAC(0xFFFF);
+  ECCX08.updateHMAC(payload, payload_length);
+  ECCX08.endHMAC(signed_payload);
+  
   return 0;
 }
 
@@ -276,7 +272,13 @@ static int mbedtls_hmac_sha256(const uint8_t* key, size_t key_length, const uint
  */
 static int base64_decode(uint8_t* data, size_t data_length, uint8_t* decoded, size_t decoded_size, size_t* decoded_length)
 {
-  return mbedtls_base64_decode(decoded, decoded_size, decoded_length, data, data_length);
+  az_span dataSpan = az_span_create(data, data_length);
+  az_span decodedSpan = az_span_create(decoded, decoded_size);
+  
+  if (az_base64_decode(decodedSpan, dataSpan, (int32_t*)decoded_length) == AZ_OK) {
+    return 0;
+  }
+  return 1;
 }
 
 /*
@@ -284,7 +286,13 @@ static int base64_decode(uint8_t* data, size_t data_length, uint8_t* decoded, si
  */
 static int base64_encode(uint8_t* data, size_t data_length, uint8_t* encoded, size_t encoded_size, size_t* encoded_length)
 {
-  return mbedtls_base64_encode(encoded, encoded_size, encoded_length, data, data_length);
+  az_span dataSpan =az_span_create(data, data_length);
+  az_span encodedSpan = az_span_create(encoded, encoded_size);
+  
+  if (az_base64_encode(encodedSpan, dataSpan, (int32_t*)encoded_length) == AZ_OK) {
+    return 0;
+  }
+  return 1;
 }
 
 /*

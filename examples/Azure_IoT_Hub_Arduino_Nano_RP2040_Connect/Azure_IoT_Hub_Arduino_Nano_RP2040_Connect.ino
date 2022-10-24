@@ -17,6 +17,7 @@
 #include <mbedtls/base64.h>
 #include <mbedtls/md.h>
 #include <mbedtls/sha256.h>
+#include <ECCX08.h>
 
 // Azure IoT SDK for C includes.
 #include <az_core.h>
@@ -390,30 +391,36 @@ static void generateSASBase64EncodedSignedSignature(
 {
   int result;
   unsigned char sasDecodedKey[BUFFER_LENGTH_SAS] = {0};
-  size_t sasDecodedKeyLength = 0;
-  unsigned char sasHMAC256SignedSignature[BUFFER_LENGTH_SAS] = {0};
-  mbedtls_md_context_t ctx;
-  mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
+  az_span sasDecodedKeySpan = AZ_SPAN_FROM_BUFFER(sasDecodedKey);
+  int32_t sasDecodedKeyLength = 0;
+  uint8_t sasHMAC256SignedSignature[BUFFER_LENGTH_SAS] = {0};
 
   // Decode the SAS base64 encoded device key to use for HMAC signing.
-  result = mbedtls_base64_decode(
-      sasDecodedKey, sizeof(sasDecodedKey), &sasDecodedKeyLength,
-      (const unsigned char*)IOT_CONFIG_DEVICE_KEY, sizeof(IOT_CONFIG_DEVICE_KEY) - 1);
-  EXIT_LOOP(result != 0, "mbedtls_base64_decode failed. Return code: " + result);
+  az_span configDeviceKeySpan = az_span_create((uint8_t*)IOT_CONFIG_DEVICE_KEY, sizeof(IOT_CONFIG_DEVICE_KEY) - 1);
+  result = az_base64_decode(sasDecodedKeySpan, configDeviceKeySpan, &sasDecodedKeyLength);
+  EXIT_LOOP(result != AZ_OK, "az_base64_decode failed. Return code: " + result);
 
   // HMAC-SHA256 sign the signature with the decoded device key.
-  mbedtls_md_init(&ctx);
-  mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(md_type), 1);
-  mbedtls_md_hmac_starts(&ctx, sasDecodedKey, sasDecodedKeyLength);
-  mbedtls_md_hmac_update(&ctx, sasSignature, sasSignatureSize);
-  mbedtls_md_hmac_finish(&ctx, sasHMAC256SignedSignature);
-  mbedtls_md_free(&ctx);
+  result = ECCX08.begin();
+  EXIT_LOOP(!result, "Failed to communicate with ATECC608.");
+  
+  result = ECCX08.nonce(sasDecodedKey);
+  EXIT_LOOP(!result, "Failed to do nonce.");
+
+  result = ECCX08.beginHMAC(0xFFFF);
+  EXIT_LOOP(!result, "Failed to start HMAC operation.");
+
+  result = ECCX08.updateHMAC(sasSignature, sasSignatureSize);
+  EXIT_LOOP(!result, "Failed to update HMAC with signature.");
+
+  result = ECCX08.endHMAC(sasHMAC256SignedSignature);
+  EXIT_LOOP(!result, "Failed to end HMAC operation.");
 
   // Base64 encode the result of the HMAC signing.
-  result = mbedtls_base64_encode(
-      encodedSignedSignature, encodedSignedSignatureSize, encodedSignedSignatureLength,
-      sasHMAC256SignedSignature, sizeof(sasHMAC256SignedSignature));
-  EXIT_LOOP(result != 0, "mbedtls_base64_encode failed. Return code: " + result);
+  az_span signedSignatureSpan = az_span_create(sasHMAC256SignedSignature, sizeof(sasHMAC256SignedSignature));
+  az_span encodedSignedSignatureSpan = az_span_create(encodedSignedSignature, encodedSignedSignatureSize);
+  result = az_base64_encode(encodedSignedSignatureSpan, signedSignatureSpan, (int32_t*) encodedSignedSignatureLength);
+  EXIT_LOOP(result != AZ_OK, "az_base64_encode failed. Return code: " + result);
 }
 
 /*
