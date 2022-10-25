@@ -71,7 +71,7 @@ _The following was run on Windows 11 and Ubuntu Desktop 20.04 environments, with
 
     - On the Arduino IDE, go to menu `Sketch`, `Include Library`, `Manage Libraries...`.
     - Search for and install `azure-sdk-for-c`.
-    - TODO: Make sure to install the `<INSERT BETA VERSION>` to use the preview version of the Embedded C SDK.
+    - **Make sure to install the `1.1.0-beta.1` to use the preview version of the Embedded C SDK.**
 
 1. Open the ESPRESSIF ESP32 sample.
 
