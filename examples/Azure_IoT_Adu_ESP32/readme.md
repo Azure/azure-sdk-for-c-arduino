@@ -10,15 +10,7 @@ products:
 - azure-iot-hub
 ---
 
-## PLACEHOLDER DOCS
-
-To get this to work locally, copy all files over to your Arduino libraries directory. On my machine, it is at `~\Documents\Arduino\libraries\`. Create a folder there called `Azure_ADU` and copy over `examples`, `source`, and `tools` directories, along with all other individual files. Should look like the following:
-
-![img](./docs/lib.png)
-
-The next time you open the Arduino IDE, you should be able to go to `File` -> `Examples` -> then at the bottom `Azure SDK for C ADU` where you'll find `Azure_IoT_Adu_ESP32`. Click on that and the example should open. Follow the rest of the directions here as any other sample, but pay attention to the step where you have to select the correct partition scheme.
-
-To find the output binary, you might also want to add `build.path=C:\ArduinoBuild` to your `preferences.txt` for Arduino (mine is located at `C:\Users\dawalton\AppData\Local\Arduino15\`) This defines an explicit output directory for your update image to be dumped and therefore uploaded to Azure.
+# How to Setup and Run Azure SDK for Embedded C ADU on Espressif ESP32
 
 > ## Before you proceed
 > 
@@ -28,15 +20,20 @@ To find the output binary, you might also want to add `build.path=C:\ArduinoBuil
 > 
 > _If this is what you’re looking for please visit  [this GitHub repo](https://github.com/Azure-Samples/iot-middleware-freertos-samples/blob/main/README.md)_.
 
-# How to Setup and Run Azure SDK for Embedded C ADU on Espressif ESP32
-
-  - [How to Setup and Run Azure SDK for Embedded C ADU on Espressif ESP32](#how-to-setup-and-run-azure-sdk-for-embedded-c-iot-hub-client-on-espressif-esp32)
-  - [Introduction](#introduction)
+- [Introduction](#introduction)
   - [What is Covered](#what-is-covered)
-  - [Prerequisites](#prerequisites)
-  - [Setup and Run Instructions](#setup-and-run-instructions)
-  - [Troubleshooting](#troubleshooting)
-  - [Contributing](#contributing)
+- [Prerequisites](#prerequisites)
+- [Setup Instructions](#setup-instructions)
+- [New Image Instructions](#new-image-instructions)
+  - [Generate the ADU Update Manifest](#generate-the-adu-update-manifest)
+  - [Import the Update Manifest](#import-the-update-manifest)
+  - [Tag Your Device](#tag-your-device)
+- [Upload Base Image Instructions](#upload-base-image-instructions)
+  - [Deploy Update](#deploy-update)
+- [Certificates - Important to know](#certificates---important-to-know)
+  - [Additional Information](#additional-information)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
   - [License](#license)
 
 ## Introduction
@@ -57,14 +54,14 @@ _The following was run on Windows 11 and Ubuntu Desktop 20.04 environments, with
 - Have an [Azure IoT Hub](https://docs.microsoft.com/azure/iot-hub/iot-hub-create-through-portal) created.
 - Have an [Azure Device Update](https://docs.microsoft.com/azure/iot-hub-device-update/create-device-update-account?tabs=portal) instance created and linked to your Azure IoT Hub.
 - Have a logical device created in your Azure IoT Hub: using authentication type "Symmetric Key" or "X.509 self-signed".   
-    - **Symmetric Key**: follow [this guidance](https://docs.microsoft.com/azure/iot-hub/iot-hub-create-through-portal#register-a-new-device-in-the-iot-hub) to create a device.In this case, the device keys are used to automatically generate a SAS token for authentication.
-    - **X.509 self-signed cert**: Instructions on how to create an X.509 cert for tests can be found [here](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#configure-and-run-the-samples) (Step 1). Please note that you might need to install some of the [prerequisites](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#prerequisites) like OpenSSL.
+  - **Symmetric Key**: follow [this guidance](https://docs.microsoft.com/azure/iot-hub/iot-hub-create-through-portal#register-a-new-device-in-the-iot-hub) to create a device.In this case, the device keys are used to automatically generate a SAS token for authentication.
+  - **X.509 self-signed cert**: Instructions on how to create an X.509 cert for tests can be found [here](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#configure-and-run-the-samples) (Step 1). Please note that you might need to install some of the [prerequisites](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#prerequisites) like OpenSSL.
 - Have the latest [Arduino IDE](https://www.arduino.cc/en/Main/Software) installed.
 
 - Have the [ESP32 board support](https://github.com/espressif/arduino-esp32) installed on Arduino IDE.
 
-    - ESP32 boards are not natively supported by Arduino IDE, so you need to add them manually.
-    - Follow the [instructions](https://github.com/espressif/arduino-esp32) in the official ESP32 repository.
+  - ESP32 boards are not natively supported by Arduino IDE, so you need to add them manually.
+  - Follow the [instructions](https://github.com/espressif/arduino-esp32) in the official ESP32 repository.
 
 ## Setup Instructions
 
@@ -125,16 +122,11 @@ Generate the update manifest using **powershell**.
 
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-
 Import-Module .\iot-hub-device-update\tools\AduCmdlets\AduUpdate.psm1
 $updateId = New-AduUpdateId -Provider "ESPRESSIF" -Name "ESP32-Embedded" -Version 1.1
-
 $compat = New-AduUpdateCompatibility -Properties @{ deviceManufacturer = 'ESPRESSIF'; deviceModel = 'ESP32-Embedded' }
-
 $installStep = New-AduInstallationStep -Handler 'microsoft/swupdate:1'-HandlerProperties @{ installedCriteria = '1.1' } -Files C:\ADU-update\Azure_IoT_Adu_ESP32_1.1.bin
-
 $update = New-AduImportManifest -UpdateId $updateId -Compatibility $compat -InstallationSteps $installStep
-
 $update | Out-File "./$($updateId.provider).$($updateId.name).$($updateId.version).importmanifest.json" -Encoding utf8
 ```
 
