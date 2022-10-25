@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, feature/* ]
 
   workflow_dispatch:
 
@@ -31,3 +31,6 @@ jobs:
         
       - name: Build Azure_IoT_Central_ESP32
         run: arduino --verify --board esp32:esp32:esp32 -v --preserve-temp-files $GITHUB_WORKSPACE/examples/Azure_IoT_Central_ESP32/Azure_IoT_Central_ESP32.ino
+
+      - name: Build Azure_IoT_Adu_ESP32
+        run: arduino --verify --board esp32:esp32:esp32 -v --preserve-temp-files $GITHUB_WORKSPACE/examples/Azure_IoT_Adu_ESP32/Azure_IoT_Adu_ESP32.ino
