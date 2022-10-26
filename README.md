@@ -21,7 +21,7 @@ This library package contains the following samples. Please refer to their docum
 What is the difference between **IoT Hub** and **IoT Central** samples?
 
 1. IoT Hub samples will get devices connected directly to [Azure IoT Hub](https://docs.microsoft.com/azure/iot-hub/iot-concepts-and-iot-hub)
-2. IoT Central samples will leverage DPS ([Device Provisioning Service](https://docs.microsoft.com/azure/iot-dps/about-iot-dps)) to provision the device and then connect it to [Azure IoT Central](https://docs.microsoft.com/azure/iot-central/core/overview-iot-central). 
+1. IoT Central samples will leverage DPS ([Device Provisioning Service](https://docs.microsoft.com/azure/iot-dps/about-iot-dps)) to provision the device and then connect it to [Azure IoT Central](https://docs.microsoft.com/azure/iot-central/core/overview-iot-central). 
 
 Please note that provisioning through DPS is mandatory for IoT Central scenarios, but DPS can also be used for IoT Hub devices as well.
 
