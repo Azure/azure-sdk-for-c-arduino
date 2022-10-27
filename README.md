@@ -10,16 +10,18 @@ This library package contains the following samples. Please refer to their docum
 
 - [Azure IoT Central ESPRESSIF ESP32](examples/Azure_IoT_Central_ESP32/readme.md)
 
-- [Azure IoT Hub ESPRESSIF ESP-8266](examples/Azure_IoT_Hub_ESP8266/readme.md)
+- [Azure IoT Hub ESPRESSIF ESP8266](examples/Azure_IoT_Hub_ESP8266/readme.md)
 
-- [Azure IoT Hub ESPRESSIF ESP-32](examples/Azure_IoT_Hub_ESP32/readme.md)
+- [Azure IoT Hub ESPRESSIF ESP32](examples/Azure_IoT_Hub_ESP32/readme.md)
 
 - [Azure IoT Hub Realtek AmebaD](examples/Azure_IoT_Hub_RealtekAmebaD/readme.md)
 
+- [Azure IoT Device Update ESP32](examples/Azure_IoT_Adu_ESP32/readme.md)
+
 What is the difference between **IoT Hub** and **IoT Central** samples?
 
-1. IoT Hub samples will get devices connected directly to [Azure IoT Hub](https://docs.microsoft.com/en-us/azure/iot-hub/iot-concepts-and-iot-hub)
-1. IoT Central samples will leverage DPS ([Device Provisioning Service](https://docs.microsoft.com/en-us/azure/iot-dps/about-iot-dps)) to provision the device and then connect it to [Azure IoT Central](https://docs.microsoft.com/en-us/azure/iot-central/core/overview-iot-central). 
+1. IoT Hub samples will get devices connected directly to [Azure IoT Hub](https://docs.microsoft.com/azure/iot-hub/iot-concepts-and-iot-hub)
+1. IoT Central samples will leverage DPS ([Device Provisioning Service](https://docs.microsoft.com/azure/iot-dps/about-iot-dps)) to provision the device and then connect it to [Azure IoT Central](https://docs.microsoft.com/azure/iot-central/core/overview-iot-central). 
 
 Please note that provisioning through DPS is mandatory for IoT Central scenarios, but DPS can also be used for IoT Hub devices as well.
 
