@@ -62,7 +62,7 @@
 #define IOT_CONFIG_DEVICE_KEY "Device Key"
 #endif // IOT_CONFIG_USE_X509_CERT
 
-// Azure IoT ADU values
+// Azure IoT ADU parameters
 #define ADU_DEVICE_MANUFACTURER "ESPRESSIF"
 #define ADU_DEVICE_MODEL "ESP32-Embedded"
 #define ADU_UPDATE_PROVIDER "ESPRESSIF"

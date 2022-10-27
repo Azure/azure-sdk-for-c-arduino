@@ -97,7 +97,9 @@ _The following was run on Windows 11 and Ubuntu Desktop 20.04 environments, with
 
 ## New Image Instructions
 
-In order to update our device, we have to build the image which our device will update to. We will have to direct the Arduino IDE to specify an output directory so that we can easily find the binary. Open the `preferences.txt` located at `C:\Users\<Your User Dir>\AppData\Local\Arduino15\` and add `build.path=C:\Arduino-output` (or whichever directory you prefer).
+In order to update our device, we have to build the image which our device will update to. We will have to direct the Arduino IDE to specify an output directory so that we can easily find the binary. Open the `preferences.txt` (usually located at `C:\Users\<Your User Dir>\AppData\Local\Arduino15\`) and add `build.path=C:\Arduino-output` (or whichever directory you prefer).
+
+Once you are done with the ADU sample, you may remove the added configuration to restore the build output to its original location.
 
 1. Connect the ESP32 microcontroller to your USB port.
 
@@ -143,7 +145,7 @@ To import the update (`Azure_IoT_Adu_ESP32_1.1.bin`) and manifest (`ESPRESSIF.ES
 
 ### Tag Your Device
 
-Add the `"ADUGroup"` tag to the device's top-level twin document. This is used to group device together, and you may choose whichever title you prefer.
+Add the `"ADUGroup"` tag to the device's top-level twin document. This is used to group devices together, and you may choose whichever tag you prefer (e.g., "embeddedSDK").
 
 ```json
 "tags": {
