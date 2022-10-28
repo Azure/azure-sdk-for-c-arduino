@@ -1042,6 +1042,10 @@ void loop()
               adu_update_manifest.files[0].hashes->hash_value,
               adu_update_manifest.files[0].size_in_bytes);
 
+           // Clean shutdown of MQTT
+          esp_mqtt_client_disconnect(mqtt_client);
+          esp_mqtt_client_stop(mqtt_client);
+
           if (result == AZ_OK)
           {
             // All is verified. Reboot device to new update.
