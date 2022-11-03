@@ -63,7 +63,23 @@ _The following was run on Windows 11 and Ubuntu Desktop 20.04 environments, with
   - ESP32 boards are not natively supported by Arduino IDE, so you need to add them manually.
   - Follow the [instructions](https://github.com/espressif/arduino-esp32) in the official ESP32 repository.
 
-## Setup Instructions
+
+## Add Azure IoT Hub Device to an ADU Deployment Group
+
+Add the `"ADUGroup"` tag to the device's top-level twin document. This is used to group devices together, and you may choose whichever tag you prefer (e.g., "embeddedSDK").
+
+```json
+"tags": {
+    "ADUGroup": "<your-tag-here>"
+},
+```
+
+Viewing the device twin on the portal, the "tag" section should look similar to the following. Don't worry if you do or do not have a `"deviceUpdate"` section in the `"ADUGroup"` tag. ADU adds that as a default group.
+
+![img](./docs/tagged-twin.png)
+
+
+## Device Setup Instructions
 
 1. Run the Arduino IDE.
 
@@ -91,75 +107,15 @@ _The following was run on Windows 11 and Ubuntu Desktop 20.04 environments, with
         - Add your cert PK to `IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY`
     - If using **Symmetric Key**:
         - Add your device key to `IOT_CONFIG_DEVICE_KEY`
-    - **IMPORTANT**: make sure to change the `ADU_DEVICE_VERSION` to version 1.1 so that we can build the new update image.
-
-1. Select the appropriate partition scheme for your device. Go to `Tools` -> `Partition Scheme` -> `Minimal SPIFFS`.
-
-## New Image Instructions
-
-In order to update our device, we have to build the image which our device will update to. We will have to direct the Arduino IDE to specify an output directory so that we can easily find the binary. Open the `preferences.txt` (usually located at `C:\Users\<Your User Dir>\AppData\Local\Arduino15\`) and add `build.path=C:\Arduino-output` (or whichever directory you prefer).
-
-Once you are done with the ADU sample, you may remove the added configuration to restore the build output to its original location.
 
 1. Connect the ESP32 microcontroller to your USB port.
 
-2. On the Arduino IDE, select the board and port.
+    After connecting the device,
 
     - Go to menu `Tools`, `Board` and select `ESP32`.
     - Go to menu `Tools`, `Port` and select the port to which the microcontroller is connected.
 
-3. Click on "Verify" to build the update image. Make sure you changed the `ADU_DEVICE_VERSION` in your `iot_configs.h` file to `1.1`. You should now have a file called `Azure_IoT_Adu_ESP32.ino.bin` in your output directory. Copy that file to a new directory `C:\ADU-update`, and rename it `Azure_IoT_Adu_ESP32_1.1.bin`
-
-### Generate the ADU Update Manifest
-
-Navigate to the `C:\ADU-update` directory in a Powershell prompt.
-
-Clone the ADU toolset.
-
-```bash
-git clone https://github.com/Azure/iot-hub-device-update
-```
-
-Generate the update manifest using **powershell**.
-
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-Import-Module .\iot-hub-device-update\tools\AduCmdlets\AduUpdate.psm1
-$updateId = New-AduUpdateId -Provider "ESPRESSIF" -Name "ESP32-Embedded" -Version 1.1
-$compat = New-AduUpdateCompatibility -Properties @{ deviceManufacturer = 'ESPRESSIF'; deviceModel = 'ESP32-Embedded' }
-$installStep = New-AduInstallationStep -Handler 'microsoft/swupdate:1'-HandlerProperties @{ installedCriteria = '1.1' } -Files C:\ADU-update\Azure_IoT_Adu_ESP32_1.1.bin
-$update = New-AduImportManifest -UpdateId $updateId -Compatibility $compat -InstallationSteps $installStep
-$update | Out-File "./$($updateId.provider).$($updateId.name).$($updateId.version).importmanifest.json" -Encoding utf8
-```
-
-Verify you have the following files in your ADU-update directory:
-
-- `Azure_IoT_Adu_ESP32_1.1.bin`
-- `ESPRESSIF.ESP32-Embedded.1.1.importmanifest.json`
-
-### Import the Update Manifest
-
-To import the update (`Azure_IoT_Adu_ESP32_1.1.bin`) and manifest (`ESPRESSIF.ESP32-Embedded.1.1.importmanifest.json`), follow the instructions at the link below:
-
-- [Import Update and Manifest](https://docs.microsoft.com/azure/iot-hub-device-update/import-update)
-
-### Tag Your Device
-
-Add the `"ADUGroup"` tag to the device's top-level twin document. This is used to group devices together, and you may choose whichever tag you prefer (e.g., "embeddedSDK").
-
-```json
-"tags": {
-    "ADUGroup": "<your-tag-here>"
-},
-```
-
-Viewing the device twin on the portal, the "tag" section should look similar to the following. Don't worry if you do or do not have a `"deviceUpdate"` section in the `"ADUGroup"` tag. ADU adds that as a default group.
-
-![img](./docs/tagged-twin.png)
-
-## Upload Base Image Instructions
-
-Now revert the `ADU_DEVICE_VERSION` in your `iot_configs.h` file to `1.0` to create the base image.
+1. Select the appropriate partition scheme for your device. Go to `Tools` -> `Partition Scheme` -> `Minimal SPIFFS`.
 
 1. Upload the sketch.
 
@@ -222,23 +178,78 @@ Now revert the `ADU_DEVICE_VERSION` in your `iot_configs.h` file to `1.0` to cre
         </p>
         </details>
 
-2. Monitor the MCU (microcontroller) locally via the Serial Port.
+1. Monitor the MCU (microcontroller) locally via the Serial Port.
 
     - Go to menu `Tools`, `Serial Monitor`.
 
         If you perform this step right away after uploading the sketch, the serial monitor will show an output similar to the following upon success:
 
         ```text
-        Connecting to WIFI SSID buckaroo
-        .......................WiFi connected, IP address:
-        192.168.1.123
-        Setting time using SNTP..............................done!
-        Current time: Thu May 28 02:55:05 2020
-        Client ID: mydeviceid
-        Username: myiothub.azure-devices.net/mydeviceid/?api-version=2018-06-30&DeviceClientType=c%2F1.0.0
-        SharedAccessSignature sr=myiothub.azure-devices.net%2Fdevices%2Fmydeviceid&sig=placeholder-password&se=1590620105
-        MQTT connecting ... connected.
+        1970/1/1 00:00:41 [INFO] WiFi connected, IP address: 192.168.1.123
+        1970/1/1 00:00:41 [INFO] Setting time using SNTP
+        ....
+        2022/11/2 20:56:20 [INFO] Time initialized!
+        2022/11/2 20:56:20 [INFO] ------------------------------------------------------------------------------
+        2022/11/2 20:56:20 [INFO] ADU SAMPLE
+        2022/11/2 20:56:20 [INFO] Version: 1.0
+        2022/11/2 20:56:20 [INFO] ------------------------------------------------------------------------------
+        2022/11/2 20:56:20 [INFO] Client ID: mydeviceid
+        2022/11/2 20:56:20 [INFO] Username: myiothub.azure-devices.net/mydeviceid/?api-version=2020-09-30&DeviceClientType=c%2f1.4.0-beta.1(ard;esp32)&model-id=dtmi%3Aazure%3Aiot%3AdeviceUpdateModel%3B1
+        2022/11/2 20:202256/11/2: 20:56:2020 [INFO]  [INFO] MQTT event MQTT_EVENT_BEFORE_CONNECT
+        MQTT client started
+        2022/11/2 20:56:20 [INFO] Requesting all device properties
+        2022/11/2 20:56:20 [INFO] Client requesting device property document from service.
+        2022/11/2 20:56:27 [INFO] MQTT event MQTT_EVENT_CONNECTED
         ```
+
+
+## New Image Instructions
+
+In order to update our device, we have to build the image which our device will update to. We will have to direct the Arduino IDE to specify an output directory so that we can easily find the binary. Open the `preferences.txt` (find its path going to menu `File`, `Preferences`) and add `build.path=C:\Arduino-output` (or whichever directory you prefer), then restart the Arduino IDE.
+
+Once you are done with the ADU sample, you may remove the added configuration to restore the build output to its original location.
+
+1. Update the image version in the sketch configuration
+
+    - In `iot_configs.h`, change the `ADU_DEVICE_VERSION` to version 1.1.
+
+1. Click on "Verify" to build the update image.
+
+    Once the build is complete, you should then have a file called `Azure_IoT_Adu_ESP32.ino.bin` in your output directory. Copy that file to a new directory `C:\ADU-update`, and rename it `Azure_IoT_Adu_ESP32_1.1.bin`
+
+### Generate the ADU Update Manifest
+
+Navigate to the `C:\ADU-update` directory in a Powershell prompt.
+
+Clone the ADU toolset.
+
+```bash
+git clone https://github.com/Azure/iot-hub-device-update
+```
+
+Generate the update manifest using **powershell**.
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+Import-Module .\iot-hub-device-update\tools\AduCmdlets\AduUpdate.psm1
+$updateId = New-AduUpdateId -Provider "ESPRESSIF" -Name "ESP32-Embedded" -Version 1.1
+$compat = New-AduUpdateCompatibility -Properties @{ deviceManufacturer = 'ESPRESSIF'; deviceModel = 'ESP32-Embedded' }
+$installStep = New-AduInstallationStep -Handler 'microsoft/swupdate:1'-HandlerProperties @{ installedCriteria = '1.1' } -Files C:\ADU-update\Azure_IoT_Adu_ESP32_1.1.bin
+$update = New-AduImportManifest -UpdateId $updateId -Compatibility $compat -InstallationSteps $installStep
+$update | Out-File "./$($updateId.provider).$($updateId.name).$($updateId.version).importmanifest.json" -Encoding utf8
+```
+
+Verify you have the following files in your ADU-update directory:
+
+- `Azure_IoT_Adu_ESP32_1.1.bin`
+- `ESPRESSIF.ESP32-Embedded.1.1.importmanifest.json`
+
+### Import the Update Manifest
+
+To import the update (`Azure_IoT_Adu_ESP32_1.1.bin`) and manifest (`ESPRESSIF.ESP32-Embedded.1.1.importmanifest.json`), follow the instructions at the link below:
+
+- [Import Update and Manifest](https://docs.microsoft.com/azure/iot-hub-device-update/import-update)
+
 
 ### Deploy Update
 
@@ -246,6 +257,31 @@ To deploy the update to your ESP32, follow the link below:
 
 - [Deploy Update](https://docs.microsoft.com/azure/iot-hub-device-update/deploy-update)
 
+### Monitor the Update Process
+
+  In Arduino IDE, go to menu `Tools`, `Serial Monitor`.
+
+  Once the update request is received by the device, a log similar to this should be displayed:
+
+  ```text
+  2022/11/3 05:25:32 [INFO] Client received a properties topic.
+  2022/11/3 05:25:32 [INFO] Status: 200
+  2022/11/3 05:25:32 [INFO] Message Type: Desired Properties
+  2022/11/3 05:25:32 [INFO] Parsed Azure device update manifest.
+  2022/11/3 05:25:32 [INFO] [JWS] Calculated manifest SHA matches parsed SHA
+  2022/11/3 05:25:32 [INFO] Manifest authenticated successfully
+  2022/11/3 05:25:32 [INFO] Sending manifest property accept
+  ...
+  ```
+
+  And once the update is complete (including the device automatic reboot), the new version should be printed:
+
+  ```text
+  2022/11/3 05:26:22 [INFO] ------------------------------------------------------------------------------
+  2022/11/3 05:26:22 [INFO] ADU SAMPLE
+  2022/11/3 05:26:22 [INFO] Version: 1.1
+  2022/11/3 05:26:22 [INFO] ------------------------------------------------------------------------------
+  ```
 
 ## Certificates - Important to know
 
