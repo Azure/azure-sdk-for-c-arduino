@@ -135,7 +135,7 @@ static AzIoTSasToken sasToken(
     AZ_SPAN_FROM_BUFFER(mqtt_password));
 #endif // IOT_CONFIG_USE_X509_CERT
 
-
+/* Azure Device Update root keys used to verify the signed deployment */
 /* ADU.200702.R */
 static uint8_t ucAzureIoTADURootKeyId200702[ 13 ] = "ADU.200702.R";
 static uint8_t ucAzureIoTADURootKeyN200702[ 385 ]
