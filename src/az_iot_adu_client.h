@@ -22,6 +22,7 @@
 #include <az_json.h>
 #include <az_result.h>
 #include <az_span.h>
+#include <az_iot_config.h>
 #include <az_iot_hub_client.h>
 
 #include <stdbool.h>
@@ -37,7 +38,7 @@
 /**
  * @brief ADU Agent Version
  */
-#define AZ_IOT_ADU_CLIENT_AGENT_VERSION "DU;agent/0.8.0-rc1-public-preview"
+#define AZ_IOT_ADU_CLIENT_AGENT_VERSION "DU;agent/1.0.0"
 
 /**
  * @brief ADU PnP Component Name
@@ -45,83 +46,44 @@
 #define AZ_IOT_ADU_CLIENT_PROPERTIES_COMPONENT_NAME "deviceUpdate"
 
 /**
- * @brief ADU Service Response (Accepted)
+ * @brief Decision codes to accept or reject a received update deployment.
  */
-#define AZ_IOT_ADU_CLIENT_REQUEST_ACCEPTED 200
+typedef enum
+{
+  /// ADU Service Response (Accepted)
+  AZ_IOT_ADU_CLIENT_REQUEST_DECISION_ACCEPTED = 200,
+  /// ADU Service Response (Rejected)
+  AZ_IOT_ADU_CLIENT_REQUEST_DECISION_REJECTED = 406
+} az_iot_adu_client_request_decision;
 
 /**
- * @brief ADU Service Response (Rejected)
+ * @brief Agent states used to notify the ADU service of current state.
  */
-#define AZ_IOT_ADU_CLIENT_REQUEST_REJECTED 406
+typedef enum
+{
+  /// ADU Agent State (Idle)
+  AZ_IOT_ADU_CLIENT_AGENT_STATE_IDLE = 0,
+  /// ADU Agent State (In Progress)
+  AZ_IOT_ADU_CLIENT_AGENT_STATE_DEPLOYMENT_IN_PROGRESS = 6,
+  /// ADU Agent State (Failed)
+  AZ_IOT_ADU_CLIENT_AGENT_STATE_FAILED = 255
+} az_iot_adu_client_agent_state;
 
 /**
- * @brief ADU Service Action (Apply)
+ * @brief Actions specified by the service for the agent to process.
  */
-#define AZ_IOT_ADU_CLIENT_SERVICE_ACTION_APPLY_DEPLOYMENT 3
-
-/**
- * @brief ADU Service Action (Cancel)
- */
-#define AZ_IOT_ADU_CLIENT_SERVICE_ACTION_CANCEL 255
-
-/**
- * @brief ADU Agent State (Idle)
- */
-#define AZ_IOT_ADU_CLIENT_AGENT_STATE_IDLE 0
-
-/**
- * @brief ADU Agent State (In Progress)
- */
-#define AZ_IOT_ADU_CLIENT_AGENT_STATE_DEPLOYMENT_IN_PROGRESS 6
-
-/**
- * @brief ADU Agent State (Failed)
- */
-#define AZ_IOT_ADU_CLIENT_AGENT_STATE_FAILED 255
-
-/**
- * @brief  Maximum Number of Files Handled by this ADU Agent (Number of URLs)
- */
-#define AZ_IOT_ADU_CLIENT_MAX_FILE_URL_COUNT 10
-
-/**
- * @brief  Maximum Number of Files Handled by this ADU Agent (Steps)
- */
-#define AZ_IOT_ADU_CLIENT_MAX_INSTRUCTIONS_STEPS 10
-
-/**
- * @brief  Maximum Number of Files Handled by this ADU Agent (File Hashes)
- */
-#define AZ_IOT_ADU_CLIENT_MAX_FILE_HASH_COUNT 2
-
-/**
- * @brief Maximum Number of Custom Device Properties
- */
-#define AZ_IOT_ADU_CLIENT_MAX_DEVICE_CUSTOM_PROPERTIES 5
+typedef enum
+{
+  /// ADU Service Action (Apply)
+  AZ_IOT_ADU_CLIENT_SERVICE_ACTION_APPLY_DEPLOYMENT = 3,
+  /// ADU Service Action (Cancel)
+  AZ_IOT_ADU_CLIENT_SERVICE_ACTION_CANCEL = 255
+} az_iot_adu_client_service_action;
 
 /**
  * @brief Default Agent Compatibility Properties
  */
 #define AZ_IOT_ADU_CLIENT_AGENT_DEFAULT_COMPATIBILITY_PROPERTIES "manufacturer,model"
-
-/* The following key is used to validate the Azure Device Update update manifest signature */
-/* For more details, please see
- * https://docs.microsoft.com/azure/iot-hub-device-update/device-update-security */
-
-/**
- * @brief The root key id used to identify the key.
- */
-extern const uint8_t azure_iot_adu_root_key_id[13];
-
-/**
- * @brief The root key n (modulus) used to verify the manifest.
- */
-extern const uint8_t azure_iot_adu_root_key_n[385];
-
-/**
- * @brief The root key e (exponent) used to verify the manifest.
- */
-extern const uint8_t azure_iot_adu_root_key_e[3];
 
 /**
  * @brief     Identity of the update request.
@@ -168,6 +130,10 @@ typedef struct
 
 /**
  * @brief      Holds the ADU agent device properties.
+ *
+ * az_iot_adu_client_device_properties_default() must be called to first initialize the
+ * device properties.
+ *
  * @remarks    These properties are used by the ADU service for matching
  *             update groups and verifying the current update deployed.
  * https://docs.microsoft.com/azure/iot-hub-device-update/device-update-plug-and-play
@@ -271,11 +237,9 @@ typedef struct
 {
   /**
    * An integer that corresponds to an action the agent should perform.
-   * @remark Refer to the following defines for the expected values:
-   *         AZ_IOT_ADU_CLIENT_SERVICE_ACTION_APPLY_DEPLOYMENT
-   *         AZ_IOT_ADU_CLIENT_SERVICE_ACTION_CANCEL
+   * @remark Refer to the #az_iot_adu_client_service_action for possible values
    */
-  int32_t action;
+  az_iot_adu_client_service_action action;
   /**
    * ID of current deployment.
    */
@@ -327,7 +291,7 @@ typedef struct
    * Tells the agent which files to download and the hash to use to verify that the files
    * were downloaded correctly.
    */
-  az_iot_adu_client_file_url file_urls[AZ_IOT_ADU_CLIENT_MAX_FILE_URL_COUNT];
+  az_iot_adu_client_file_url file_urls[AZ_IOT_ADU_CLIENT_MAX_TOTAL_FILE_COUNT];
   /**
    * Number of items in \p file_urls.
    */
@@ -359,7 +323,7 @@ typedef struct
   /**
    * Files related to this update step.
    */
-  az_span files[AZ_IOT_ADU_CLIENT_MAX_FILE_URL_COUNT];
+  az_span files[AZ_IOT_ADU_CLIENT_MAX_FILE_COUNT_PER_STEP];
   /**
    * Number of items in \p files.
    */
@@ -451,7 +415,7 @@ typedef struct
   /**
    * Download urls for the files referenced in the update manifest instructions.
    */
-  az_iot_adu_client_update_manifest_file files[AZ_IOT_ADU_CLIENT_MAX_FILE_URL_COUNT];
+  az_iot_adu_client_update_manifest_file files[AZ_IOT_ADU_CLIENT_MAX_TOTAL_FILE_COUNT];
   /**
    * Number of items in \p files.
    */
@@ -496,6 +460,15 @@ typedef struct
 AZ_NODISCARD az_iot_adu_client_options az_iot_adu_client_options_default();
 
 /**
+ * @brief Gets the default #az_iot_adu_client_device_properties.
+ * @details Call this to obtain an initialized #az_iot_adu_client_device_properties structure that
+ * can be afterwards modified and passed to necessary APIs.
+ *
+ * @return #az_iot_adu_client_device_properties.
+ */
+AZ_NODISCARD az_iot_adu_client_device_properties az_iot_adu_client_device_properties_default();
+
+/**
  * @brief Initializes an Azure IoT ADU Client.
  *
  * @param client  The #az_iot_adu_client to use for this call.
@@ -532,7 +505,7 @@ AZ_NODISCARD bool az_iot_adu_client_is_component_device_update(
  *                                  as required by the ADU service.
  * @param[in] agent_state           An integer value indicating the current state of
  *                                  the ADU agent. Use the values defined by the
- *                                  AZ_IOT_ADU_CLIENT_AGENT_STATE macros in this header.
+ *                                  #az_iot_adu_client_agent_state.
  *                                  Please see the ADU online documentation for more
  *                                  details.
  * @param[in] workflow              A pointer to a #az_iot_adu_client_workflow instance
@@ -550,7 +523,7 @@ AZ_NODISCARD bool az_iot_adu_client_is_component_device_update(
 AZ_NODISCARD az_result az_iot_adu_client_get_agent_state_payload(
     az_iot_adu_client* client,
     az_iot_adu_client_device_properties* device_properties,
-    int32_t agent_state,
+    az_iot_adu_client_agent_state agent_state,
     az_iot_adu_client_workflow* workflow,
     az_iot_adu_client_install_result* last_install_result,
     az_json_writer* ref_json_writer);
@@ -592,7 +565,7 @@ AZ_NODISCARD az_result az_iot_adu_client_parse_service_properties(
 AZ_NODISCARD az_result az_iot_adu_client_get_service_properties_response(
     az_iot_adu_client* client,
     int32_t version,
-    int32_t status,
+    az_iot_adu_client_request_decision status,
     az_json_writer* ref_json_writer);
 
 /**

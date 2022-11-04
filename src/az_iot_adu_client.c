@@ -92,36 +92,6 @@
     return AZ_ERROR_JSON_INVALID_STATE;                                             \
   }
 
-const uint8_t azure_iot_adu_root_key_id[13] = "ADU.200702.R";
-const uint8_t azure_iot_adu_root_key_n[385]
-    = { 0x00, 0xd5, 0x42, 0x2e, 0xaf, 0x11, 0x54, 0xa3, 0x50, 0x65, 0x87, 0xa2, 0x4d, 0x5b, 0xba,
-        0x1a, 0xfb, 0xa9, 0x32, 0xdf, 0xe9, 0x99, 0x5f, 0x05, 0x45, 0xc8, 0xaf, 0xbd, 0x35, 0x1d,
-        0x89, 0xe8, 0x27, 0x27, 0x58, 0xa3, 0xa8, 0xee, 0xc5, 0xc5, 0x1e, 0x4f, 0xf7, 0x92, 0xa6,
-        0x12, 0x06, 0x7d, 0x3d, 0x7d, 0xb0, 0x07, 0xf6, 0x2c, 0x7f, 0xde, 0x6d, 0x2a, 0xf5, 0xbc,
-        0x49, 0xbc, 0x15, 0xef, 0xf0, 0x81, 0xcb, 0x3f, 0x88, 0x4f, 0x27, 0x1d, 0x88, 0x71, 0x28,
-        0x60, 0x08, 0xb6, 0x19, 0xd2, 0xd2, 0x39, 0xd0, 0x05, 0x1f, 0x3c, 0x76, 0x86, 0x71, 0xbb,
-        0x59, 0x58, 0xbc, 0xb1, 0x88, 0x7b, 0xab, 0x56, 0x28, 0xbf, 0x31, 0x73, 0x44, 0x32, 0x10,
-        0xfd, 0x3d, 0xd3, 0x96, 0x5c, 0xff, 0x4e, 0x5c, 0xb3, 0x6b, 0xff, 0x8b, 0x84, 0x9b, 0x8b,
-        0x80, 0xb8, 0x49, 0xd0, 0x7d, 0xfa, 0xd6, 0x40, 0x58, 0x76, 0x4d, 0xc0, 0x72, 0x27, 0x75,
-        0xcb, 0x9a, 0x2f, 0x9b, 0xb4, 0x9f, 0x0f, 0x25, 0xf1, 0x1c, 0xc5, 0x1b, 0x0b, 0x5a, 0x30,
-        0x7d, 0x2f, 0xb8, 0xef, 0xa7, 0x26, 0x58, 0x53, 0xaf, 0xd5, 0x1d, 0x55, 0x01, 0x51, 0x0d,
-        0xe9, 0x1b, 0xa2, 0x0f, 0x3f, 0xd7, 0xe9, 0x1d, 0x20, 0x41, 0xa6, 0xe6, 0x14, 0x0a, 0xae,
-        0xfe, 0xf2, 0x1c, 0x2a, 0xd6, 0xe4, 0x04, 0x7b, 0xf6, 0x14, 0x7e, 0xec, 0x0f, 0x97, 0x83,
-        0xfa, 0x58, 0xfa, 0x81, 0x36, 0x21, 0xb9, 0xa3, 0x2b, 0xfa, 0xd9, 0x61, 0x0b, 0x1a, 0x94,
-        0xf7, 0xc1, 0xbe, 0x7f, 0x40, 0x14, 0x4a, 0xc9, 0xfa, 0x35, 0x7f, 0xef, 0x66, 0x70, 0x00,
-        0xb1, 0xfd, 0xdb, 0xd7, 0x61, 0x0d, 0x3b, 0x58, 0x74, 0x67, 0x94, 0x89, 0x75, 0x76, 0x96,
-        0x7c, 0x91, 0x87, 0xd2, 0x8e, 0x11, 0x97, 0xee, 0x7b, 0x87, 0x6c, 0x9a, 0x2f, 0x45, 0xd8,
-        0x65, 0x3f, 0x52, 0x70, 0x98, 0x2a, 0xcb, 0xc8, 0x04, 0x63, 0xf5, 0xc9, 0x47, 0xcf, 0x70,
-        0xf4, 0xed, 0x64, 0xa7, 0x74, 0xa5, 0x23, 0x8f, 0xb6, 0xed, 0xf7, 0x1c, 0xd3, 0xb0, 0x1c,
-        0x64, 0x57, 0x12, 0x5a, 0xa9, 0x81, 0x84, 0x1f, 0xa0, 0xe7, 0x50, 0x19, 0x96, 0xb4, 0x82,
-        0xb1, 0xac, 0x48, 0xe3, 0xe1, 0x32, 0x82, 0xcb, 0x40, 0x1f, 0xac, 0xc4, 0x59, 0xbc, 0x10,
-        0x34, 0x51, 0x82, 0xf9, 0x28, 0x8d, 0xa8, 0x1e, 0x9b, 0xf5, 0x79, 0x45, 0x75, 0xb2, 0xdc,
-        0x9a, 0x11, 0x43, 0x08, 0xbe, 0x61, 0xcc, 0x9a, 0xc4, 0xcb, 0x77, 0x36, 0xff, 0x83, 0xdd,
-        0xa8, 0x71, 0x4f, 0x51, 0x8e, 0x0e, 0x7b, 0x4d, 0xfa, 0x79, 0x98, 0x8d, 0xbe, 0xfc, 0x82,
-        0x7e, 0x40, 0x48, 0xa9, 0x12, 0x01, 0xa8, 0xd9, 0x7e, 0xf3, 0xa5, 0x1b, 0xf1, 0xfb, 0x90,
-        0x77, 0x3e, 0x40, 0x87, 0x18, 0xc9, 0xab, 0xd9, 0xf7, 0x79 };
-const uint8_t azure_iot_adu_root_key_e[3] = { 0x01, 0x00, 0x01 };
-
 const az_span default_compatibility_properties
     = AZ_SPAN_LITERAL_FROM_STR(AZ_IOT_ADU_CLIENT_AGENT_DEFAULT_COMPATIBILITY_PROPERTIES);
 
@@ -129,6 +99,17 @@ AZ_NODISCARD az_iot_adu_client_options az_iot_adu_client_options_default()
 {
   return (az_iot_adu_client_options){ .device_compatibility_properties
                                       = default_compatibility_properties };
+}
+
+AZ_NODISCARD az_iot_adu_client_device_properties az_iot_adu_client_device_properties_default()
+{
+  return (az_iot_adu_client_device_properties){ .manufacturer = AZ_SPAN_LITERAL_EMPTY,
+                                                .model = AZ_SPAN_LITERAL_EMPTY,
+                                                .custom_properties = NULL,
+                                                .adu_version = AZ_SPAN_LITERAL_EMPTY,
+                                                .delivery_optimization_agent_version
+                                                = AZ_SPAN_LITERAL_EMPTY,
+                                                .update_id = AZ_SPAN_LITERAL_EMPTY };
 }
 
 AZ_NODISCARD az_result
@@ -153,7 +134,7 @@ AZ_NODISCARD bool az_iot_adu_client_is_component_device_update(
       AZ_SPAN_FROM_STR(AZ_IOT_ADU_CLIENT_AGENT_COMPONENT_NAME), component_name);
 }
 
-static az_result generate_step_id(az_span buffer, uint32_t step_index, az_span* step_id)
+static az_result _generate_step_id(az_span buffer, uint32_t step_index, az_span* step_id)
 {
   az_result result;
   *step_id = buffer;
@@ -170,7 +151,7 @@ static az_result generate_step_id(az_span buffer, uint32_t step_index, az_span* 
 AZ_NODISCARD az_result az_iot_adu_client_get_agent_state_payload(
     az_iot_adu_client* client,
     az_iot_adu_client_device_properties* device_properties,
-    int32_t agent_state,
+    az_iot_adu_client_agent_state agent_state,
     az_iot_adu_client_workflow* workflow,
     az_iot_adu_client_install_result* last_install_result,
     az_json_writer* ref_json_writer)
@@ -282,7 +263,7 @@ AZ_NODISCARD az_result az_iot_adu_client_get_agent_state_payload(
     for (int32_t i = 0; i < last_install_result->step_results_count; i++)
     {
       az_span step_id = AZ_SPAN_FROM_BUFFER(step_id_scratch_buffer);
-      _az_RETURN_IF_FAILED(generate_step_id(step_id, (uint32_t)i, &step_id));
+      _az_RETURN_IF_FAILED(_generate_step_id(step_id, (uint32_t)i, &step_id));
 
       _az_RETURN_IF_FAILED(az_json_writer_append_property_name(ref_json_writer, step_id));
       _az_RETURN_IF_FAILED(az_json_writer_append_begin_object(ref_json_writer));
@@ -317,7 +298,7 @@ AZ_NODISCARD az_result az_iot_adu_client_get_agent_state_payload(
   /* Fill the agent state.   */
   _az_RETURN_IF_FAILED(az_json_writer_append_property_name(
       ref_json_writer, AZ_SPAN_FROM_STR(AZ_IOT_ADU_CLIENT_AGENT_PROPERTY_NAME_STATE)));
-  _az_RETURN_IF_FAILED(az_json_writer_append_int32(ref_json_writer, agent_state));
+  _az_RETURN_IF_FAILED(az_json_writer_append_int32(ref_json_writer, (int32_t)agent_state));
 
   /* Fill the workflow.  */
   if (workflow != NULL && (az_span_ptr(workflow->id) != NULL && az_span_size(workflow->id) > 0))
@@ -328,7 +309,7 @@ AZ_NODISCARD az_result az_iot_adu_client_get_agent_state_payload(
 
     _az_RETURN_IF_FAILED(az_json_writer_append_property_name(
         ref_json_writer, AZ_SPAN_FROM_STR(AZ_IOT_ADU_CLIENT_AGENT_PROPERTY_NAME_ACTION)));
-    _az_RETURN_IF_FAILED(az_json_writer_append_int32(ref_json_writer, workflow->action));
+    _az_RETURN_IF_FAILED(az_json_writer_append_int32(ref_json_writer, (int32_t)workflow->action));
 
     _az_RETURN_IF_FAILED(az_json_writer_append_property_name(
         ref_json_writer, AZ_SPAN_FROM_STR(AZ_IOT_ADU_CLIENT_AGENT_PROPERTY_NAME_ID)));
@@ -406,8 +387,8 @@ AZ_NODISCARD az_result az_iot_adu_client_parse_service_properties(
                 AZ_SPAN_FROM_STR(AZ_IOT_ADU_CLIENT_AGENT_PROPERTY_NAME_ACTION)))
         {
           _az_RETURN_IF_FAILED(az_json_reader_next_token(ref_json_reader));
-          _az_RETURN_IF_FAILED(
-              az_json_token_get_int32(&ref_json_reader->token, &update_request->workflow.action));
+          _az_RETURN_IF_FAILED(az_json_token_get_int32(
+              &ref_json_reader->token, (int32_t*)&update_request->workflow.action));
         }
         else if (az_json_token_is_text_equal(
                      &ref_json_reader->token,
@@ -472,6 +453,12 @@ AZ_NODISCARD az_result az_iot_adu_client_parse_service_properties(
         {
           RETURN_IF_JSON_TOKEN_NOT_TYPE(ref_json_reader, AZ_JSON_TOKEN_PROPERTY_NAME);
 
+          // If object isn't ended and we have reached max files allowed, next would overflow.
+          if (update_request->file_urls_count == AZ_IOT_ADU_CLIENT_MAX_TOTAL_FILE_COUNT)
+          {
+            return AZ_ERROR_NOT_ENOUGH_SPACE;
+          }
+
           update_request->file_urls[update_request->file_urls_count].id
               = ref_json_reader->token.slice;
 
@@ -498,7 +485,7 @@ AZ_NODISCARD az_result az_iot_adu_client_parse_service_properties(
 AZ_NODISCARD az_result az_iot_adu_client_get_service_properties_response(
     az_iot_adu_client* client,
     int32_t version,
-    int32_t status,
+    az_iot_adu_client_request_decision status,
     az_json_writer* ref_json_writer)
 {
   _az_PRECONDITION_NOT_NULL(client);
@@ -514,7 +501,7 @@ AZ_NODISCARD az_result az_iot_adu_client_get_service_properties_response(
       NULL,
       ref_json_writer,
       AZ_SPAN_FROM_STR(AZ_IOT_ADU_CLIENT_AGENT_PROPERTY_NAME_SERVICE),
-      status,
+      (int32_t)status,
       version,
       AZ_SPAN_EMPTY));
 
@@ -621,6 +608,12 @@ AZ_NODISCARD az_result az_iot_adu_client_parse_update_manifest(
 
               while (ref_json_reader->token.kind != AZ_JSON_TOKEN_END_ARRAY)
               {
+                // If array isn't ended and we have reached max files allowed, next would overflow.
+                if (update_manifest->instructions.steps[step_index].files_count
+                    == AZ_IOT_ADU_CLIENT_MAX_FILE_COUNT_PER_STEP)
+                {
+                  return AZ_ERROR_NOT_ENOUGH_SPACE;
+                }
                 uint32_t file_index = update_manifest->instructions.steps[step_index].files_count;
 
                 RETURN_IF_JSON_TOKEN_NOT_TYPE((ref_json_reader), AZ_JSON_TOKEN_STRING);
@@ -755,6 +748,12 @@ AZ_NODISCARD az_result az_iot_adu_client_parse_update_manifest(
         uint32_t files_index = update_manifest->files_count;
 
         RETURN_IF_JSON_TOKEN_NOT_TYPE((ref_json_reader), AZ_JSON_TOKEN_PROPERTY_NAME);
+
+        // If object isn't ended and we have reached max files allowed, next would overflow.
+        if (files_index == AZ_IOT_ADU_CLIENT_MAX_TOTAL_FILE_COUNT)
+        {
+          return AZ_ERROR_NOT_ENOUGH_SPACE;
+        }
 
         update_manifest->files[files_index].id = ref_json_reader->token.slice;
 
