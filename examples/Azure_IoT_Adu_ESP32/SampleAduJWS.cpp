@@ -659,14 +659,14 @@ static az_result validate_root_key(jws_validation_context* manifest_context,
     return AZ_ERROR_ITEM_NOT_FOUND;
   }
 
-    for( int i = 0; i < root_keys_length; i++ )
-    {
-        if( az_span_is_content_equal( root_keys[ i ].root_key_id, manifest_context->kid_span ) )
-        {
-            *adu_root_key_index = i;
-            return AZ_OK;
-        }
-    }
+  for( int i = 0; i < root_keys_length; i++ )
+  {
+      if( az_span_is_content_equal( root_keys[ i ].root_key_id, manifest_context->kid_span ) )
+      {
+          *adu_root_key_index = i;
+          return AZ_OK;
+      }
+  }
 
   return AZ_ERROR_NOT_SUPPORTED;
 }

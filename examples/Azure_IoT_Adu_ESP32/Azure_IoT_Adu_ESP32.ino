@@ -206,12 +206,14 @@ static uint8_t ucAzureIoTADURootKeyE200703[ 3 ] = { 0x01, 0x00, 0x01 };
 static SampleJWS::RootKey xADURootKeys[] =
 {
     {
-        .root_key_id = AZ_SPAN_FROM_BUFFER(ucAzureIoTADURootKeyId200703),
+        // Minus one on id to not count NULL
+        .root_key_id = az_span_create(ucAzureIoTADURootKeyId200703, sizeof(ucAzureIoTADURootKeyId200703) - 1),
         .root_key_n = AZ_SPAN_FROM_BUFFER(ucAzureIoTADURootKeyN200703),
         .root_key_exponent = AZ_SPAN_FROM_BUFFER(ucAzureIoTADURootKeyE200703)
     },
     {
-        .root_key_id = AZ_SPAN_FROM_BUFFER(ucAzureIoTADURootKeyId200702),
+        // Minus one on id to not count NULL
+        .root_key_id = az_span_create(ucAzureIoTADURootKeyId200702, sizeof(ucAzureIoTADURootKeyId200702) - 1),
         .root_key_n = AZ_SPAN_FROM_BUFFER(ucAzureIoTADURootKeyN200702),
         .root_key_exponent = AZ_SPAN_FROM_BUFFER(ucAzureIoTADURootKeyE200702)
     }
