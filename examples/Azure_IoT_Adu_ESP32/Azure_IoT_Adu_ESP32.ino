@@ -621,7 +621,7 @@ static void process_device_property_message(
       }
       else
       {
-        if(adu_update_request.workflow.action != AZ_IOT_ADU_CLIENT_SERVICE_ACTION_CANCEL)
+        if(adu_update_request.workflow.action == AZ_IOT_ADU_CLIENT_SERVICE_ACTION_APPLY_DEPLOYMENT)
         {
           rc = az_json_string_unescape(adu_update_request.update_manifest, (char*)adu_manifest_unescape_buffer, sizeof(adu_manifest_unescape_buffer), &out_manifest_size);
 
@@ -680,9 +680,17 @@ static void process_device_property_message(
             process_update_request = true;
           }
         }
-        else
+        else if (adu_update_request.workflow.action == AZ_IOT_ADU_CLIENT_SERVICE_ACTION_CANCEL)
         {
           Logger.Info("ADU action received: cancelled deployment");
+        }
+        else
+        {
+          Logger.Error("Unknown workflow action received: " + String(adu_update_request.workflow.action));
+
+          send_adu_device_information_property(AZ_IOT_ADU_CLIENT_AGENT_STATE_FAILED, &adu_update_request.workflow);
+
+          process_update_request = false;
         }
       }
     }
@@ -1139,7 +1147,11 @@ void loop()
         }
         else
         {
+          Logger.Error("Unknown workflow action received: " + String(adu_update_request.workflow.action));
 
+          send_adu_device_information_property(AZ_IOT_ADU_CLIENT_AGENT_STATE_FAILED, &adu_update_request.workflow);
+
+          process_update_request = false;
         }
       }
     }
