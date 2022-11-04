@@ -685,6 +685,8 @@ static void process_device_property_message(
         else if (adu_update_request.workflow.action == AZ_IOT_ADU_CLIENT_SERVICE_ACTION_CANCEL)
         {
           Logger.Info("ADU action received: cancelled deployment");
+          send_adu_device_information_property(AZ_IOT_ADU_CLIENT_AGENT_STATE_IDLE, NULL);
+          process_update_request = false;
         }
         else
         {
@@ -1129,6 +1131,7 @@ void loop()
         {
           Logger.Info("Cancellation request was received during download. "
                       "Aborting update.");
+          send_adu_device_information_property(AZ_IOT_ADU_CLIENT_AGENT_STATE_IDLE, NULL);
           process_update_request = false;
         }
         else if (adu_update_request.workflow.action == AZ_IOT_ADU_CLIENT_SERVICE_ACTION_APPLY_DEPLOYMENT)
