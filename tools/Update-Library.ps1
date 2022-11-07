@@ -38,6 +38,5 @@ Write-Host "Updating versions."
 # Update Arduino library version with SDK version.
 $(gc -Raw $LibConfigFile) -replace "version=[0-9]\.[0-9]\.[0-9][a-zA-Z0-9.-]*", "version=$NewLibraryVersion" | out-file -Encoding ascii -Force -NoNewline $LibConfigFile
 $(gc -Raw $LibConfigFile) -replace "\([0-9]\.[0-9]\.[0-9][^\)]*\)", "($SdkVersion)" | out-file -Encoding ascii -Force -NoNewline $LibConfigFile
-$(gc -raw $LibConfigFile) -replace "url=[a-zA-Z0-9\/:.-]+", "url=https://github.com/Azure/azure-sdk-for-c/tree/$SdkVersion" | out-file -Encoding ascii -Force -NoNewline $LibConfigFile
 
 Write-Host "You must manually update the library.properties with any new includes such as az_core.h, az_iot.h"

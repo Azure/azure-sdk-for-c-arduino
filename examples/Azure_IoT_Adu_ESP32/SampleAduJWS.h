@@ -37,11 +37,24 @@
 
 namespace SampleJWS
 {
+
+/**
+ * @brief Holds the values of the root key used to verify the JWS signature.
+ */
+typedef struct RootKey
+{
+    az_span root_key_id;
+    az_span root_key_n;
+    az_span root_key_exponent;
+} RootKey;
+
 /**
  * @brief Authenticate the manifest from ADU.
  *
  * @param[in] manifest_span The escaped manifest from the ADU twin property.
  * @param[in] jws_span The JWS used to authenticate \p manifest_span.
+ * @param[in] root_keys An array of root keys that may be used to verify the payload.
+ * @param[in] root_keys_length The number of root keys in \p root_keys.
  * @param[in] scratch_buffer_span Scratch buffer space for calculations. It
  * should be `jwsSCRATCH_BUFFER_SIZE` in length.
  * @return az_result The return value of this function.
@@ -51,6 +64,8 @@ namespace SampleJWS
 az_result ManifestAuthenticate(
     az_span manifest_span,
     az_span jws_span,
+    RootKey * root_keys,
+    uint32_t root_keys_length,
     az_span scratch_buffer_span);
 }; // namespace SampleJWS
 
