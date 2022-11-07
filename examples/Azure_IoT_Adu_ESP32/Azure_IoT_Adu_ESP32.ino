@@ -672,13 +672,13 @@ static void process_device_property_message(
           if (is_update_already_applied())
           {
             Logger.Info("Update already applied");
-            send_adu_accept_manifest_property(version_number, AZ_IOT_ADU_CLIENT_REQUEST_DECISION_REJECTED);
+            send_adu_accept_manifest_property(version_number, AZ_IOT_ADU_CLIENT_REQUEST_DECISION_REJECT);
             process_update_request = false;
           }
           else
           {
             Logger.Info("Sending manifest property accept");
-            send_adu_accept_manifest_property(version_number, AZ_IOT_ADU_CLIENT_REQUEST_DECISION_ACCEPTED);
+            send_adu_accept_manifest_property(version_number, AZ_IOT_ADU_CLIENT_REQUEST_DECISION_ACCEPT);
 
             process_update_request = true;
           }

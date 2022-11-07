@@ -50,10 +50,10 @@
  */
 typedef enum
 {
-  /// ADU Service Response (Accepted)
-  AZ_IOT_ADU_CLIENT_REQUEST_DECISION_ACCEPTED = 200,
-  /// ADU Service Response (Rejected)
-  AZ_IOT_ADU_CLIENT_REQUEST_DECISION_REJECTED = 406
+  /// ADU Service Response (Accept)
+  AZ_IOT_ADU_CLIENT_REQUEST_DECISION_ACCEPT = 200,
+  /// ADU Service Response (Reject)
+  AZ_IOT_ADU_CLIENT_REQUEST_DECISION_REJECT = 406
 } az_iot_adu_client_request_decision;
 
 /**
@@ -383,7 +383,7 @@ typedef struct
   /**
    * Size of a file, in bytes.
    */
-  uint32_t size_in_bytes;
+  int64_t size_in_bytes;
   /**
    * Hashes provided for a given file in the update request.
    */
