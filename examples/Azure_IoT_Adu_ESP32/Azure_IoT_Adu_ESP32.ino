@@ -71,6 +71,7 @@ static az_iot_adu_client_update_request adu_update_request;
 static az_iot_adu_client_update_manifest adu_update_manifest;
 static char adu_new_version[16];
 static bool process_update_request = false;
+static bool send_init_state = true;
 static bool did_update = false;
 static char adu_scratch_buffer[10000];
 static char adu_manifest_unescape_buffer[2000];
@@ -1083,8 +1084,6 @@ void setup() {
 
   establish_connection();
 }
-
-bool send_init_state = true;
 
 void loop()
 {
