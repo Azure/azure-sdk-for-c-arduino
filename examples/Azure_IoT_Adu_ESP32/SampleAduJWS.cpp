@@ -637,10 +637,11 @@ static az_result base64_decode_jws_header_and_payload(jws_validation_context* ma
   return AZ_OK;
 }
 
-static az_result validate_root_key(jws_validation_context* manifest_context,
-                                   SampleJWS::RootKey * root_keys,
-                                   uint32_t root_keys_length,
-                                   int32_t * adu_root_key_index)
+static az_result validate_root_key(
+    jws_validation_context* manifest_context,
+    SampleJWS::RootKey* root_keys,
+    uint32_t root_keys_length,
+    int32_t* adu_root_key_index)
 {
   az_result result;
   az_json_reader json_reader;
@@ -659,13 +660,13 @@ static az_result validate_root_key(jws_validation_context* manifest_context,
     return AZ_ERROR_ITEM_NOT_FOUND;
   }
 
-  for( int i = 0; i < root_keys_length; i++ )
+  for (int i = 0; i < root_keys_length; i++)
   {
-      if( az_span_is_content_equal( root_keys[ i ].root_key_id, manifest_context->kid_span ) )
-      {
-          *adu_root_key_index = i;
-          return AZ_OK;
-      }
+    if (az_span_is_content_equal(root_keys[i].root_key_id, manifest_context->kid_span))
+    {
+      *adu_root_key_index = i;
+      return AZ_OK;
+    }
   }
 
   return AZ_ERROR_NOT_SUPPORTED;
@@ -751,7 +752,7 @@ static az_result verify_sha_match(jws_validation_context* manifest_context, az_s
 az_result SampleJWS::ManifestAuthenticate(
     az_span manifest_span,
     az_span jws_span,
-    SampleJWS::RootKey * root_keys,
+    SampleJWS::RootKey* root_keys,
     uint32_t root_keys_length,
     az_span scratch_buffer_span)
 {
@@ -856,7 +857,7 @@ az_result SampleJWS::ManifestAuthenticate(
 
   /*------------------- Parse root key id ------------------------*/
 
-  result = validate_root_key(&manifest_context, root_keys, root_keys_length, &root_key_index );
+  result = validate_root_key(&manifest_context, root_keys, root_keys_length, &root_key_index);
   if (az_result_failed(result))
   {
     Logger.Error("[JWS] validate_root_key failed: result " + String(result, HEX));

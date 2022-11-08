@@ -2,28 +2,28 @@
 // SPDX-License-Identifier: MIT
 
 // C99 libraries
-#include <string.h>
-#include <stdbool.h>
 #include <cstdlib>
+#include <stdbool.h>
+#include <string.h>
 
 // Libraries for NTP, MQTT client, WiFi connection and SAS-token generation.
 #include <NTPClient.h>
-#include <sntp/sntp.h>
-#include <WiFi.h>
 #include <PubSubClient.h>
+#include <WiFi.h>
 #include <mbedtls/base64.h>
 #include <mbedtls/sha256.h>
+#include <sntp/sntp.h>
 
 // Azure IoT SDK for C includes
 #include <az_core.h>
 #include <az_iot.h>
 #include <azure_ca.h>
 
-// Additional sample headers 
+// Additional sample headers
 #include "iot_configs.h"
 
 // When developing for your own Arduino-based platform,
-// please follow the format '(ard;<platform>)'. 
+// please follow the format '(ard;<platform>)'.
 #define AZURE_SDK_CLIENT_USER_AGENT "c%2F" AZ_SDK_VERSION_STRING "(ard;amebaD)"
 
 // Utility macros and defines
@@ -54,10 +54,26 @@ static uint32_t telemetry_send_count = 0;
 static unsigned char* ca_pem_nullterm;
 
 // Auxiliary functions
-extern "C"{
-  extern int mbedtls_base64_decode( unsigned char *dst, size_t dlen, size_t *olen, const unsigned char *src, size_t slen);
-  extern int rom_hmac_sha256(const u8 *key, size_t key_len, const u8 *data, size_t data_len, u8 *mac);
-  extern int mbedtls_base64_encode( unsigned char *dst, size_t dlen, size_t *olen, const unsigned char *src, size_t slen);
+extern "C"
+{
+  extern int mbedtls_base64_decode(
+      unsigned char* dst,
+      size_t dlen,
+      size_t* olen,
+      const unsigned char* src,
+      size_t slen);
+  extern int rom_hmac_sha256(
+      const u8* key,
+      size_t key_len,
+      const u8* data,
+      size_t data_len,
+      u8* mac);
+  extern int mbedtls_base64_encode(
+      unsigned char* dst,
+      size_t dlen,
+      size_t* olen,
+      const unsigned char* src,
+      size_t slen);
 }
 static void createNullTerminatedRootCert()
 {
@@ -73,7 +89,6 @@ static void createNullTerminatedRootCert()
     ca_pem_nullterm[ca_pem_len] = '\0';
   }
 }
-
 
 static void connectToWiFi()
 {
@@ -139,15 +154,16 @@ int64_t iot_sample_get_epoch_expiration_time_from_minutes(uint32_t minutes)
   long tus = 0;
   unsigned int ttk = 0;
 
-  //it should be ok to do init more than one time. It'll handle inside sntp_init().
+  // it should be ok to do init more than one time. It'll handle inside sntp_init().
   sntp_init();
 
   sntp_get_lasttime(&ts, &tus, &ttk);
-  
-  while(ts == 0){
+
+  while (ts == 0)
+  {
     vTaskDelay(1000 / portTICK_RATE_MS);
     sntp_get_lasttime(&ts, &tus, &ttk);
-  } 
+  }
 
   return (int64_t)ts + minutes * 60;
 }
@@ -157,13 +173,14 @@ static void hmac_sha256_sign_signature(
     az_span signature,
     az_span signed_signature,
     az_span* out_signed_signature)
-{ 
-  if(rom_hmac_sha256(
-    az_span_ptr(decoded_key), 
-    (size_t)az_span_size(decoded_key),
-    az_span_ptr(signature),
-    (size_t)az_span_size(signature),
-    az_span_ptr(signed_signature)) != 0)
+{
+  if (rom_hmac_sha256(
+          az_span_ptr(decoded_key),
+          (size_t)az_span_size(decoded_key),
+          az_span_ptr(signature),
+          (size_t)az_span_size(signature),
+          az_span_ptr(signed_signature))
+      != 0)
 
   {
     Serial.println("[ERROR] rom_hmac_sha256 failed");
@@ -178,12 +195,17 @@ static void base64_encode_bytes(
     az_span* out_base64_encoded_bytes)
 {
   size_t len;
-  if(mbedtls_base64_encode(az_span_ptr(base64_encoded_bytes), (size_t)az_span_size(base64_encoded_bytes), 
-    &len, az_span_ptr(decoded_bytes), (size_t)az_span_size(decoded_bytes)) != 0)
+  if (mbedtls_base64_encode(
+          az_span_ptr(base64_encoded_bytes),
+          (size_t)az_span_size(base64_encoded_bytes),
+          &len,
+          az_span_ptr(decoded_bytes),
+          (size_t)az_span_size(decoded_bytes))
+      != 0)
   {
     Serial.println("[ERROR] mbedtls_base64_encode fail");
   }
-  
+
   *out_base64_encoded_bytes = az_span_create(az_span_ptr(base64_encoded_bytes), (int32_t)len);
 }
 
@@ -192,16 +214,21 @@ static void decode_base64_bytes(
     az_span decoded_bytes,
     az_span* out_decoded_bytes)
 {
-  
+
   memset(az_span_ptr(decoded_bytes), 0, (size_t)az_span_size(decoded_bytes));
 
   size_t len;
-  if( mbedtls_base64_decode( az_span_ptr(decoded_bytes), (size_t)az_span_size(decoded_bytes), 
-      &len, az_span_ptr(base64_encoded_bytes), (size_t)az_span_size(base64_encoded_bytes)) != 0)
+  if (mbedtls_base64_decode(
+          az_span_ptr(decoded_bytes),
+          (size_t)az_span_size(decoded_bytes),
+          &len,
+          az_span_ptr(base64_encoded_bytes),
+          (size_t)az_span_size(base64_encoded_bytes))
+      != 0)
   {
     Serial.println("[ERROR] mbedtls_base64_decode fail");
   }
-  
+
   *out_decoded_bytes = az_span_create(az_span_ptr(decoded_bytes), (int32_t)len);
 }
 
@@ -219,26 +246,27 @@ static void iot_sample_generate_sas_base64_encoded_signed_signature(
   // HMAC-SHA256 sign the signature with the decoded key.
   char sas_hmac256_signed_signature_buffer[32];
   az_span sas_hmac256_signed_signature = AZ_SPAN_FROM_BUFFER(sas_hmac256_signed_signature_buffer);
-  hmac_sha256_sign_signature(sas_decoded_key, sas_signature, sas_hmac256_signed_signature, &sas_hmac256_signed_signature);
+  hmac_sha256_sign_signature(
+      sas_decoded_key, sas_signature, sas_hmac256_signed_signature, &sas_hmac256_signed_signature);
 
   // Base64 encode the result of the HMAC signing.
   base64_encode_bytes(
-    sas_hmac256_signed_signature,
-    sas_base64_encoded_signed_signature,
-    out_sas_base64_encoded_signed_signature);
+      sas_hmac256_signed_signature,
+      sas_base64_encoded_signed_signature,
+      out_sas_base64_encoded_signed_signature);
 }
 
 static void generate_sas_key(void)
 {
   az_result rc;
   // Create the POSIX expiration time from input minutes.
-  uint64_t sas_duration = iot_sample_get_epoch_expiration_time_from_minutes(SAS_TOKEN_EXPIRY_IN_MINUTES);
-
+  uint64_t sas_duration
+      = iot_sample_get_epoch_expiration_time_from_minutes(SAS_TOKEN_EXPIRY_IN_MINUTES);
 
   // Get the signature that will later be signed with the decoded key.
   az_span sas_signature = AZ_SPAN_FROM_BUFFER(signature);
   rc = az_iot_hub_client_sas_get_signature(
-    &hub_client, sas_duration, sas_signature, &sas_signature);
+      &hub_client, sas_duration, sas_signature, &sas_signature);
   if (az_result_failed(rc))
   {
     Serial.print("Could not get the signature for SAS key: az_result return code ");
@@ -249,21 +277,21 @@ static void generate_sas_key(void)
   char b64enc_hmacsha256_signature[64];
   az_span sas_base64_encoded_signed_signature = AZ_SPAN_FROM_BUFFER(b64enc_hmacsha256_signature);
   iot_sample_generate_sas_base64_encoded_signed_signature(
-    AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_KEY),
-    sas_signature,
-    sas_base64_encoded_signed_signature,
-    &sas_base64_encoded_signed_signature);
-  
+      AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_KEY),
+      sas_signature,
+      sas_base64_encoded_signed_signature,
+      &sas_base64_encoded_signed_signature);
+
   // Get the resulting MQTT password, passing the base64 encoded, HMAC signed bytes.
   size_t mqtt_password_length;
   rc = az_iot_hub_client_sas_get_password(
-    &hub_client,
-    sas_duration,
-    sas_base64_encoded_signed_signature,
-    AZ_SPAN_EMPTY,
-    sas_token,
-    sizeof(sas_token),
-    &sas_token_length);
+      &hub_client,
+      sas_duration,
+      sas_base64_encoded_signed_signature,
+      AZ_SPAN_EMPTY,
+      sas_token,
+      sizeof(sas_token),
+      &sas_token_length);
   if (az_result_failed(rc))
   {
     Serial.print("Could not get the password: az_result return code ");
@@ -320,7 +348,7 @@ static int connect_to_azure_iot_hub()
   return 0;
 }
 
-void establishConnection() 
+void establishConnection()
 {
   connectToWiFi();
 
@@ -337,7 +365,7 @@ static char* get_telemetry_payload()
 {
   az_span temp_span = az_span_create(telemetry_payload, sizeof(telemetry_payload));
   temp_span = az_span_copy(temp_span, AZ_SPAN_FROM_STR("{ \"msgCount\": "));
-  (void)az_span_u32toa(temp_span, telemetry_send_count++, &temp_span);  
+  (void)az_span_u32toa(temp_span, telemetry_send_count++, &temp_span);
   temp_span = az_span_copy(temp_span, AZ_SPAN_FROM_STR(" }"));
   temp_span = az_span_copy_u8(temp_span, '\0');
 
@@ -362,7 +390,6 @@ static void send_telemetry()
   digitalWrite(LED_PIN, LOW);
 }
 
-
 // Arduino setup and loop main functions.
 
 void setup()
@@ -378,7 +405,7 @@ void loop()
   if (millis() > next_telemetry_send_time_ms)
   {
     // Check if connected, reconnect if needed.
-    if(!mqtt_client.connected())
+    if (!mqtt_client.connected())
     {
       establishConnection();
     }

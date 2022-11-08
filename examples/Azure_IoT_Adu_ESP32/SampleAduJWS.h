@@ -43,9 +43,9 @@ namespace SampleJWS
  */
 typedef struct RootKey
 {
-    az_span root_key_id;
-    az_span root_key_n;
-    az_span root_key_exponent;
+  az_span root_key_id;
+  az_span root_key_n;
+  az_span root_key_exponent;
 } RootKey;
 
 /**
@@ -64,7 +64,7 @@ typedef struct RootKey
 az_result ManifestAuthenticate(
     az_span manifest_span,
     az_span jws_span,
-    RootKey * root_keys,
+    RootKey* root_keys,
     uint32_t root_keys_length,
     az_span scratch_buffer_span);
 }; // namespace SampleJWS
