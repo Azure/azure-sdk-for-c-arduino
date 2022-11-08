@@ -555,6 +555,30 @@ static void send_adu_accept_manifest_property(int32_t version_number,
   }
 }
 
+static bool is_update_too_big(int64_t update_size)
+{
+  if (update_size < 0) {
+    return true;
+  }
+
+  const esp_partition_t* current_partition = esp_ota_get_running_partition();
+  if(current_partition == NULL)
+  {
+      Logger.Error("esp_ota_get_running_partition failed");
+      return true;
+  }
+
+  const esp_partition_t* update_partition = esp_ota_get_next_update_partition(current_partition);
+  if(update_partition == NULL)
+  {
+      Logger.Error("esp_ota_get_next_update_partition failed");
+      return true;
+  }
+
+  /* size of the next ota partition to be written to */
+  return (update_partition->size < update_size);
+}
+
 static bool is_update_already_applied(void)
 {
   return (
@@ -672,6 +696,12 @@ static void process_device_property_message(
           if (is_update_already_applied())
           {
             Logger.Info("Update already applied");
+            send_adu_accept_manifest_property(version_number, AZ_IOT_ADU_CLIENT_REQUEST_DECISION_REJECT);
+            process_update_request = false;
+          }
+          else if (is_update_too_big(adu_update_manifest.files[0].size_in_bytes))
+          {
+            Logger.Info("Image size larger than flash bank size");
             send_adu_accept_manifest_property(version_number, AZ_IOT_ADU_CLIENT_REQUEST_DECISION_REJECT);
             process_update_request = false;
           }
