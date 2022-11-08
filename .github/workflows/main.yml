@@ -17,6 +17,12 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
+      - name: Fetch Needed Libs
+        run: |
+          wget https://releases.llvm.org/9.0.0/clang+llvm-9.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+          tar -xvf clang+llvm-9.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+          mv clang+llvm-9.0.0-x86_64-linux-gnu-ubuntu-18.04/bin/clang-format /usr/local/bin/
+
       - name: Style Check
         run: |
           # Run clang-format recursively on each source and header file within the repo.
