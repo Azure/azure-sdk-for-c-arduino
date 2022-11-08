@@ -1,5 +1,6 @@
 ---
 # We'll use defaults from the LLVM style, but with the following differences.
+# This mirrors the Azure SDK for C
 BasedOnStyle: LLVM
 AlignAfterOpenBracket: AlwaysBreak
 AlignEscapedNewlines: Left
