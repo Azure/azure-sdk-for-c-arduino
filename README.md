@@ -33,6 +33,16 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
+### Fix Code Formatting
+
+Run the following command from the root of the sdk with `clang-format` version 9.0.0.
+
+```bash
+find ./examples \( -iname '*.h' -o -iname '*.c' -o -iname '*.cpp' -o -iname '*.ino' \) -exec clang-format -i {} \;
+```
+
+Commit the resulting code formatting changes if there are any.
+
 ### Reporting Security Issues and Security Bugs
 
 Security issues and bugs should be reported privately, via email, to the Microsoft Security Response Center (MSRC) <secure@microsoft.com>. You should receive a response within 24 hours. If for some reason you do not, please follow up via email to ensure we received your original message. Further information, including the MSRC PGP key, can be found in the [Security TechCenter](https://www.microsoft.com/msrc/faqs-report-an-issue).

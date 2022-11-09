@@ -17,6 +17,31 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
+      - name: Fetch Needed Libs
+        run: |
+          apt install -y libncurses5
+          wget https://releases.llvm.org/9.0.0/clang+llvm-9.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+          tar -xvf clang+llvm-9.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+          mv clang+llvm-9.0.0-x86_64-linux-gnu-ubuntu-18.04/bin/clang-format /usr/local/bin/
+
+      - name: Style Check
+        run: |
+          # Run clang-format recursively on each source and header file within the repo.
+          clang-format --version
+          find ./examples \( -iname '*.h' -o -iname '*.c' -o -iname '*.cpp' -o -iname '*.ino' \) -exec clang-format -i {} \;
+
+          git status --untracked-files=no --porcelain
+
+          if [[ `git status --untracked-files=no --porcelain` ]]; then
+            echo Some files were not formatted correctly according to the .clang-format file.
+            echo Please run clang-format version 9.0.0 to fix the issue by using this bash command at the root of the repo:
+            echo "find ./examples \( -iname '*.h' -o -iname '*.c' -o -iname '*.cpp' -o -iname '*.ino' \) -exec clang-format -i {} \;"
+            exit 1
+          fi
+
+          echo Success, all files are formatted correctly according to the .clang-format file.
+          exit 0
+
       - name: Install dependent Arduino libraries
         run: |
           arduino --install-library "PubSubClient",

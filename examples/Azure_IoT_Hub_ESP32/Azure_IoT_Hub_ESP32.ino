@@ -5,7 +5,7 @@
  * This is an Arduino-based Azure IoT Hub sample for ESPRESSIF ESP32 boards.
  * It uses our Azure Embedded SDK for C to help interact with Azure IoT.
  * For reference, please visit https://github.com/azure/azure-sdk-for-c.
- * 
+ *
  * To connect and work with Azure IoT Hub you need an MQTT client, connecting, subscribing
  * and publishing to specific topics to use the messaging features of the hub.
  * Our azure-sdk-for-c is an MQTT client support library, helping composing and parsing the
@@ -14,11 +14,14 @@
  * This sample performs the following tasks:
  * - Synchronize the device clock with a NTP server;
  * - Initialize our "az_iot_hub_client" (struct for data, part of our azure-sdk-for-c);
- * - Initialize the MQTT client (here we use ESPRESSIF's esp_mqtt_client, which also handle the tcp connection and TLS);
- * - Connect the MQTT client (using server-certificate validation, SAS-tokens for client authentication);
+ * - Initialize the MQTT client (here we use ESPRESSIF's esp_mqtt_client, which also handle the tcp
+ * connection and TLS);
+ * - Connect the MQTT client (using server-certificate validation, SAS-tokens for client
+ * authentication);
  * - Periodically send telemetry data to the Azure IoT Hub.
- * 
- * To properly connect to your Azure IoT Hub, please fill the information in the `iot_configs.h` file. 
+ *
+ * To properly connect to your Azure IoT Hub, please fill the information in the `iot_configs.h`
+ * file.
  */
 
 // C99 libraries
@@ -35,13 +38,13 @@
 #include <az_iot.h>
 #include <azure_ca.h>
 
-// Additional sample headers 
+// Additional sample headers
 #include "AzIoTSasToken.h"
 #include "SerialLogger.h"
 #include "iot_configs.h"
 
 // When developing for your own Arduino-based platform,
-// please follow the format '(ard;<platform>)'. 
+// please follow the format '(ard;<platform>)'.
 #define AZURE_SDK_CLIENT_USER_AGENT "c%2F" AZ_SDK_VERSION_STRING "(ard;esp32)"
 
 // Utility macros and defines
@@ -53,7 +56,7 @@
 #define UNIX_TIME_NOV_13_2017 1510592825
 
 #define PST_TIME_ZONE -8
-#define PST_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF   1
+#define PST_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF 1
 
 #define GMT_OFFSET_SECS (PST_TIME_ZONE * 3600)
 #define GMT_OFFSET_SECS_DST ((PST_TIME_ZONE + PST_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF) * 3600)
@@ -155,7 +158,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
       }
       else
       {
-        Logger.Info("Subscribed for cloud-to-device messages; message id:"  + String(r));
+        Logger.Info("Subscribed for cloud-to-device messages; message id:" + String(r));
       }
 
       break;
@@ -176,14 +179,14 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 
       for (i = 0; i < (INCOMING_DATA_BUFFER_SIZE - 1) && i < event->topic_len; i++)
       {
-        incoming_data[i] = event->topic[i]; 
+        incoming_data[i] = event->topic[i];
       }
       incoming_data[i] = '\0';
       Logger.Info("Topic: " + String(incoming_data));
-      
+
       for (i = 0; i < (INCOMING_DATA_BUFFER_SIZE - 1) && i < event->data_len; i++)
       {
-        incoming_data[i] = event->data[i]; 
+        incoming_data[i] = event->data[i];
       }
       incoming_data[i] = '\0';
       Logger.Info("Data: " + String(incoming_data));
@@ -236,13 +239,13 @@ static void initializeIoTHubClient()
 
 static int initializeMqttClient()
 {
-  #ifndef IOT_CONFIG_USE_X509_CERT
+#ifndef IOT_CONFIG_USE_X509_CERT
   if (sasToken.Generate(SAS_TOKEN_DURATION_IN_MINUTES) != 0)
   {
     Logger.Error("Failed generating SAS token");
     return 1;
   }
-  #endif
+#endif
 
   esp_mqtt_client_config_t mqtt_config;
   memset(&mqtt_config, 0, sizeof(mqtt_config));
@@ -251,13 +254,13 @@ static int initializeMqttClient()
   mqtt_config.client_id = mqtt_client_id;
   mqtt_config.username = mqtt_username;
 
-  #ifdef IOT_CONFIG_USE_X509_CERT
-    Logger.Info("MQTT client using X509 Certificate authentication");
-    mqtt_config.client_cert_pem = IOT_CONFIG_DEVICE_CERT;
-    mqtt_config.client_key_pem = IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY;
-  #else // Using SAS key
-    mqtt_config.password = (const char*)az_span_ptr(sasToken.Get());
-  #endif
+#ifdef IOT_CONFIG_USE_X509_CERT
+  Logger.Info("MQTT client using X509 Certificate authentication");
+  mqtt_config.client_cert_pem = IOT_CONFIG_DEVICE_CERT;
+  mqtt_config.client_key_pem = IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY;
+#else // Using SAS key
+  mqtt_config.password = (const char*)az_span_ptr(sasToken.Get());
+#endif
 
   mqtt_config.keepalive = 30;
   mqtt_config.disable_clean_session = 0;
@@ -292,10 +295,7 @@ static int initializeMqttClient()
  * @brief           Gets the number of seconds since UNIX epoch until now.
  * @return uint32_t Number of seconds.
  */
-static uint32_t getEpochTimeInSecs() 
-{ 
-  return (uint32_t)time(NULL);
-}
+static uint32_t getEpochTimeInSecs() { return (uint32_t)time(NULL); }
 
 static void establishConnection()
 {
@@ -309,13 +309,13 @@ static void getTelemetryPayload(az_span payload, az_span* out_payload)
 {
   az_span original_payload = payload;
 
-  payload = az_span_copy(
-      payload, AZ_SPAN_FROM_STR("{ \"msgCount\": "));
+  payload = az_span_copy(payload, AZ_SPAN_FROM_STR("{ \"msgCount\": "));
   (void)az_span_u32toa(payload, telemetry_send_count++, &payload);
   payload = az_span_copy(payload, AZ_SPAN_FROM_STR(" }"));
   payload = az_span_copy_u8(payload, '\0');
 
-  *out_payload = az_span_slice(original_payload, 0, az_span_size(original_payload) - az_span_size(payload) - 1);
+  *out_payload = az_span_slice(
+      original_payload, 0, az_span_size(original_payload) - az_span_size(payload) - 1);
 }
 
 static void sendTelemetry()
@@ -355,10 +355,7 @@ static void sendTelemetry()
 
 // Arduino setup and loop main functions.
 
-void setup()
-{
-  establishConnection();
-}
+void setup() { establishConnection(); }
 
 void loop()
 {
@@ -366,14 +363,14 @@ void loop()
   {
     connectToWiFi();
   }
-  #ifndef IOT_CONFIG_USE_X509_CERT
+#ifndef IOT_CONFIG_USE_X509_CERT
   else if (sasToken.IsExpired())
   {
     Logger.Info("SAS token expired; reconnecting with a new one.");
     (void)esp_mqtt_client_destroy(mqtt_client);
     initializeMqttClient();
   }
-  #endif
+#endif
   else if (millis() > next_telemetry_send_time_ms)
   {
     sendTelemetry();
