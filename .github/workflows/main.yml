@@ -19,6 +19,7 @@ jobs:
 
       - name: Fetch Needed Libs
         run: |
+          sudo apt install libncurses5
           wget https://releases.llvm.org/9.0.0/clang+llvm-9.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
           tar -xvf clang+llvm-9.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
           mv clang+llvm-9.0.0-x86_64-linux-gnu-ubuntu-18.04/bin/clang-format /usr/local/bin/
