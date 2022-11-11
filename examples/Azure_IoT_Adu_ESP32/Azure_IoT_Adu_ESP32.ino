@@ -642,8 +642,7 @@ static void process_device_property_message(
         if (adu_update_request.workflow.action == AZ_IOT_ADU_CLIENT_SERVICE_ACTION_APPLY_DEPLOYMENT)
         {
           adu_update_request.update_manifest = az_json_string_unescape(
-              adu_update_request.update_manifest,
-              adu_update_request.update_manifest);
+              adu_update_request.update_manifest, adu_update_request.update_manifest);
 
           rc = az_json_reader_init(&jr_adu_manifest, adu_update_request.update_manifest, NULL);
 
