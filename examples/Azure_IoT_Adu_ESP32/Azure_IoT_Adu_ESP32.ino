@@ -641,22 +641,10 @@ static void process_device_property_message(
       {
         if (adu_update_request.workflow.action == AZ_IOT_ADU_CLIENT_SERVICE_ACTION_APPLY_DEPLOYMENT)
         {
-          rc = az_json_string_unescape(
-              adu_update_request.update_manifest,
-              (char*)adu_manifest_unescape_buffer,
-              sizeof(adu_manifest_unescape_buffer),
-              &out_manifest_size);
+          adu_update_request.update_manifest = az_json_string_unescape(
+              adu_update_request.update_manifest, adu_update_request.update_manifest);
 
-          if (az_result_failed(rc))
-          {
-            Logger.Error("az_json_string_unescape failed" + String(rc));
-            return;
-          }
-
-          az_span manifest_unescaped
-              = az_span_create((uint8_t*)adu_manifest_unescape_buffer, out_manifest_size);
-
-          rc = az_json_reader_init(&jr_adu_manifest, manifest_unescaped, NULL);
+          rc = az_json_reader_init(&jr_adu_manifest, adu_update_request.update_manifest, NULL);
 
           if (az_result_failed(rc))
           {
@@ -676,7 +664,7 @@ static void process_device_property_message(
           Logger.Info("Parsed Azure device update manifest.");
 
           rc = SampleJWS::ManifestAuthenticate(
-              manifest_unescaped,
+              adu_update_request.update_manifest,
               adu_update_request.update_manifest_signature,
               &xADURootKeys[0],
               sizeof(xADURootKeys) / sizeof(xADURootKeys[0]),
