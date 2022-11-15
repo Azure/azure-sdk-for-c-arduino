@@ -406,8 +406,8 @@ void loop()
 {
   if (WiFi.status() != WL_CONNECTED)
   {
+    azure_iot_stop(&azure_iot);
     connect_to_wifi();
-    azure_iot_start(&azure_iot);
   }
   else
   {
@@ -428,7 +428,9 @@ void loop()
       case azure_iot_error:
         LogError("Azure IoT client is in error state.");
         azure_iot_stop(&azure_iot);
-        WiFi.disconnect();
+        break;
+      case azure_iot_disconnected:
+        azure_iot_start(&azure_iot);
         break;
       default:
         break;
