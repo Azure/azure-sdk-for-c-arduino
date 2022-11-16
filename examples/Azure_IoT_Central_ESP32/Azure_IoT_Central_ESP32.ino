@@ -102,6 +102,7 @@ static uint8_t az_iot_data_buffer[AZ_IOT_DATA_BUFFER_SIZE];
 
 static uint32_t properties_request_id = 0;
 static bool send_device_info = true;
+static bool inital_azure_connection = false; //Turns true when ESP32 successfully connects to Azure IoT Central for the first time
 
 /* --- MQTT Interface Functions --- */
 /*
@@ -347,18 +348,8 @@ static void on_command_request_received(command_request_t command)
   (void)azure_pnp_handle_command_request(&azure_iot, command);
 }
 
-/* --- Arduino setup and loop Functions --- */
-void setup()
-{
-  Serial.begin(SERIAL_LOGGER_BAUD_RATE);
-  set_logging_function(logging_function);
-
-  connect_to_wifi();
-  sync_device_clock_with_ntp_server();
-
-  azure_pnp_init();
-
-  /*
+static void configure_azure_iot() {
+   /*
    * The configuration structure used by Azure IoT must remain unchanged (including data buffer)
    * throughout the lifetime of the sample. This variable must also not lose context so other
    * components do not overwrite any information within this structure.
@@ -397,6 +388,20 @@ void setup()
   azure_iot_config.on_command_request_received = on_command_request_received;
 
   azure_iot_init(&azure_iot, &azure_iot_config);
+}
+
+/* --- Arduino setup and loop Functions --- */
+void setup()
+{
+  Serial.begin(SERIAL_LOGGER_BAUD_RATE);
+  set_logging_function(logging_function);
+
+  connect_to_wifi();
+  sync_device_clock_with_ntp_server();
+
+  azure_pnp_init();
+
+  configure_azure_iot();
   azure_iot_start(&azure_iot);
 
   LogInfo("Azure IoT client initialized (state=%d)", azure_iot.state);
@@ -406,14 +411,22 @@ void loop()
 {
   if (WiFi.status() != WL_CONNECTED)
   {
-    azure_iot_stop(&azure_iot);
+    if (azure_iot.state != azure_iot_state_not_initialized)
+      azure_iot_stop(&azure_iot);
+    
     connect_to_wifi();
+    
+    if (!azure_initial_connect)
+      configure_azure_iot();
+    
+    azure_iot_start(&azure_iot);
   }
   else
   {
     switch (azure_iot_get_status(&azure_iot))
     {
       case azure_iot_connected:
+        if (!azure_initial_connect) azure_initial_connect = true;
         if (send_device_info)
         {
           (void)azure_pnp_send_device_info(&azure_iot, properties_request_id++);
@@ -423,15 +436,17 @@ void loop()
         {
           LogError("Failed sending telemetry.");
         }
-
         break;
+        
       case azure_iot_error:
         LogError("Azure IoT client is in error state.");
         azure_iot_stop(&azure_iot);
         break;
+        
       case azure_iot_disconnected:
-        azure_iot_start(&azure_iot);
+        WiFi.disconnect();
         break;
+        
       default:
         break;
     }
