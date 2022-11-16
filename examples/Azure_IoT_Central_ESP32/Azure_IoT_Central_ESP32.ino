@@ -102,7 +102,7 @@ static uint8_t az_iot_data_buffer[AZ_IOT_DATA_BUFFER_SIZE];
 
 static uint32_t properties_request_id = 0;
 static bool send_device_info = true;
-static bool inital_azure_connection = false; //Turns true when ESP32 successfully connects to Azure IoT Central for the first time
+static bool azure_initial_connect = false; //Turns true when ESP32 successfully connects to Azure IoT Central for the first time
 
 /* --- MQTT Interface Functions --- */
 /*
