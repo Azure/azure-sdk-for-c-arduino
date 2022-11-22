@@ -63,6 +63,7 @@
 #define SAMPLE_MQTT_PAYLOAD_LENGTH 1024
 
 // ADU Values
+#define ADU_PPV_DTMI "dtmi:azure:iot:deviceUpdateContractModel;1"
 #define ADU_DEVICE_SHA_SIZE 32
 #define ADU_SHA_PARTITION_READ_BUFFER_SIZE 32
 #define HTTP_DOWNLOAD_CHUNK 4096
@@ -934,7 +935,7 @@ static void initialize_iot_hub_client()
 
   az_iot_hub_client_options options = az_iot_hub_client_options_default();
   options.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT);
-  options.model_id = AZ_SPAN_FROM_STR(AZ_IOT_ADU_CLIENT_AGENT_MODEL_ID);
+  options.model_id = AZ_SPAN_FROM_STR(ADU_PPV_DTMI);
   options.component_names = pnp_components;
   options.component_names_length = sizeof(pnp_components) / sizeof(pnp_components[0]);
 
