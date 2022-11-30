@@ -63,7 +63,9 @@ _The following was run on Windows 11 and Ubuntu Desktop 20.04 environments, with
 
   - ESP32 boards are not natively supported by Arduino IDE, so you need to add them manually.
   - Follow the [instructions](https://github.com/espressif/arduino-esp32) in the official ESP32 repository.
+- Install Azure CLI and Azure IoT Module
 
+  See steps to install both [here](https://learn.microsoft.com/en-us/azure/iot-hub-device-update/create-update?source=recommendations#prerequisites).
 
 ## Add Azure IoT Hub Device to an ADU Deployment Group
 
@@ -220,24 +222,14 @@ Once you are done with the ADU sample, you may remove the added configuration to
 
 ### Generate the ADU Update Manifest
 
-Navigate to the `C:\ADU-update` directory in a Powershell prompt.
+Open PowerShell.
 
-Clone the ADU toolset.
+Navigate to the `C:\ADU-update` directory.
 
-```bash
-git clone https://github.com/Azure/iot-hub-device-update
-```
-
-Generate the update manifest using **powershell**.
+Run the following command:
 
 ```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-Import-Module .\iot-hub-device-update\tools\AduCmdlets\AduUpdate.psm1
-$updateId = New-AduUpdateId -Provider "Contoso" -Name "ESP32-Embedded" -Version 1.1
-$compat = New-AduUpdateCompatibility -Properties @{ deviceManufacturer = 'ESPRESSIF'; deviceModel = 'ESP32-Embedded' }
-$installStep = New-AduInstallationStep -Handler 'microsoft/swupdate:1'-HandlerProperties @{ installedCriteria = '1.1' } -Files C:\ADU-update\Azure_IoT_Adu_ESP32_1.1.bin
-$update = New-AduImportManifest -UpdateId $updateId -Compatibility $compat -InstallationSteps $installStep
-$update | Out-File "./$($updateId.provider).$($updateId.name).$($updateId.version).importmanifest.json" -Encoding utf8
+az iot du update init v5 --update-provider Contoso --update-name ESP32-Embedded --update-version 1.1 --compat deviceModel=ESP32-Embedded deviceManufacturer=ESPRESSIF --step handler=microsoft/swupdate:1 properties='{\"installedCriteria\":\"1.1\"}' --file path=./Azure_IoT_Adu_ESP32_1.1.bin > ./Contoso.ESP32-Embedded.1.1.importmanifest.json
 ```
 
 Verify you have the following files in your ADU-update directory:
