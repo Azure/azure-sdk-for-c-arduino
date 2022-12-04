@@ -90,7 +90,7 @@ Viewing the device twin on the portal, the "tag" section should look similar to 
 
     - On the Arduino IDE, go to menu `Sketch`, `Include Library`, `Manage Libraries...`.
     - Search for and install `azure-sdk-for-c`.
-    - **Make sure to install the latest `1.1.0-beta.*` to use the preview version of the Embedded C SDK.**
+    - **Make sure to install version `1.1.0` or later to use the new Azure Device Update client of the Embedded C SDK.**
 
 1. Open the ESPRESSIF ESP32 sample.
 
