@@ -65,7 +65,7 @@ _The following was run on Windows 11 and Ubuntu Desktop 20.04 environments, with
   - Follow the [instructions](https://github.com/espressif/arduino-esp32) in the official ESP32 repository.
 - Install Azure CLI and Azure IoT Module
 
-  See steps to install both [here](https://learn.microsoft.com/en-us/azure/iot-hub-device-update/create-update?source=recommendations#prerequisites).
+  See steps to install both [here](https://learn.microsoft.com/azure/iot-hub-device-update/create-update?source=recommendations#prerequisites).
 
 ## Add Azure IoT Hub Device to an ADU Deployment Group
 
