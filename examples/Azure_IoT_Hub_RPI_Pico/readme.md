@@ -1,5 +1,5 @@
 ﻿page_type: sample description: Connecting an RPI Pico W (with Arduino installed)
-(based upon ESP8266 device version of code) to Azure IoT using the Azure SDK for
+_(based upon ESP8266 device version of code)__ to Azure IoT using the Azure SDK for
 Embedded C languages:
 
 -   c products:
@@ -12,11 +12,12 @@ Embedded C languages:
 
 -   azure-iot-hub
 
+
 # How to Setup and Run Azure SDK for Embedded C IoT Hub Client on Raspberry Pi Pico
 
--   [How to install Arduino onto a RPI Pico](#How-to-install-Arduino-onto-a-RPI-Pico)
+-   [How to install Arduino BSP onto a RPI Pico](#How-to-install-Arduino-BSP-onto-a-RPI-Pico)
 
-    -   [How To](#How-to-install-Arduino-onto-a-RPI-Pico)
+    -   [How To](#How-to-install-Arduino-BSP-onto-a-RPI-Pico)
     
 -   [How to Setup and Run Azure SDK for Embedded C IoT Hub Client on a RPI Pico](#how-to-setup-and-run-azure-sdk-for-embedded-c-iot-hub-client-on-rpi-pico)
 
@@ -38,8 +39,11 @@ Embedded C languages:
 
         -   [License](#license)
 
-## How to install Arduino onto a RPI Pico
+## How to install Arduino BSP onto a RPI Pico
+- I was given a [Freenove Basic Pico Starter Kit](https://github.com/Freenove/Freenove_Basic_Starter_Kit_for_Raspberry_Pi_Pico) and a [RPI Pico W](https://www.raspberrypi.com/documentation/microcontrollers/raspberry-pi-pico.html#raspberry-pi-pico-w) for Xmas!!
 - Ref: [https://freenove.com/fnk0058/](https://freenove.com/fnk0058/)
+  - The repository [earlephilhower-arduino-pico on Github](https://github.com/earlephilhower/arduino-pico)  
+  - Thx Earle.
 - Open Arduino IDE, and click File>Preference. In new pop-up window, find “Additional Boards Manager 
 URLs”, and replace with a new line：
 ```
@@ -97,7 +101,7 @@ Arduino IDE 2.0.3.*
 
 -   Have the [RPI Pico (Arduino) board
     support](https://github.com/esp8266/Arduino#installing-with-boards-manager)
-    installed on Arduino IDE. RPI Pico boards are not natively supported by
+    installed on Arduino IDE. RPI Pico W boards are not natively supported by
     Arduino IDE, so you need to add them manually.
 
     -   Follow instructiuons above at
