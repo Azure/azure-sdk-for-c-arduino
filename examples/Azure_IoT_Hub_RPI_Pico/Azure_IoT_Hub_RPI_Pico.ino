@@ -32,12 +32,7 @@
 
 // Libraries for MQTT client, WiFi connection and SAS-token generation.
 
-////////////////////////////////////////////////////////////////
-// Change ESP8266 code here
-//#include <ESP8266WiFi.h>
-//To:
 #include <WiFi.h>; 
-////////////////////////////////////////////////////////////////
 
 #include <PubSubClient.h>
 #include <WiFiClientSecure.h>
@@ -112,14 +107,7 @@ static void initializeTime()
 {
   Serial.print("Setting time using SNTP");
 
-  ////////////////////////////////////////////////////////////////
-  // Change ESP8266 code here
-  // configTime(-5 * 3600, 0 ,NTP_SERVERS);
-  //To:
   configTime(-5 * 3600, 0, "pool.ntp.org","time.nist.gov"); 
-  // Got error with ESP8266 code saying 4 parameters required.
-  // No such error with ESP8266 though.
-  ////////////////////////////////////////////////////////////////
 
   time_t now = time(NULL);
   while (now < 1510592825)
@@ -334,12 +322,7 @@ static void sendTelemetry()
   digitalWrite(LED_PIN, HIGH);
   Serial.print(millis());
   
-////////////////////////////////////////////////////////////////
-// Change ESP8266 code:
-// Serial.print(" ESP8266 Sending telemetry . . . ");
-//To:
   Serial.print(" RPI Pico (Arduino) Sending telemetry . . . ");
-////////////////////////////////////////////////////////////////
  
   if (az_result_failed(az_iot_hub_client_telemetry_get_publish_topic(
           &client, NULL, telemetry_topic, sizeof(telemetry_topic), NULL)))

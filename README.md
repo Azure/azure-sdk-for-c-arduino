@@ -18,6 +18,8 @@ This library package contains the following samples. Please refer to their docum
 
 - [Azure IoT Device Update ESP32](examples/Azure_IoT_Adu_ESP32/readme.md)
 
+- Added [Azure IoT Hub Raspberry Pi Pico](examples/Azure_IoT_Hub_RPI_Pico/readme.md)
+
 What is the difference between **IoT Hub** and **IoT Central** samples?
 
 1. IoT Hub samples will get devices connected directly to [Azure IoT Hub](https://docs.microsoft.com/azure/iot-hub/iot-concepts-and-iot-hub)
