@@ -171,7 +171,7 @@ Arduino IDE 2.0.3.*
 
     -   On the Arduino IDE, go to menu `File`, `Examples`, `azure-sdk-for-c`.
 
-    -   Click on `azure_esp8266` to open the sample.
+    -   Click on `azure_esp8266` to open the sample. <-- This needs to change.
 
 5.  Configure the sample.
 
