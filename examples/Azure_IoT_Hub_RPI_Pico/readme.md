@@ -1,9 +1,7 @@
 ﻿---
 page_type: sample
-description: Connecting an RPI Pico W (with Arduino installed)
-_(based upon ESP8266 device version of code)_ to Azure IoT using the Azure SDK for
-Embedded C,
-
+description: Connecting an RPI Pico W (with Arduino installed) __(based upon ESP8266 device version of code)__ to Azure IoT using the Azure SDK for
+Embedded C.
 languages:
 - c
 products:
