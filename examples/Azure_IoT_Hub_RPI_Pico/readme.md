@@ -1,4 +1,4 @@
-﻿---
+---
 page_type: sample
 description: Connecting a RPI Pico W to Azure IoT using the Azure SDK for Embedded C
 languages:
