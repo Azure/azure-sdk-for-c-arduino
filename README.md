@@ -18,7 +18,7 @@ This library package contains the following samples. Please refer to their docum
 
 - [Azure IoT Device Update ESP32](examples/Azure_IoT_Adu_ESP32/readme.md)
 
-- ***New*** [Azure IoT Hub Raspberry Pi Pico W with Raspian installed](examples/Azure_IoT_Hub_RPI_Pico/readme.md)
+- ***New*** [Azure IoT Hub Raspberry Pi Pico W](examples/Azure_IoT_Hub_RPI_Pico/readme.md)
 
 What is the difference between **IoT Hub** and **IoT Central** samples?
 
