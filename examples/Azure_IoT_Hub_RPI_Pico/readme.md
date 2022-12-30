@@ -1,17 +1,17 @@
-﻿page_type: sample description: Connecting an RPI Pico W (with Arduino installed)
-_(based upon ESP8266 device version of code)__ to Azure IoT using the Azure SDK for
-Embedded C languages:
+﻿---
+page_type: sample
+description: Connecting an RPI Pico W (with Arduino installed)
+_(based upon ESP8266 device version of code)_ to Azure IoT using the Azure SDK for
+Embedded C,
 
--   c products:
-
--   azure-iot
-
--   azure-iot-pnp
-
--   azure-iot-dps
-
--   azure-iot-hub
-
+languages:
+- c
+products:
+- azure-iot
+- azure-iot-pnp
+- azure-iot-dps
+- azure-iot-hub
+---
 
 # How to Setup and Run Azure SDK for Embedded C IoT Hub Client on Raspberry Pi Pico
 
