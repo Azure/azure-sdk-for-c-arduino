@@ -36,6 +36,9 @@ products:
 
         -   [License](#license)
 
+- [Code Changes](#Changes-made-to-the-ESP8266-Example-2hen-porting-to-the-RPI-Pico)
+    - [Changes made to the ESP8266 Sketch Example in porting to the Pico](#Changes-made-to-the-ESP8266-Example-when-porting-to-the-RPI-Pico)
+
 ## How to install Arduino BSP onto a RPI Pico
 - I was given a [Freenove Basic Pico Starter Kit](https://github.com/Freenove/Freenove_Basic_Starter_Kit_for_Raspberry_Pi_Pico) and a [RPI Pico W](https://www.raspberrypi.com/documentation/microcontrollers/raspberry-pi-pico.html#raspberry-pi-pico-w) for Xmas!!
 - Ref: [https://freenove.com/fnk0058/](https://freenove.com/fnk0058/)
@@ -168,10 +171,12 @@ Arduino IDE 2.0.3.*
 
     -   On the Arduino IDE, go to menu `File`, `Examples`, `azure-sdk-for-c`.
 
-    -   Click on `azure_esp8266` to open the sample. <-- This needs to change when this is fomally included
+    -   Click on `azure_esp8266` to open the sample. <-- This needs to change when this is fomally merged into the original repository.
     
     -   **For now** Download the repository and open the Sketch in this folder, in the IDE. 
         ```azure-sdk-for-c-arduino\examples\Azure_IoT_Hub_RPI_Pico```
+
+      -  **Alt** Open the azure esp8266 example as above and make the changes as [here]().
 
 5.  Configure the sample.
 
@@ -311,3 +316,55 @@ license.
 
 Azure SDK for Embedded C is licensed under the
 [MIT](https://github.com/Azure/azure-sdk-for-c/blob/main/LICENSE) license.
+
+---
+
+# Changes made to the ESP8266 Example when porting to the RPI Pico
+
+Porting from the Azure IoT Hub ESP8266 example to the Azure IoT Hub RPI Pico example only required a few code changes as follows.
+_You can just open the ESP8266 example and make these changes, plus the setup as above._
+
+```
+////////////////////////////////////////////////////////////////
+// Change ESP8266 code:
+// configTime(-5 * 3600, 0 ,NTP_SERVERS);
+//To:
+configTime(-5 * 3600, 0, "pool.ntp.org","time.nist.gov"); 
+// Got error in Pico Sketch Verifye saying 4 parameters required.
+// No such error with ESP8266 though.
+////////////////////////////////////////////////////////////////
+```
+
+```
+////////////////////////////////////////////////////////////////
+// Change ESP8266 code:
+//#include <ESP8266WiFi.h>
+//To:
+#include <WiFi.h>; 
+////////////////////////////////////////////////////////////////
+```
+
+```
+////////////////////////////////////////////////////////////////
+// Change ESP8266 code:
+// Serial.print(" ESP8266 Sending telemetry . . . ");
+//To:
+  Serial.print(" RPI Pico (Arduino) Sending telemetry . . . ");
+////////////////////////////////////////////////////////////////
+```
+
+In line below:
+```
+// When developing for your own Arduino-based platform,
+// please follow the format '(ard;<platform>)'. (Modified this)
+////////////////////////////////////////////////////////////////
+// Change ESP8266 code:
+//#define AZURE_SDK_CLIENT_USER_AGENT "c%2F" AZ_SDK_VERSION_STRING "(ard;ESP8266)"
+//To:
+#define AZURE_SDK_CLIENT_USER_AGENT "c%2F" AZ_SDK_VERSION_STRING "(ard;rpipico)"
+////////////////////////////////////////////////////////////////
+```
+
+That is all!
+
+Nb>As noted above I had to add the timelib library.
