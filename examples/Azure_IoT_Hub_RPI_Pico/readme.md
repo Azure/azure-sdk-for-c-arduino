@@ -367,4 +367,4 @@ In line below:
 
 That is all!
 
-Nb>As noted above I had to add the timelib library.
+> Nb: As noted above, I had to add the timelib library.
