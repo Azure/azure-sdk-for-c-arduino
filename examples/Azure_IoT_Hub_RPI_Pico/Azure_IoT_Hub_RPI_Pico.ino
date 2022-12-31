@@ -32,7 +32,7 @@
 
 // Libraries for MQTT client, WiFi connection and SAS-token generation.
 
-#include <WiFi.h>; 
+#include <WiFi.h>
 
 #include <PubSubClient.h>
 #include <WiFiClientSecure.h>
@@ -310,7 +310,7 @@ static char* getTelemetryPayload()
 {
   az_span temp_span = az_span_create(telemetry_payload, sizeof(telemetry_payload));
   temp_span = az_span_copy(temp_span, AZ_SPAN_FROM_STR("{ \"msgCount\": "));
-  (void)az_span_u32toa(temp_span, telemetry_send_count++, &temp_span);
+  az_result res = az_span_u32toa(temp_span, telemetry_send_count++, &temp_span);
   temp_span = az_span_copy(temp_span, AZ_SPAN_FROM_STR(" }"));
   temp_span = az_span_copy_u8(temp_span, '\0');
 
