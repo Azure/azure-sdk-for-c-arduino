@@ -168,7 +168,10 @@ Arduino IDE 2.0.3.*
 
     -   On the Arduino IDE, go to menu `File`, `Examples`, `azure-sdk-for-c`.
 
-    -   Click on `azure_esp8266` to open the sample. <-- This needs to change.
+    -   Click on `azure_esp8266` to open the sample. <-- This needs to change when this is fomally included
+    
+    -   **For now** Download the repository and open the Sketch in this folder, in the IDE. 
+        ```azure-sdk-for-c-arduino\examples\Azure_IoT_Hub_RPI_Pico```
 
 5.  Configure the sample.
 
