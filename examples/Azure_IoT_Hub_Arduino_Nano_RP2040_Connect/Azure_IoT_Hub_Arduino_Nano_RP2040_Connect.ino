@@ -14,9 +14,6 @@
 #include <WiFiNINA.h>
 
 // Libraries for SAS token generation.
-#include <mbedtls/base64.h>
-#include <mbedtls/md.h>
-#include <mbedtls/sha256.h>
 #include <ECCX08.h>
 
 // Azure IoT SDK for C includes.

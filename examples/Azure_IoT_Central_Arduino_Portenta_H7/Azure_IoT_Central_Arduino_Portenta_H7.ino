@@ -253,7 +253,7 @@ static int mqtt_client_publish_function(mqtt_client_handle_t mqtt_client_handle,
 /*
  * See the documentation of `hmac_sha256_encryption_function_t` in AzureIoT.h for details.
  */
-static int mbedtls_hmac_sha256(const uint8_t* key, size_t key_length, const uint8_t* payload, size_t payload_length, uint8_t* signed_payload, size_t signed_payload_size)
+static int eccx08_hmac_sha256(const uint8_t* key, size_t key_length, const uint8_t* payload, size_t payload_length, uint8_t* signed_payload, size_t signed_payload_size)
 {
   (void)signed_payload_size;
 
@@ -377,7 +377,7 @@ void setup()
   azure_iot_config.mqtt_client_interface.mqtt_client_deinit = mqtt_client_deinit_function;
   azure_iot_config.mqtt_client_interface.mqtt_client_subscribe = mqtt_client_subscribe_function;
   azure_iot_config.mqtt_client_interface.mqtt_client_publish = mqtt_client_publish_function;
-  azure_iot_config.data_manipulation_functions.hmac_sha256_encrypt = mbedtls_hmac_sha256;
+  azure_iot_config.data_manipulation_functions.hmac_sha256_encrypt = eccx08_hmac_sha256;
   azure_iot_config.data_manipulation_functions.base64_decode = base64_decode;
   azure_iot_config.data_manipulation_functions.base64_encode = base64_encode;
   azure_iot_config.on_properties_update_completed = on_properties_update_completed;
