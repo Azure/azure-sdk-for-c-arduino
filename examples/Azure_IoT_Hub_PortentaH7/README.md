@@ -140,7 +140,7 @@ _NOTE: Device keys are used to automatically generate a SAS token for authentica
     - Since we're already in the Arduino CLI, let's install remaining libraries (can also install these from Library Manager):
 
       ``` 
-      arduino-cli lib install "Azure SDK for C" ArduinoBearSSL Time ArduinoMqttClient
+      arduino-cli lib install "Azure SDK for C" ArduinoBearSSL Time ArduinoMqttClient ArduinoECCX08
       ```
 
 1. You may need to restart the Arduino IDE for changes to show up.
