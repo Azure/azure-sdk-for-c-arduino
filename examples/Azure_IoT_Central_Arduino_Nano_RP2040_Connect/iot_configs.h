@@ -12,7 +12,7 @@
 
 // User-agent (url-encoded) provided by the MQTT client to Azure IoT Services.
 // When developing for your own Arduino-based platform, please follow the format '(ard;<platform>)'.
-#define IOT_CONFIG_AZURE_SDK_CLIENT_USER_AGENT "c%2F" AZ_SDK_VERSION_STRING "(ard;portentaH7)"
+#define IOT_CONFIG_AZURE_SDK_CLIENT_USER_AGENT "c%2F" AZ_SDK_VERSION_STRING "(ard;nanorp2040connect)"
 
 // For how long the MQTT password (SAS token) is valid, in minutes.
 // After that, the sample automatically generates a new password and re-connects.

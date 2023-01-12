@@ -26,7 +26,7 @@
 #define SAMPLE_TOTAL_MEMORY_PROPERTY_NAME              "totalMemory"
 
 #define SAMPLE_MANUFACTURER_PROPERTY_VALUE             "Arduino"
-#define SAMPLE_MODEL_PROPERTY_VALUE                    "Arduino Nano RP2040 Connet"
+#define SAMPLE_MODEL_PROPERTY_VALUE                    "Arduino Nano RP2040 Connect"
 #define SAMPLE_VERSION_PROPERTY_VALUE                  "1.0.0"
 #define SAMPLE_OS_NAME_PROPERTY_VALUE                  "Mbed OS"
 #define SAMPLE_ARCHITECTURE_PROPERTY_VALUE             "RP2040"
