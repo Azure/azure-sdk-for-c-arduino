@@ -10,11 +10,19 @@ This library package contains the following samples. Please refer to their docum
 
 - [Azure IoT Central ESPRESSIF ESP32](examples/Azure_IoT_Central_ESP32/readme.md)
 
+- [Azure IoT Central Arduino Nano RP2040](examples/Azure_IoT_Central_Arduino_Nano_RP2040_Connect/readme.md)
+
+- [Azure IoT Central Arduino Portenta H7](examples/Azure_IoT_Central_Arduino_Portenta_H7/readme.md)
+
 - [Azure IoT Hub ESPRESSIF ESP8266](examples/Azure_IoT_Hub_ESP8266/readme.md)
 
 - [Azure IoT Hub ESPRESSIF ESP32](examples/Azure_IoT_Hub_ESP32/readme.md)
 
 - [Azure IoT Hub Realtek AmebaD](examples/Azure_IoT_Hub_RealtekAmebaD/readme.md)
+
+- [Azure IoT Hub Arduino Nano RP2040](examples/Azure_IoT_Hub_Arduino_Nano_RP2040_Connect/README.md)
+
+- [Azure IoT Hub Arduino Portenta H7](examples/Azure_IoT_Hub_PortentaH7/README.md)
 
 - [Azure IoT Device Update ESP32](examples/Azure_IoT_Adu_ESP32/readme.md)
 
