@@ -219,6 +219,8 @@ static void connect_to_wifi()
   Logger.Info("Connecting to WIFI SSID " + String(ssid));
 
   WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  delay(100);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
   {

@@ -90,6 +90,8 @@ static void connectToWiFi()
   Serial.println(ssid);
 
   WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  delay(100);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
   {

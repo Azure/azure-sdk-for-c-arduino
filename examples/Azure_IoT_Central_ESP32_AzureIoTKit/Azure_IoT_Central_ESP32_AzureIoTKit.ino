@@ -474,6 +474,8 @@ static void connect_to_wifi()
   LogInfo("Connecting to WIFI wifi_ssid %s", wifi_ssid);
 
   WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  delay(100);
   WiFi.begin(wifi_ssid, wifi_password);
   while (WiFi.status() != WL_CONNECTED)
   {
