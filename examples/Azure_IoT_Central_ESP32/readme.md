@@ -21,6 +21,8 @@ You will complete the following tasks:
 * Build the image and flash it onto the ESP32
 * Use Azure IoT Central to create cloud components, view properties, view device telemetry, and call direct commands
 
+_The following was run on Windows 11, with Arduino IDE 2.1.0 and ESP32 board library version 2.0.9._
+
 ## Prerequisites
 
 * Have the latest [Arduino IDE](https://www.arduino.cc/en/Main/Software) installed.
@@ -29,6 +31,7 @@ You will complete the following tasks:
 
     - ESP32 boards are not natively supported by Arduino IDE, so you need to add them manually.
     - Follow the [instructions](https://github.com/espressif/arduino-esp32) in the official ESP32 repository.
+    - If your ESP32 board is not recognized and a COM port is not mapped by your computer, try installing the [serial port drivers](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/establish-serial-connection.html#connect-esp32-to-pc) recommended by ESPRESSIF.
 
 * Hardware
 

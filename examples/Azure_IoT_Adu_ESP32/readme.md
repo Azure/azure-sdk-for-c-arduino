@@ -46,7 +46,7 @@ This is a "to-the-point" guide outlining how to run an Azure SDK for Embedded C 
 - Setting up and configuring the necessary services for the scenario.
 - Configuration, build, and run instructions for the IoT ADU sample.
 
-_The following was run on Windows 11 and Ubuntu Desktop 20.04 environments, with Arduino IDE 1.8.19 and ESP32 board library version 2.0.4._
+_The following was run on Windows 11, with Arduino IDE 2.1.0 and ESP32 board library version 2.0.9._
 
 ## Prerequisites
 
@@ -63,6 +63,7 @@ _The following was run on Windows 11 and Ubuntu Desktop 20.04 environments, with
 
   - ESP32 boards are not natively supported by Arduino IDE, so you need to add them manually.
   - Follow the [instructions](https://github.com/espressif/arduino-esp32) in the official ESP32 repository.
+  - If your ESP32 board is not recognized and a COM port is not mapped by your computer, try installing the [serial port drivers](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/establish-serial-connection.html#connect-esp32-to-pc) recommended by ESPRESSIF.
 - Install Azure CLI and Azure IoT Module
 
   See steps to install both [here](https://learn.microsoft.com/azure/iot-hub-device-update/create-update?source=recommendations#prerequisites).
