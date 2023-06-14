@@ -79,9 +79,8 @@ static char mqtt_password[200];
 static uint8_t sas_signature_buffer[256];
 static unsigned long next_telemetry_send_time_ms = 0;
 static char telemetry_topic[128];
-static uint8_t telemetry_payload[100];
 static uint32_t telemetry_send_count = 0;
-static String myTelemetry = "{}";
+static String telemetry_payload = "{}";
 
 #define INCOMING_DATA_BUFFER_SIZE 128
 static char incoming_data[INCOMING_DATA_BUFFER_SIZE];
@@ -308,18 +307,17 @@ static void establishConnection()
   (void)initializeMqttClient();
 }
 
-static void getTelemetryPayload(az_span payload, az_span* out_payload)
+static void generateTelemetryPayload()
 {
-  // You can generate the JSON using any lib you want. Here we're showing how to do it manually, for simplicity
-  myTelemetry = "{ \"msgCount\": " + String(telemetry_send_count++) + " }";
-
-  *out_payload = az_span_create((uint8_t*)myTelemetry.c_str(), myTelemetry.length());
+  // You can generate the JSON using any lib you want. Here we're showing how to do it manually, for simplicity.
+  // This sample shows how to generate the payload using a syntax closer to regular delevelopment for Arduino, with
+  // String instead of az_span as it might be done in other samples. Using az_span has the advantage of reusing the 
+  // same char buffer instead of dynamically allocating memory each time, as it is done by String below.
+  telemetry_payload = "{ \"msgCount\": " + String(telemetry_send_count++) + " }";
 }
 
 static void sendTelemetry()
 {
-  az_span telemetry = AZ_SPAN_FROM_BUFFER(telemetry_payload);
-
   Logger.Info("Sending telemetry ...");
 
   // The topic could be obtained just once during setup,
@@ -332,13 +330,13 @@ static void sendTelemetry()
     return;
   }
 
-  getTelemetryPayload(telemetry, &telemetry);
+  generateTelemetryPayload();
 
   if (esp_mqtt_client_publish(
           mqtt_client,
           telemetry_topic,
-          (const char*)az_span_ptr(telemetry),
-          az_span_size(telemetry),
+          (const char*)telemetry_payload.c_str(),
+          telemetry_payload.length(),
           MQTT_QOS1,
           DO_NOT_RETAIN_MSG)
       == 0)
