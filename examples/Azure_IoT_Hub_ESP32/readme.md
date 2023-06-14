@@ -38,22 +38,22 @@ This is a "to-the-point" guide outlining how to run an Azure SDK for Embedded C 
 - Configuration instructions for the Arduino IDE to compile a sample using the [Azure SDK for Embedded C](https://github.com/Azure/azure-sdk-for-c).
 - Configuration, build, and run instructions for the IoT Hub telemetry sample.
 
-_The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with Arduino IDE 1.8.15 and ESP32 board library version 1.0.6._
+_The following was run on Windows 11, with Arduino IDE 2.1.0 and ESP32 board library version 2.0.9._
 
 ## Prerequisites
 
 - Have an [Azure account](https://azure.microsoft.com/) created.
 - Have an [Azure IoT Hub](https://docs.microsoft.com/azure/iot-hub/iot-hub-create-through-portal) created.
-- Have a [logical device](https://docs.microsoft.com/azure/iot-hub/iot-hub-create-through-portal#register-a-new-device-in-the-iot-hub) created in your Azure IoT Hub using the authentication type "Symmetric Key".
-
-    NOTE: Device keys are used to automatically generate a SAS token for authentication.
-
+- Have a logical device created in your Azure IoT Hub: using authentication type "Symmetric Key" or "X.509 self-signed".   
+    - **Symmetric Key**: follow [this guidance](https://docs.microsoft.com/azure/iot-hub/iot-hub-create-through-portal#register-a-new-device-in-the-iot-hub) to create a device.In this case, the device keys are used to automatically generate a SAS token for authentication.
+    - **X.509 self-signed cert**: Instructions on how to create an X.509 cert for tests can be found [here](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#configure-and-run-the-samples) (Step 1). Please note that you might need to install some of the [prerequisites](https://github.com/Azure/azure-sdk-for-c/blob/main/sdk/samples/iot/docs/how_to_iot_hub_samples_linux.md#prerequisites) like OpenSSL.
 - Have the latest [Arduino IDE](https://www.arduino.cc/en/Main/Software) installed.
 
 - Have the [ESP32 board support](https://github.com/espressif/arduino-esp32) installed on Arduino IDE.
 
     - ESP32 boards are not natively supported by Arduino IDE, so you need to add them manually.
     - Follow the [instructions](https://github.com/espressif/arduino-esp32) in the official ESP32 repository.
+    - If your ESP32 board is not recognized and a COM port is not mapped by your computer, try installing the [serial port drivers](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/establish-serial-connection.html#connect-esp32-to-pc) recommended by ESPRESSIF.
 
 - Have one of the following interfaces to your Azure IoT Hub set up:
   - [Azure Command Line Interface](https://docs.microsoft.com/cli/azure/install-azure-cli?view=azure-cli-latest) (Azure CLI) utility installed, along with the [Azure IoT CLI extension](https://github.com/Azure/azure-iot-cli-extension).
@@ -95,7 +95,17 @@ _The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with
 
 4. Configure the ESPRESSIF ESP32 sample.
 
-    Enter your Azure IoT Hub and device information into the sample's `iot_configs.h`.
+    Enter your Azure IoT Hub and device information into the sample's `iot_configs.h`:
+    - Add your Wi-Fi SSID to `IOT_CONFIG_WIFI_SSID`
+    - Add your Wi-Fi password to `IOT_CONFIG_WIFI_PASSWORD`
+    - Add you IoTHub Name to `IOT_CONFIG_IOTHUB_FQDN`
+    - Add your Device ID to `IOT_CONFIG_DEVICE_ID`
+    - If using **X.509 Cert**:
+        - Uncomment the `#define IOT_CONFIG_USE_X509_CERT`
+        - Add your cert to `IOT_CONFIG_USE_X509_CERT`
+        - Add your cert PK to `IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY`
+    - If using **Symmetric Key**:
+        - Add your device key to `IOT_CONFIG_DEVICE_KEY`
 
 5. Connect the ESP32 microcontroller to your USB port.
 
@@ -240,7 +250,7 @@ _The following was run on Windows 10 and Ubuntu Desktop 20.04 environments, with
 
 The Azure IoT service certificates presented during TLS negotiation shall be always validated, on the device, using the appropriate trusted root CA certificate(s).
 
-For the ESP32 sample, our script `generate_arduino_zip_library.sh` automatically downloads the root certificate used in the United States regions (Baltimore CA certificate) and adds it to the Arduino sketch project.
+The Azure SDK for C Arduino library automatically installs the root certificate used in the United States regions, and adds it to the Arduino sketch project when the library is included.
 
 For other regions (and private cloud environments), please use the appropriate root CA certificate.
 

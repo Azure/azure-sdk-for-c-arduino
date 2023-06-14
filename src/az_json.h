@@ -285,7 +285,7 @@ typedef struct
  */
 AZ_NODISCARD AZ_INLINE az_json_writer_options az_json_writer_options_default()
 {
-  az_json_writer_options options = (az_json_writer_options) {
+  az_json_writer_options options = {
     ._internal = {
       .unused = false,
     },
@@ -303,17 +303,39 @@ AZ_NODISCARD AZ_INLINE az_json_writer_options az_json_writer_options_default()
  */
 typedef struct
 {
+  /// The total number of bytes written by the #az_json_writer to the output destination buffer(s).
+  /// This read-only field tracks the number of bytes of JSON written so far, and it shouldn't be
+  /// modified by the caller.
+  int32_t total_bytes_written;
+
   struct
   {
+    /// The destination to write the JSON into.
     az_span destination_buffer;
-    int32_t bytes_written;
-    // For single contiguous buffer, bytes_written == total_bytes_written
-    int32_t total_bytes_written; // Currently, this is primarily used for testing.
+
+    /// The bytes written in the current destination buffer.
+    int32_t bytes_written; // For single contiguous buffer, bytes_written == total_bytes_written
+
+    /// Allocator used to support non-contiguous buffer as a destination.
     az_span_allocator_fn allocator_callback;
+
+    /// Any struct that was provided by the user for their specific implementation, passed through
+    /// to the #az_span_allocator_fn.
     void* user_context;
+
+    /// A state to remember when to emit a comma between JSON array and object elements.
     bool need_comma;
+
+    /// The current state of the writer based on the last token written, used for validating the
+    /// correctness of the JSON being written.
     az_json_token_kind token_kind; // needed for validation, potentially #if/def with preconditions.
+
+    /// The current state of the writer based on the last JSON container it is in (whether array or
+    /// object), used for validating the correctness of the JSON being written, and so it doesn't
+    /// overflow the maximum supported depth.
     _az_json_bit_stack bit_stack; // needed for validation, potentially #if/def with preconditions.
+
+    /// A copy of the options provided by the user.
     az_json_writer_options options;
   } _internal;
 } az_json_writer;
@@ -390,17 +412,16 @@ az_json_writer_get_bytes_used_in_destination(az_json_writer const* json_writer)
 /**
  * @brief Appends the UTF-8 text value (as a JSON string) into the buffer.
  *
- * @note If you receive an #AZ_ERROR_NOT_ENOUGH_SPACE result while appending data for which there is
- * theoretically space, note that the JSON writer requires at least 64-bytes of slack within the
- * output buffer, above the theoretical minimal space needed. The JSON writer pessimistically
- * requires at least 64-bytes of space when writing any chunk of data larger than 10 characters
- * because it tries to write in 64 byte chunks (10 character * 6 if all need to be escaped into the
- * unicode form).
- *
  * @param[in,out] ref_json_writer A pointer to an #az_json_writer instance containing the buffer to
  * append the string value to.
  * @param[in] value The UTF-8 encoded value to be written as a JSON string. The value is escaped
  * before writing.
+ *
+ * @note If you receive an #AZ_ERROR_NOT_ENOUGH_SPACE result while appending data for which there is
+ * sufficient space, note that the JSON writer requires at least 64 bytes of slack within the
+ * output buffer, above the theoretical minimal space needed. The JSON writer pessimistically
+ * requires this extra space because it tries to write formatted text in chunks rather than one
+ * character at a time, whenever the input data is dynamic in size.
  *
  * @remarks If \p value is #AZ_SPAN_EMPTY, the empty JSON string value is written (i.e. "").
  *
@@ -420,19 +441,18 @@ AZ_NODISCARD az_result az_json_writer_append_string(az_json_writer* ref_json_wri
  * is, without any formatting or spacing changes. No modifications are made to this text, including
  * escaping.
  *
+ * @note If you receive an #AZ_ERROR_NOT_ENOUGH_SPACE result while appending data for which there is
+ * sufficient space, note that the JSON writer requires at least 64 bytes of slack within the
+ * output buffer, above the theoretical minimal space needed. The JSON writer pessimistically
+ * requires this extra space because it tries to write formatted text in chunks rather than one
+ * character at a time, whenever the input data is dynamic in size.
+ *
  * @remarks A single, possibly nested, JSON value is one that starts and ends with {} or [] or is a
  * single primitive token. The JSON cannot start with an end object or array, or a property name, or
  * be incomplete.
  *
  * @remarks The function validates that the provided JSON to be appended is valid and properly
  * escaped, and fails otherwise.
- *
- * @note If you receive an #AZ_ERROR_NOT_ENOUGH_SPACE result while appending data for which there is
- * theoretically space, note that the JSON writer requires at least 64-bytes of slack within the
- * output buffer, above the theoretical minimal space needed. The JSON writer pessimistically
- * requires at least 64-bytes of space when writing any chunk of data larger than 10 characters
- * because it tries to write in 64 byte chunks (10 character * 6 if all need to be escaped into the
- * unicode form).
  *
  * @return An #az_result value indicating the result of the operation.
  * @retval #AZ_OK The provided \p json_text was appended successfully.
@@ -455,6 +475,12 @@ az_json_writer_append_json_text(az_json_writer* ref_json_writer, az_span json_te
  * append the property name to.
  * @param[in] name The UTF-8 encoded property name of the JSON value to be written. The name is
  * escaped before writing.
+ *
+ * @note If you receive an #AZ_ERROR_NOT_ENOUGH_SPACE result while appending data for which there is
+ * sufficient space, note that the JSON writer requires at least 64 bytes of slack within the
+ * output buffer, above the theoretical minimal space needed. The JSON writer pessimistically
+ * requires this extra space because it tries to write formatted text in chunks rather than one
+ * character at a time, whenever the input data is dynamic in size.
  *
  * @return An #az_result value indicating the result of the operation.
  * @retval #AZ_OK The property name was appended successfully.
@@ -484,11 +510,10 @@ AZ_NODISCARD az_result az_json_writer_append_bool(az_json_writer* ref_json_write
  * @param[in] value The value to be written as a JSON number.
  *
  * @note If you receive an #AZ_ERROR_NOT_ENOUGH_SPACE result while appending data for which there is
- * theoretically space, note that the JSON writer requires at least 64-bytes of slack within the
+ * sufficient space, note that the JSON writer requires at least 64 bytes of slack within the
  * output buffer, above the theoretical minimal space needed. The JSON writer pessimistically
- * requires at least 64-bytes of space when writing any chunk of data larger than 10 characters
- * because it tries to write in 64 byte chunks (10 character * 6 if all need to be escaped into the
- * unicode form).
+ * requires this extra space because it tries to write formatted text in chunks rather than one
+ * character at a time, whenever the input data is dynamic in size.
  *
  * @return An #az_result value indicating the result of the operation.
  * @retval #AZ_OK The number was appended successfully.
@@ -506,11 +531,10 @@ AZ_NODISCARD az_result az_json_writer_append_int32(az_json_writer* ref_json_writ
  * point and truncate the rest.
  *
  * @note If you receive an #AZ_ERROR_NOT_ENOUGH_SPACE result while appending data for which there is
- * theoretically space, note that the JSON writer requires at least 64-bytes of slack within the
+ * sufficient space, note that the JSON writer requires at least 64 bytes of slack within the
  * output buffer, above the theoretical minimal space needed. The JSON writer pessimistically
- * requires at least 64-bytes of space when writing any chunk of data larger than 10 characters
- * because it tries to write in 64 byte chunks (10 character * 6 if all need to be escaped into the
- * unicode form).
+ * requires this extra space because it tries to write formatted text in chunks rather than one
+ * character at a time, whenever the input data is dynamic in size.
  *
  * @return An #az_result value indicating the result of the operation.
  * @retval #AZ_OK The number was appended successfully.
@@ -621,7 +645,7 @@ typedef struct
  */
 AZ_NODISCARD AZ_INLINE az_json_reader_options az_json_reader_options_default()
 {
-  az_json_reader_options options = (az_json_reader_options) {
+  az_json_reader_options options = {
     ._internal = {
       .unused = false,
     },
@@ -767,6 +791,29 @@ AZ_NODISCARD az_result az_json_reader_next_token(az_json_reader* ref_json_reader
  * end object or array. For all other token kinds, the reader doesn't move and returns #AZ_OK.
  */
 AZ_NODISCARD az_result az_json_reader_skip_children(az_json_reader* ref_json_reader);
+
+/**
+ * @brief Unescapes the JSON string within the provided #az_span.
+ *
+ * @param[in] json_string The #az_span that contains the string to be unescaped.
+ * @param destination The destination buffer used to write the unescaped output into.
+ *
+ * @return An #az_span that is a slice of the \p destination #az_span containing the unescaped JSON
+ * string, which denotes the length of the unescaped string.
+ *
+ * @remarks For user-defined or unknown input, the buffer referred to by \p destination must be at
+ * least as large as the \p json_string #az_span. Content is copied from the source buffer, while
+ * unescaping.
+ *
+ * @remarks This function assumes that the \p json_string input is well-formed JSON.
+ *
+ * @remarks This function assumes that the \p destination has a large enough size to hold the
+ * unescaped \p json_string.
+ *
+ * @remarks This API can also be used to perform in place unescaping. However, doing so, is
+ * destructive and the input JSON may no longer be valid or parsable.
+ */
+AZ_NODISCARD az_span az_json_string_unescape(az_span json_string, az_span destination);
 
 #include <_az_cfg_suffix.h>
 

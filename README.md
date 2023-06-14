@@ -1,19 +1,37 @@
 # Project
 
-For more details about the Azure Embedded SDK for C please refer to the [official library website](https://github.com/azure/azure-sdk-for-c).
+The Arduino library is built from the Azure Embedded SDK for C. For more details about it, please refer to the [official library website](https://github.com/azure/azure-sdk-for-c).
 
-This library package contains the following samples.
-Please refer to their documentation for setup and execution instructions.
+There are several other alternatives to get MCU-based devices connected to Azure. See [Other Azure IoT SDKs](https://learn.microsoft.com/azure/iot-develop/concepts-using-c-sdk-and-embedded-c-sdk) to learn more.
 
-[Azure IoT Central ESPRESSIF ESP32 Azure IoT Kit](examples/Azure_IoT_Central_ESP32_AzureIoTKit/readme.md)
+This library package contains the following samples. Please refer to their documentation for setup and execution instructions:
 
-[Azure IoT Central ESPRESSIF ESP32](examples/Azure_IoT_Central_ESP32/readme.md)
+- [Azure IoT Central ESPRESSIF ESP32 Azure IoT Kit](examples/Azure_IoT_Central_ESP32_AzureIoTKit/readme.md)
 
-[Azure IoT Hub ESPRESSIF ESP-8266](examples/Azure_IoT_Hub_ESP8266/readme.md)
+- [Azure IoT Central ESPRESSIF ESP32](examples/Azure_IoT_Central_ESP32/readme.md)
 
-[Azure IoT Hub ESPRESSIF ESP-32](examples/Azure_IoT_Hub_ESP32/readme.md)
+- [Azure IoT Central Arduino Nano RP2040](examples/Azure_IoT_Central_Arduino_Nano_RP2040_Connect/readme.md)
 
-[Azure IoT Hub Realtek AmebaD](examples/Azure_IoT_Hub_RealtekAmebaD/readme.md)
+- [Azure IoT Central Arduino Portenta H7](examples/Azure_IoT_Central_Arduino_Portenta_H7/readme.md)
+
+- [Azure IoT Hub ESPRESSIF ESP8266](examples/Azure_IoT_Hub_ESP8266/readme.md)
+
+- [Azure IoT Hub ESPRESSIF ESP32](examples/Azure_IoT_Hub_ESP32/readme.md)
+
+- [Azure IoT Hub Realtek AmebaD](examples/Azure_IoT_Hub_RealtekAmebaD/readme.md)
+
+- [Azure IoT Hub Arduino Nano RP2040](examples/Azure_IoT_Hub_Arduino_Nano_RP2040_Connect/README.md)
+
+- [Azure IoT Hub Arduino Portenta H7](examples/Azure_IoT_Hub_PortentaH7/README.md)
+
+- [Azure IoT Device Update ESP32](examples/Azure_IoT_Adu_ESP32/readme.md)
+
+What is the difference between **IoT Hub** and **IoT Central** samples?
+
+1. IoT Hub samples will get devices connected directly to [Azure IoT Hub](https://docs.microsoft.com/azure/iot-hub/iot-concepts-and-iot-hub)
+1. IoT Central samples will leverage DPS ([Device Provisioning Service](https://docs.microsoft.com/azure/iot-dps/about-iot-dps)) to provision the device and then connect it to [Azure IoT Central](https://docs.microsoft.com/azure/iot-central/core/overview-iot-central). 
+
+Please note that provisioning through DPS is mandatory for IoT Central scenarios, but DPS can also be used for IoT Hub devices as well.
 
 ## Contributing
 
@@ -22,6 +40,16 @@ For reporting any issues or requesting support, please open an issue on [azure-s
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+
+### Fix Code Formatting
+
+Run the following command from the root of the sdk with `clang-format` version 9.0.0.
+
+```bash
+find ./examples \( -iname '*.h' -o -iname '*.c' -o -iname '*.cpp' -o -iname '*.ino' \) -exec clang-format -i {} \;
+```
+
+Commit the resulting code formatting changes if there are any.
 
 ### Reporting Security Issues and Security Bugs
 

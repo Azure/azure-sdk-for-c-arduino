@@ -5,7 +5,7 @@
  * This is an Arduino-based Azure IoT Hub sample for ESPRESSIF ESP8266 board.
  * It uses our Azure Embedded SDK for C to help interact with Azure IoT.
  * For reference, please visit https://github.com/azure/azure-sdk-for-c.
- * 
+ *
  * To connect and work with Azure IoT Hub you need an MQTT client, connecting, subscribing
  * and publishing to specific topics to use the messaging features of the hub.
  * Our azure-sdk-for-c is an MQTT client support library, helping to compose and parse the
@@ -14,18 +14,21 @@
  * This sample performs the following tasks:
  * - Synchronize the device clock with a NTP server;
  * - Initialize our "az_iot_hub_client" (struct for data, part of our azure-sdk-for-c);
- * - Initialize the MQTT client (here we use Nick Oleary's PubSubClient, which also handle the tcp connection and TLS);
- * - Connect the MQTT client (using server-certificate validation, SAS-tokens for client authentication);
+ * - Initialize the MQTT client (here we use Nick Oleary's PubSubClient, which also handle the tcp
+ * connection and TLS);
+ * - Connect the MQTT client (using server-certificate validation, SAS-tokens for client
+ * authentication);
  * - Periodically send telemetry data to the Azure IoT Hub.
- * 
- * To properly connect to your Azure IoT Hub, please fill the information in the `iot_configs.h` file. 
+ *
+ * To properly connect to your Azure IoT Hub, please fill the information in the `iot_configs.h`
+ * file.
  */
 
 // C99 libraries
-#include <string.h>
-#include <stdbool.h>
-#include <time.h>
 #include <cstdlib>
+#include <stdbool.h>
+#include <string.h>
+#include <time.h>
 
 // Libraries for MQTT client, WiFi connection and SAS-token generation.
 #include <ESP8266WiFi.h>
@@ -41,12 +44,12 @@
 #include <az_iot.h>
 #include <azure_ca.h>
 
-// Additional sample headers 
+// Additional sample headers
 #include "iot_configs.h"
 
 // When developing for your own Arduino-based platform,
-// please follow the format '(ard;<platform>)'. 
-#define AZURE_SDK_CLIENT_USER_AGENT "c/" AZ_SDK_VERSION_STRING "(ard;esp8266)"
+// please follow the format '(ard;<platform>)'.
+#define AZURE_SDK_CLIENT_USER_AGENT "c%2F" AZ_SDK_VERSION_STRING "(ard;esp8266)"
 
 // Utility macros and defines
 #define LED_PIN 2
@@ -77,7 +80,6 @@ static char telemetry_topic[128];
 static uint8_t telemetry_payload[100];
 static uint32_t telemetry_send_count = 0;
 
-
 // Auxiliary functions
 
 static void connectToWiFi()
@@ -88,6 +90,8 @@ static void connectToWiFi()
   Serial.println(ssid);
 
   WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  delay(100);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -162,10 +166,7 @@ static void initializeClients()
  * @brief           Gets the number of seconds since UNIX epoch until now.
  * @return uint32_t Number of seconds.
  */
-static uint32_t getSecondsSinceEpoch()
-{
-  return (uint32_t)time(NULL);
-}
+static uint32_t getSecondsSinceEpoch() { return (uint32_t)time(NULL); }
 
 static int generateSasToken(char* sas_token, size_t size)
 {
@@ -282,7 +283,7 @@ static int connectToAzureIoTHub()
   return 0;
 }
 
-static void establishConnection() 
+static void establishConnection()
 {
   connectToWiFi();
   initializeTime();
@@ -308,7 +309,7 @@ static char* getTelemetryPayload()
 {
   az_span temp_span = az_span_create(telemetry_payload, sizeof(telemetry_payload));
   temp_span = az_span_copy(temp_span, AZ_SPAN_FROM_STR("{ \"msgCount\": "));
-  (void)az_span_u32toa(temp_span, telemetry_send_count++, &temp_span);  
+  (void)az_span_u32toa(temp_span, telemetry_send_count++, &temp_span);
   temp_span = az_span_copy(temp_span, AZ_SPAN_FROM_STR(" }"));
   temp_span = az_span_copy_u8(temp_span, '\0');
 
@@ -333,7 +334,6 @@ static void sendTelemetry()
   digitalWrite(LED_PIN, LOW);
 }
 
-
 // Arduino setup and loop main functions.
 
 void setup()
@@ -348,7 +348,7 @@ void loop()
   if (millis() > next_telemetry_send_time_ms)
   {
     // Check if connected, reconnect if needed.
-    if(!mqtt_client.connected())
+    if (!mqtt_client.connected())
     {
       establishConnection();
     }

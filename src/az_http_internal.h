@@ -1,6 +1,17 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // SPDX-License-Identifier: MIT
 
+/**
+ * @file
+ *
+ * @brief Defines internals used by http.
+ *
+ * @note You MUST NOT use any symbols (macros, functions, structures, enums, etc.)
+ * prefixed with an underscore ('_') directly in your application code. These symbols
+ * are part of Azure SDK's internal implementation; we do not document these symbols
+ * and they are subject to change in future versions of the SDK which would break your code.
+ */
+
 #ifndef _az_HTTP_INTERNAL_H
 #define _az_HTTP_INTERNAL_H
 
@@ -83,9 +94,9 @@ AZ_NODISCARD AZ_INLINE _az_http_policy_apiversion_options
 _az_http_policy_apiversion_options_default()
 {
   return (_az_http_policy_apiversion_options){
-    ._internal = { .option_location = _az_http_policy_apiversion_option_location_header,
-                   .name = AZ_SPAN_EMPTY,
-                   .version = AZ_SPAN_EMPTY }
+    ._internal = { .name = AZ_SPAN_EMPTY,
+                   .version = AZ_SPAN_EMPTY,
+                   .option_location = _az_http_policy_apiversion_option_location_header }
   };
 }
 
