@@ -427,7 +427,8 @@ void loop()
     switch (azure_iot_get_status(&azure_iot))
     {
       case azure_iot_connected:
-        if (!azure_initial_connect) azure_initial_connect = true;
+        azure_initial_connect = true;
+
         if (send_device_info)
         {
           (void)azure_pnp_send_device_info(&azure_iot, properties_request_id++);
