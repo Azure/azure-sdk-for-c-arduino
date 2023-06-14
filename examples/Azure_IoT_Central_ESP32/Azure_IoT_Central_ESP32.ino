@@ -411,13 +411,14 @@ void loop()
 {
   if (WiFi.status() != WL_CONNECTED)
   {
-    if (azure_iot.state != azure_iot_state_not_initialized)
-      azure_iot_stop(&azure_iot);
+    azure_iot_stop(&azure_iot);
     
     connect_to_wifi();
     
     if (!azure_initial_connect)
+    {
       configure_azure_iot();
+    }
     
     azure_iot_start(&azure_iot);
   }
