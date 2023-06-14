@@ -311,7 +311,7 @@ static void generateTelemetryPayload()
 {
   // You can generate the JSON using any lib you want. Here we're showing how to do it manually, for simplicity.
   // This sample shows how to generate the payload using a syntax closer to regular delevelopment for Arduino, with
-  // String instead of az_span as it might be done in other samples. Using az_span has the advantage of reusing the 
+  // String type instead of az_span as it might be done in other samples. Using az_span has the advantage of reusing the 
   // same char buffer instead of dynamically allocating memory each time, as it is done by String below.
   telemetry_payload = "{ \"msgCount\": " + String(telemetry_send_count++) + " }";
 }
