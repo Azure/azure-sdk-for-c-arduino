@@ -65,8 +65,8 @@
 // please update the suffix with the format '(ard;<platform>)' as an url-encoded string.
 #define AZURE_SDK_CLIENT_USER_AGENT "c%2F" AZ_SDK_VERSION_STRING "(ard%3Besp32)"
 
-// Publish 1 message every 2 seconds.
-#define TELEMETRY_FREQUENCY_IN_SECONDS 2
+// Publish 1 message every 10 seconds.
+#define TELEMETRY_FREQUENCY_IN_SECONDS 10
 
 // For how long the MQTT password (SAS token) is valid, in minutes.
 // After that, the sample automatically generates a new password and re-connects.

@@ -354,6 +354,7 @@ void setup()
   ArduinoBearSSL.onGetTime(get_time); // Required for server trusted root validation.
 
   azure_pnp_init();
+  azure_pnp_set_telemetry_frequency(TELEMETRY_FREQUENCY_IN_SECONDS);
 
   /* 
    * The configuration structure used by Azure IoT must remain unchanged (including data buffer) 

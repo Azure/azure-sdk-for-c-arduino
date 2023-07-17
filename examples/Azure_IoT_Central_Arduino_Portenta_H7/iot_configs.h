@@ -18,6 +18,9 @@
 // After that, the sample automatically generates a new password and re-connects.
 #define IOT_CONFIG_MQTT_PASSWORD_LIFETIME_IN_MINUTES 60
 
+// Publish 1 message every 10 seconds.
+#define TELEMETRY_FREQUENCY_IN_SECONDS 10
+
 // Time Zone Offset
 #define IOT_CONFIG_TIME_ZONE -8
 #define IOT_CONFIG_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF 1
