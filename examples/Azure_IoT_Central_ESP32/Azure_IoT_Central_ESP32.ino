@@ -83,7 +83,12 @@ static const char* wifi_password = IOT_CONFIG_WIFI_PASSWORD;
 /* --- Function Declarations --- */
 static void sync_device_clock_with_ntp_server();
 static void connect_to_wifi();
+
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
+#else // ESP_ARDUINO_VERSION_MAJOR
 static esp_err_t esp_mqtt_event_handler(esp_mqtt_event_handle_t event);
+#endif // ESP_ARDUINO_VERSION_MAJOR
 
 // This is a logging function used by Azure IoT client.
 static void logging_function(log_level_t log_level, char const* const format, ...);
@@ -127,25 +132,48 @@ static int mqtt_client_init_function(
   mqtt_broker_uri_span = az_span_copy(mqtt_broker_uri_span, mqtt_client_config->address);
   az_span_copy_u8(mqtt_broker_uri_span, null_terminator);
 
-  mqtt_config.uri = mqtt_broker_uri;
-  mqtt_config.port = mqtt_client_config->port;
-  mqtt_config.client_id = (const char*)az_span_ptr(mqtt_client_config->client_id);
-  mqtt_config.username = (const char*)az_span_ptr(mqtt_client_config->username);
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+    mqtt_config.broker.address.uri = mqtt_broker_uri;
+    mqtt_config.broker.address.port = mqtt_client_config->port;
+    mqtt_config.credentials.client_id = (const char*)az_span_ptr(mqtt_client_config->client_id);
+    mqtt_config.credentials.username = (const char*)az_span_ptr(mqtt_client_config->username);
 
-#ifdef IOT_CONFIG_USE_X509_CERT
-  LogInfo("MQTT client using X509 Certificate authentication");
-  mqtt_config.client_cert_pem = IOT_CONFIG_DEVICE_CERT;
-  mqtt_config.client_key_pem = IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY;
-#else // Using SAS key
-  mqtt_config.password = (const char*)az_span_ptr(mqtt_client_config->password);
-#endif
+  #ifdef IOT_CONFIG_USE_X509_CERT
+    LogInfo("MQTT client using X509 Certificate authentication");
+    mqtt_config.credentials.authentication.certificate = IOT_CONFIG_DEVICE_CERT;
+    mqtt_config.credentials.authentication.certificate_len = (size_t)sizeof(IOT_CONFIG_DEVICE_CERT);
+    mqtt_config.credentials.authentication.key = IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY;
+    mqtt_config.credentials.authentication.key_len = (size_t)sizeof(IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY);
+  #else // Using SAS key
+    mqtt_config.credentials.authentication.password = (const char*)az_span_ptr(mqtt_client_config->password);
+  #endif
 
-  mqtt_config.keepalive = 30;
-  mqtt_config.disable_clean_session = 0;
-  mqtt_config.disable_auto_reconnect = false;
-  mqtt_config.event_handle = esp_mqtt_event_handler;
-  mqtt_config.user_context = NULL;
-  mqtt_config.cert_pem = (const char*)ca_pem;
+    mqtt_config.session.keepalive = 30;
+    mqtt_config.session.disable_clean_session = 0;
+    mqtt_config.network.disable_auto_reconnect = false;
+    mqtt_config.broker.verification.certificate = (const char*)ca_pem;
+    mqtt_config.broker.verification.certificate_len = (size_t)ca_pem_len;
+#else // ESP_ARDUINO_VERSION_MAJOR
+    mqtt_config.uri = mqtt_broker_uri;
+    mqtt_config.port = mqtt_client_config->port;
+    mqtt_config.client_id = (const char*)az_span_ptr(mqtt_client_config->client_id);
+    mqtt_config.username = (const char*)az_span_ptr(mqtt_client_config->username);
+
+  #ifdef IOT_CONFIG_USE_X509_CERT
+    LogInfo("MQTT client using X509 Certificate authentication");
+    mqtt_config.client_cert_pem = IOT_CONFIG_DEVICE_CERT;
+    mqtt_config.client_key_pem = IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY;
+  #else // Using SAS key
+    mqtt_config.password = (const char*)az_span_ptr(mqtt_client_config->password);
+  #endif
+
+    mqtt_config.keepalive = 30;
+    mqtt_config.disable_clean_session = 0;
+    mqtt_config.disable_auto_reconnect = false;
+    mqtt_config.event_handle = esp_mqtt_event_handler;
+    mqtt_config.user_context = NULL;
+    mqtt_config.cert_pem = (const char*)ca_pem;
+#endif // ESP_ARDUINO_VERSION_MAJOR
 
   LogInfo("MQTT client target uri set to '%s'", mqtt_broker_uri);
 
@@ -158,6 +186,10 @@ static int mqtt_client_init_function(
   }
   else
   {
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+    esp_mqtt_client_register_event(mqtt_client, MQTT_EVENT_ANY, esp_mqtt_event_handler, NULL);
+#endif // ESP_ARDUINO_VERSION_MAJOR
+
     esp_err_t start_result = esp_mqtt_client_start(mqtt_client);
 
     if (start_result != ESP_OK)
@@ -400,7 +432,6 @@ void setup()
   sync_device_clock_with_ntp_server();
 
   azure_pnp_init();
-  azure_pnp_set_telemetry_frequency(TELEMETRY_FREQUENCY_IN_SECONDS);
 
   configure_azure_iot();
   azure_iot_start(&azure_iot);
@@ -502,8 +533,18 @@ static void connect_to_wifi()
   LogInfo("WiFi connected, IP address: %s", WiFi.localIP().toString().c_str());
 }
 
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+static void esp_mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
+{
+  (void)handler_args;
+  (void)base;
+  (void)event_id;
+
+  esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
+#else // ESP_ARDUINO_VERSION_MAJOR
 static esp_err_t esp_mqtt_event_handler(esp_mqtt_event_handle_t event)
 {
+#endif // ESP_ARDUINO_VERSION_MAJOR
   switch (event->event_id)
   {
     int i, r;
@@ -611,7 +652,10 @@ static esp_err_t esp_mqtt_event_handler(esp_mqtt_event_handle_t event)
       break;
   }
 
-  return ESP_OK;
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+#else // ESP_ARDUINO_VERSION_MAJOR
+return ESP_OK;
+#endif // ESP_ARDUINO_VERSION_MAJOR
 }
 
 static void logging_function(log_level_t log_level, char const* const format, ...)
