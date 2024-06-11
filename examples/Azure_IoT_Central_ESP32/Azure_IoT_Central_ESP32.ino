@@ -654,7 +654,7 @@ static esp_err_t esp_mqtt_event_handler(esp_mqtt_event_handle_t event)
 
 #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
 #else // ESP_ARDUINO_VERSION_MAJOR
-return ESP_OK;
+  return ESP_OK;
 #endif // ESP_ARDUINO_VERSION_MAJOR
 }
 
