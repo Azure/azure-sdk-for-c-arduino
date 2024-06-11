@@ -141,8 +141,18 @@ void receivedCallback(char* topic, byte* payload, unsigned int length)
   Serial.println("");
 }
 
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
+{
+  (void)handler_args;
+  (void)base;
+  (void)event_id;
+
+  esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
+#else // ESP_ARDUINO_VERSION_MAJOR
 static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 {
+#endif // ESP_ARDUINO_VERSION_MAJOR
   switch (event->event_id)
   {
     int i, r;
@@ -202,7 +212,10 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
       break;
   }
 
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+#else // ESP_ARDUINO_VERSION_MAJOR
   return ESP_OK;
+#endif // ESP_ARDUINO_VERSION_MAJOR
 }
 
 static void initializeIoTHubClient()
@@ -251,6 +264,29 @@ static int initializeMqttClient()
 
   esp_mqtt_client_config_t mqtt_config;
   memset(&mqtt_config, 0, sizeof(mqtt_config));
+
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+    mqtt_config.broker.address.uri = mqtt_broker_uri;
+    mqtt_config.broker.address.port = mqtt_port;
+    mqtt_config.credentials.client_id = mqtt_client_id;
+    mqtt_config.credentials.username = mqtt_username;
+
+  #ifdef IOT_CONFIG_USE_X509_CERT
+    LogInfo("MQTT client using X509 Certificate authentication");
+    mqtt_config.credentials.authentication.certificate = IOT_CONFIG_DEVICE_CERT;
+    mqtt_config.credentials.authentication.certificate_len = (size_t)sizeof(IOT_CONFIG_DEVICE_CERT);
+    mqtt_config.credentials.authentication.key = IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY;
+    mqtt_config.credentials.authentication.key_len = (size_t)sizeof(IOT_CONFIG_DEVICE_CERT_PRIVATE_KEY);
+  #else // Using SAS key
+    mqtt_config.credentials.authentication.password = (const char*)az_span_ptr(sasToken.Get());
+  #endif
+
+    mqtt_config.session.keepalive = 30;
+    mqtt_config.session.disable_clean_session = 0;
+    mqtt_config.network.disable_auto_reconnect = false;
+    mqtt_config.broker.verification.certificate = (const char*)ca_pem;
+    mqtt_config.broker.verification.certificate_len = (size_t)ca_pem_len;
+#else // ESP_ARDUINO_VERSION_MAJOR  
   mqtt_config.uri = mqtt_broker_uri;
   mqtt_config.port = mqtt_port;
   mqtt_config.client_id = mqtt_client_id;
@@ -270,6 +306,7 @@ static int initializeMqttClient()
   mqtt_config.event_handle = mqtt_event_handler;
   mqtt_config.user_context = NULL;
   mqtt_config.cert_pem = (const char*)ca_pem;
+#endif // ESP_ARDUINO_VERSION_MAJOR
 
   mqtt_client = esp_mqtt_client_init(&mqtt_config);
 
@@ -278,6 +315,10 @@ static int initializeMqttClient()
     Logger.Error("Failed creating mqtt client");
     return 1;
   }
+
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+    esp_mqtt_client_register_event(mqtt_client, MQTT_EVENT_ANY, mqtt_event_handler, NULL);
+#endif // ESP_ARDUINO_VERSION_MAJOR
 
   esp_err_t start_result = esp_mqtt_client_start(mqtt_client);
 
