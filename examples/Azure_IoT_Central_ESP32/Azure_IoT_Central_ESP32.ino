@@ -85,7 +85,7 @@ static void sync_device_clock_with_ntp_server();
 static void connect_to_wifi();
 
 #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
-static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
+static void esp_mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
 #else // ESP_ARDUINO_VERSION_MAJOR
 static esp_err_t esp_mqtt_event_handler(esp_mqtt_event_handle_t event);
 #endif // ESP_ARDUINO_VERSION_MAJOR
