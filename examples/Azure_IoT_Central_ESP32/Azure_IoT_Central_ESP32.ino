@@ -432,6 +432,7 @@ void setup()
   sync_device_clock_with_ntp_server();
 
   azure_pnp_init();
+  azure_pnp_set_telemetry_frequency(TELEMETRY_FREQUENCY_IN_SECONDS);
 
   configure_azure_iot();
   azure_iot_start(&azure_iot);
